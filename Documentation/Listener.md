@@ -47,13 +47,13 @@ var consumerConfigs = new TestProtobuffListener.ConsumerListenerConfig[]
     "IncomeTopicName",
     new int[] { 2 }
   )
-  };
+};
 
-  var configKafka = new TestProtobuffListener.ConfigListener(
-    "grouId",
-    "localhost:9194, localhost:9294, localhost:9394",//bootstrapServers
-    consumerConfigs
-    );
+var configKafka = new TestProtobuffListener.ConfigListener(
+  "grouId",
+  "localhost:9194, localhost:9294, localhost:9394",//bootstrapServers
+  consumerConfigs
+  );
 
-  simpleListener.Start(configKafka);
+simpleListener.Start(configKafka);
 ```
