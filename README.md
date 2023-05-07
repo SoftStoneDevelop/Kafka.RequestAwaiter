@@ -90,6 +90,7 @@ Declare partial classes with attributes:
 Pass configs to Start methods. It's all what you need to do.
 ```C#
 
+            var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
             var awaitService = new TestProtobuffAwaiter(loggerFactory);
             //for each ConsumerConfig created own consumer and thread.
             //In this case simpleAwaiter create 3 thread/consumer/producer
@@ -116,7 +117,7 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            awaitService.Start(configKafka);
+            awaitService.Start(configKafka, producerPool);
 
             var response = await awaitService.Produce(
                     new protobuff.SimpleKey() { Id = 459  },
@@ -129,7 +130,7 @@ Pass configs to Start methods. It's all what you need to do.
 ```
 
 ```C#
-
+            var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
             var responderService = new TestProtobuffResponder(loggerFactory);
             var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
             {
@@ -198,5 +199,5 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            responderService.Start(configKafka);
+            responderService.Start(configKafka, producerPool);
 ```
