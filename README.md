@@ -11,7 +11,7 @@
 
 </h3>
 
-Generation of messaging services based on the Kafka broker.
+A Kafka broker message processing service generator to simplify communication in a microservices environment.
 
 Usage with Protobuff key/value:
 
