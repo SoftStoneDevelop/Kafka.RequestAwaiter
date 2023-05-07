@@ -11,7 +11,7 @@
 
 </h3>
 
-Generation of messaging services based on the Kafka broker.
+A Kafka broker message processing service generator to simplify communication in a microservices environment.
 
 Usage with Protobuff key/value:
 
@@ -86,7 +86,7 @@ Declare partial classes with attributes:
 Pass configs to Start methods. It's all what you need to do.
 ```C#
 
-            var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
+            var awaitService = new TestProtobuffAwaiter(loggerFactory);
             //for each ConsumerConfig created own consumer and thread.
             //In this case simpleAwaiter create 3 thread/consumer/producer
             var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
@@ -112,13 +112,21 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            simpleAwaiter.Start(configKafka);
+            awaitService.Start(configKafka);
 
+            var response = await awaitService.Produce(
+                    new protobuff.SimpleKey() { Id = 459  },
+                    new protobuff.SimpleValue() { Id = 459, Priority = protobuff.Priority.Unspecified, Message = "Hello world!" }
+                    );
+            //response.Result.Key is incomeKeyType(protobuff.SimpleKey)
+            //response.Result.Value is incomeValueType(protobuff.SimpleValue)
+            
+            response.FinishProcessing();
 ```
 
 ```C#
 
-            var simpleResponder = new TestProtobuffResponder(loggerFactory);
+            var responderService = new TestProtobuffResponder(loggerFactory);
             var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
             {
                     new TestProtobuffResponder.ConsumerResponderConfig(
@@ -186,6 +194,5 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            simpleResponder.Start(configKafka);
-
+            responderService.Start(configKafka);
 ```
