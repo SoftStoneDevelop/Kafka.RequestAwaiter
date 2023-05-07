@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Datas;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections;
@@ -18,24 +19,24 @@ namespace KafkaExchanger.Generators
         {
             _builder.Clear();
 
+            var producerPair = new ProducerPair(data.OutcomeKeyType, data.OutcomeValueType);
             Start(data);
 
-            Interface(data);
+            Interface(data, producerPair);
 
-
-            ResponderClass(data);
+            ResponderClass(data, producerPair);
 
             End();
 
             context.AddSource($"{data.TypeSymbol.Name}Responder.g.cs", _builder.ToString());
         }
 
-        private void ResponderClass(ResponderData data)
+        private void ResponderClass(ResponderData data, ProducerPair producerPair)
         {
             StartClass(data);
 
-            StartResponderMethod(data);
-            BuildPartitionItems(data);
+            StartResponderMethod(data, producerPair);
+            BuildPartitionItems(data, producerPair);
             StopAsync(data);
 
             ConfigResponder(data);
@@ -44,23 +45,21 @@ namespace KafkaExchanger.Generators
             IncomeMessage(data);
             OutcomeMessage(data);
 
-            PartitionItem(data);
+            PartitionItem(data, producerPair);
 
             EndInterfaceOrClass(data);
         }
 
-        private void PartitionItem(ResponderData data)
+        private void PartitionItem(ResponderData data, ProducerPair producerPair)
         {
-            PartitionItemStartClass(data);
+            PartitionItemStartClass(data, producerPair);
             PartitionItemStartMethod(data);
 
             PartitionItemStartConsume(data);
             PartitionItemStopConsume(data);
 
-            PartitionItemStartProduce(data);
-            PartitionItemStopProduce(data);
             PartitionItemStop(data);
-            PartitionItemProduce(data);
+            PartitionItemProduce(data, producerPair);
             CreateOutcomeHeader(data);
 
             _builder.Append($@"
@@ -84,10 +83,10 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Interface(ResponderData data)
+        private void Interface(ResponderData data, ProducerPair producerPair)
         {
             StartInterface(data);
-            InterfaceMethods(data);
+            InterfaceMethods(data, producerPair);
             EndInterfaceOrClass(data);
         }
 
@@ -99,10 +98,10 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void InterfaceMethods(ResponderData data)
+        private void InterfaceMethods(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigResponder config);
+        public void Start({data.TypeSymbol.Name}.ConfigResponder config, {producerPair.FullPoolInterfaceName} producerPool);
 
         public Task StopAsync();
 ");
@@ -130,12 +129,12 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartResponderMethod(ResponderData data)
+        private void StartResponderMethod(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigResponder config)
+        public void Start({data.TypeSymbol.Name}.ConfigResponder config, {producerPair.FullPoolInterfaceName} producerPool)
         {{
-            BuildPartitionItems(config);
+            BuildPartitionItems(config, producerPool);
 
             foreach (var item in _items)
             {{
@@ -148,10 +147,10 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(ResponderData data)
+        private void BuildPartitionItems(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigResponder config)
+        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigResponder config, {producerPair.FullPoolInterfaceName} producerPool)
         {{
             _items = new PartitionItem[config.ConsumerConfigs.Length];
             var items = _items.AsSpan();
@@ -161,7 +160,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
                     new PartitionItem(
                         config.ConsumerConfigs[i].TopicName,
                         config.ConsumerConfigs[i].CreateAnswerDelegate,
-                        config.ConsumerConfigs[i].Partitions
+                        config.ConsumerConfigs[i].Partitions,
+                        producerPool
                         {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         );
             }}
@@ -254,7 +254,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartClass(ResponderData data)
+        private void PartitionItemStartClass(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
         private class PartitionItem
@@ -262,7 +262,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
             public PartitionItem(
                 string incomeTopicName,
                 Func<IncomeMessage, OutcomeMessage> createAnswer,
-                int[] partitions
+                int[] partitions,
+                {producerPair.FullPoolInterfaceName} producerPool
                 {(data.UseLogger ? @",ILogger logger" : "")}
                 )
             {{
@@ -270,6 +271,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {(data.UseLogger ? @"_logger = logger;" : "")}
                 _incomeTopicName = incomeTopicName;
                 _createAnswer = createAnswer;
+                _producerPool = producerPool;
             }}
 
             {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
@@ -279,7 +281,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             private CancellationTokenSource _cts;
             private Task _routineConsume;
 
-            private IProducer<{GetProducerTType(data)}> _producer;
+            private {producerPair.FullPoolInterfaceName} _producerPool;
 
             public int[] Partitions {{ get; init; }}
 ");
@@ -294,7 +296,6 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 )
             {{
                 StartConsume(bootstrapServers, groupId);
-                StartProduce(bootstrapServers);
             }}
 ");
         }
@@ -414,48 +415,17 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartProduce(ResponderData data)
-        {
-            _builder.Append($@"
-            private void StartProduce(string bootstrapServers)
-            {{
-                var config = new ProducerConfig
-                {{
-                    BootstrapServers = bootstrapServers,
-                    AllowAutoCreateTopics = false
-                }};
-
-                _producer =
-                    new ProducerBuilder<{GetProducerTType(data)}>(config)
-                    .Build()
-                    ;
-            }}
-");
-        }
-
-        private void PartitionItemStopProduce(ResponderData data)
-        {
-            _builder.Append($@"
-            private void StopProduce()
-            {{
-                _producer?.Flush();
-                _producer?.Dispose();
-            }}
-");
-        }
-
         private void PartitionItemStop(ResponderData data)
         {
             _builder.Append($@"
             public async Task Stop()
             {{
-                StopProduce();
                 await StopConsume();
             }}
 ");
         }
 
-        private void PartitionItemProduce(ResponderData data)
+        private void PartitionItemProduce(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
             private async Task Produce(
@@ -465,7 +435,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {{
 ");
 
-            CreateOutcomeMessage(data);
+            CreateOutcomeMessage(data, producerPair);
 
             _builder.Append($@"
                 var header = CreateOutcomeHeader(headerInfo);
@@ -483,9 +453,18 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
                     var topicsForAnswer = headerInfo.TopicsForAnswer.First();
                     var topicPartition = new TopicPartition(topicsForAnswer.Name, topicsForAnswer.Partitions.First());
-                    var deliveryResult = await _producer.ProduceAsync(topicPartition, message);
+                    
+                    var producer = _producerPool.Rent();
+                    try
+                    {{
+                        var deliveryResult = await producer.ProduceAsync(topicPartition, message);
+                    }}
+                    finally
+                    {{
+                        _producerPool.Return(producer);
+                    }}
                 }}
-                catch (ProduceException<{GetProducerTType(data)}> e)
+                catch (ProduceException<{producerPair.TypesPair}> e)
                 {{
                     {(data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "//ignore")}
                 }}
@@ -508,20 +487,15 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void CreateOutcomeMessage(ResponderData data)
+        private void CreateOutcomeMessage(ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-                var message = new Message<{GetProducerTType(data)}>()
+                var message = new Message<{producerPair.TypesPair}>()
                 {{
                     Key = {(data.OutcomeKeyType.IsProtobuffType() ? "outcomeMessage.Key.ToByteArray()" : "outcomeMessage.Key")},
                     Value = {(data.OutcomeValueType.IsProtobuffType() ? "outcomeMessage.Value.ToByteArray()" : "outcomeMessage.Value")}
                 }};
 ");
-        }
-
-        private string GetProducerTType(ResponderData data)
-        {
-            return $@"{(data.OutcomeKeyType.IsProtobuffType() ? "byte[]" : data.OutcomeKeyType.GetFullTypeName(true))}, {(data.OutcomeValueType.IsProtobuffType() ? "byte[]" : data.OutcomeValueType.GetFullTypeName(true))}";
         }
 
         private string GetConsumerTType(ResponderData data)

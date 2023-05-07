@@ -84,6 +84,10 @@ namespace KafkaExchanger
                 headerGenerator.Generate(context);
             }
 
+            var producerPoolsGenerator = new ProducerPoolsGenerator();
+            producerPoolsGenerator.FillProducerTypes(_requestAwaiterDatas, _responderDatas);
+            producerPoolsGenerator.GenerateProducerPools(context);
+
             var requestAwaiterGenerator = new RequestAwaiterGenerator();
             foreach (var requestAwaiterData in _requestAwaiterDatas)
             {

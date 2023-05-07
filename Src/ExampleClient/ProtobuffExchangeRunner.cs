@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using KafkaExchanger.Common;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace ExampleClient
@@ -7,8 +8,9 @@ namespace ExampleClient
     {
         internal static async Task RunExchange(ILoggerFactory loggerFactory)
         {
-            var simpleAwaiter = CreateAwaiter(loggerFactory);
-            var simpleResponder = CreateResponder(loggerFactory);
+            var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
+            var simpleAwaiter = CreateAwaiter(loggerFactory, producerPool);
+            var simpleResponder = CreateResponder(loggerFactory, producerPool);
 
             var consoleLog = loggerFactory.CreateLogger<Program>();
             for (var i = 0; i < 10; i++)
@@ -28,9 +30,10 @@ AllResults: {i + 1}
 
             await simpleResponder.StopAsync();
             await simpleAwaiter.StopAsync();
+            producerPool.Dispose();
         }
 
-        private static TestProtobuffAwaiter CreateAwaiter(ILoggerFactory loggerFactory)
+        private static TestProtobuffAwaiter CreateAwaiter(ILoggerFactory loggerFactory, IProducerPoolProtoProto producerPool)
         {
             var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
             var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
@@ -56,12 +59,12 @@ AllResults: {i + 1}
                 consumerConfigs
                 );
 
-            simpleAwaiter.Start(configKafka);
+            simpleAwaiter.Start(configKafka, producerPool);
 
             return simpleAwaiter;
         }
 
-        private static TestProtobuffResponder CreateResponder(ILoggerFactory loggerFactory)
+        private static TestProtobuffResponder CreateResponder(ILoggerFactory loggerFactory, IProducerPoolProtoProto producerPool)
         {
             var simpleResponder = new TestProtobuffResponder(loggerFactory);
             var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
@@ -131,7 +134,7 @@ AllResults: {i + 1}
                 consumerConfigs
                 );
 
-            simpleResponder.Start(configKafka);
+            simpleResponder.Start(configKafka, producerPool);
 
             return simpleResponder;
         }

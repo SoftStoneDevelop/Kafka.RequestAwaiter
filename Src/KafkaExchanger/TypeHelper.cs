@@ -93,6 +93,33 @@ namespace KafkaExchanger
             throw new NotImplementedException();
         }
 
+        internal static string GetTypeAliasName(
+            this ITypeSymbol typeSymbol,
+            bool replaceNullable = false,
+            bool addQuestionNoatble = true
+            )
+        {
+            if (replaceNullable && typeSymbol.IsNullableType())
+            {
+                var named = (INamedTypeSymbol)typeSymbol;
+                var firstArg = named.TypeArguments[0];
+
+                return $"{firstArg.Name}N";
+            }
+
+            if (typeSymbol is INamedTypeSymbol namedTypeSymbol)
+            {
+                return $"{typeSymbol.Name}";
+            }
+
+            if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol)
+            {
+                return $"{arrayTypeSymbol.ElementType.GetTypeAliasName()}";
+            }
+
+            throw new NotImplementedException();
+        }
+
         internal static bool IsArrayType(
             this ITypeSymbol typeSymbol,
             out ITypeSymbol elementType
