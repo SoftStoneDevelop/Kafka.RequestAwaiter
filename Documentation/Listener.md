@@ -2,11 +2,9 @@ Constructors:
 
 ```C#
 
-public RequestAwaiterAttribute(
-  Type outcomeKeyType, 
-  Type outcomeValueType, 
-  Type incomeKeyType, 
-  Type incomeValueType, 
+public ListenerAttribute(
+  Type incomeKeyType,
+  Type incomeValueType,
   bool useLogger = true
   )
 
@@ -18,53 +16,44 @@ Usage:
 
 ```C#
 
-[RequestAwaiter
+[KafkaExchanger.Attributes.Listener
         (
         incomeKeyType: typeof(protobuff.SimpleKey),
-        incomeValueType: typeof(protobuff.SimpleValue),
-
-        outcomeKeyType: typeof(protobuff.SimpleKey),
-        outcomeValueType: typeof(protobuff.SimpleValue)
+        incomeValueType: typeof(protobuff.SimpleValue)
         )
         ]
-    public partial class TestProtobuffAwaiter
+    public partial class TestProtobuffListener
     {
 
     }
 
-
-var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
-var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
+//action is you custom action
+  
+var simpleListener = new TestProtobuffListener(loggerFactory);
+var consumerConfigs = new TestProtobuffListener.ConsumerListenerConfig[]
 {
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
+  new TestProtobuffListener.ConsumerListenerConfig(
+    action,//Called on incoming messages
+    TopicNames.TestListenerProtobuffTopic,
     new int[] { 0 }
   ),
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
+  new TestProtobuffListener.ConsumerListenerConfig(
+    action,//Called on incoming messages
+    TopicNames.TestListenerProtobuffTopic,
     new int[] { 1 }
   ),
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
+  new TestProtobuffListener.ConsumerListenerConfig(
+    action,//Called on incoming messages
+    TopicNames.TestListenerProtobuffTopic,
     new int[] { 2 }
   )
   };
 
-  var configKafka = new KafkaExchanger.Common.ConfigRequestAwaiter(
-    "groupId",
+  var configKafka = new TestProtobuffListener.ConfigListener(
+    "grouId",
     "localhost:9194, localhost:9294, localhost:9394",//bootstrapServers
-    "OutComeTopicName",
     consumerConfigs
     );
 
-  simpleAwaiter.Start(configKafka);
-  
-  var answer = await simpleAwaiter.Produce(
-    new protobuff.SimpleKey() { Id = i  },
-    new protobuff.SimpleValue() { Id = i, Priority = protobuff.Priority.Unspecified, Message = $"Value {i}" }
-    );
-    
-    //process answer.Result
-    
-    answer.FinishProcessing();
+  simpleListener.Start(configKafka);
 ```
