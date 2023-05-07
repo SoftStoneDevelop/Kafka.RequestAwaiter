@@ -1,5 +1,7 @@
 ﻿using KafkaExchanger.AttributeDatas;
 using KafkaExchanger.Datas;
+using KafkaExchanger.Extensions;
+using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections;
@@ -93,7 +95,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void StartInterface(ResponderData data)
         {
             _builder.Append($@"
-    public interface I{data.TypeSymbol.Name}Responder
+    {data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{data.TypeSymbol.Name}Responder
     {{
 ");
         }
@@ -117,7 +119,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void StartClass(ResponderData data)
         {
             _builder.Append($@"
-    public partial class {data.TypeSymbol.Name} : I{data.TypeSymbol.Name}Responder
+    {data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {data.TypeSymbol.Name} : I{data.TypeSymbol.Name}Responder
     {{
         {(data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;

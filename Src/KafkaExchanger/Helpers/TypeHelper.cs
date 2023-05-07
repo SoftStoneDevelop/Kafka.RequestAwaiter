@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace KafkaExchanger
+namespace KafkaExchanger.Helpers
 {
     internal static class TypeHelper
     {
