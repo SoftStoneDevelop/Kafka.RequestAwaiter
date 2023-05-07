@@ -115,8 +115,8 @@ Pass configs to Start methods. It's all what you need to do.
             awaitService.Start(configKafka);
 
             var responseMessage = await awaitService.Produce(
-                    new protobuff.SimpleKey() { Id = i  },
-                    new protobuff.SimpleValue() { Id = i, Priority = protobuff.Priority.Unspecified, Message = $"Value {i}" }
+                    new protobuff.SimpleKey() { Id = 459  },
+                    new protobuff.SimpleValue() { Id = 459, Priority = protobuff.Priority.Unspecified, Message = "Hello world!" }
                     );
             //responseMessage.Key is incomeKeyType(protobuff.SimpleKey)
             //responseMessage.Value is incomeValueType(protobuff.SimpleValue)
