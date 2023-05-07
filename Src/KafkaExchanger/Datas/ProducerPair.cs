@@ -11,12 +11,18 @@ namespace KafkaExchanger.Datas
 
         public bool Equals(ProducerPair x, ProducerPair y)
         {
-            return SymbolEqualityComparer.Default.Equals(x.KeyType, y.KeyType) && SymbolEqualityComparer.Default.Equals(x.ValueType, y.ValueType);
+            return 
+                (SymbolEqualityComparer.Default.Equals(x.KeyType, y.KeyType) || (x.KeyType.IsProtobuffType() && y.KeyType.IsProtobuffType())) 
+                &&
+                (SymbolEqualityComparer.Default.Equals(x.ValueType, y.ValueType) || (x.ValueType.IsProtobuffType() && y.ValueType.IsProtobuffType()))
+                ;
         }
 
         public int GetHashCode(ProducerPair obj)
         {
-            return SymbolEqualityComparer.Default.GetHashCode(obj.KeyType) + SymbolEqualityComparer.Default.GetHashCode(obj.ValueType);
+            var keyHash = obj.KeyType.IsProtobuffType() ? 1 : SymbolEqualityComparer.Default.GetHashCode(obj.KeyType);
+            var valueHash = obj.ValueType.IsProtobuffType() ? 1 : SymbolEqualityComparer.Default.GetHashCode(obj.ValueType);
+            return keyHash + valueHash;
         }
     }
 
