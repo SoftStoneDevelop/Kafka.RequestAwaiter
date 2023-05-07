@@ -11,7 +11,6 @@
 	  <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\KafkaExchanger.Attributes\KafkaExchanger.Attributes.csproj" />
 		<ProjectReference Include="..\KafkaExchanger\KafkaExchanger.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="True" />
 	</ItemGroup>
 	<ItemGroup>
