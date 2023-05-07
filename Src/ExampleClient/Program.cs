@@ -11,15 +11,25 @@ namespace ExampleClient
             var loggerFactory = LoggerFactory.Create(builder => builder.AddSimpleConsole());
 
             await TopicCreators.CreateSimpleTopics();
+            await TopicCreators.CreateProtobuffTopics();
+
             await SimpleExchangeRunner.RunExchange(loggerFactory);
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 10; i++)
             {
                 Console.WriteLine();
             }
 
-            await TopicCreators.CreateProtobuffTopics();
             await ProtobuffExchangeRunner.RunExchange(loggerFactory);
+
+            await SimpleListenerRunner.RunListener(loggerFactory);
+
+            for (int i = 0; i < 10; i++)
+            {
+                Console.WriteLine();
+            }
+
+            await ProtobuffListenerRunner.RunListener(loggerFactory);
         }
     }
 }

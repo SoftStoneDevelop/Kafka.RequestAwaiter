@@ -12,36 +12,36 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateRequestAwaiter(RequestAwaiterData ra, GeneratorExecutionContext context)
+        public void GenerateRequestAwaiter(RequestAwaiterData data, GeneratorExecutionContext context)
         {
             _builder.Clear();
 
-            Start(ra);
+            Start(data);
 
-            Interface(ra);
+            Interface(data);
 
-            StartClass(ra);
-            StartMethod(ra);
-            BuildPartitionItems(ra);
-            StopAsync(ra);
-            Produce(ra);
-            ChooseItemIndex(ra);
+            StartClass(data);
+            StartMethod(data);
+            BuildPartitionItems(data);
+            StopAsync(data);
+            Produce(data);
+            ChooseItemIndex(data);
 
-            ResponseMessage(ra);
-            PartitionItem(ra);
+            ResponseMessage(data);
+            PartitionItem(data);
 
-            EndInterfaceOrClass(ra);
+            EndInterfaceOrClass(data);
 
             End();
 
-            context.AddSource($"{ra.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
+            context.AddSource($"{data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
-        private void Start(RequestAwaiterData ra)
+        private void Start(RequestAwaiterData data)
         {
             _builder.Append($@"
 using Confluent.Kafka;
-using Microsoft.Extensions.Logging;
+{(data.UseLogger ? @"using Microsoft.Extensions.Logging;" : "")}
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -49,34 +49,34 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using System.Linq;
 
-namespace {ra.TypeSymbol.ContainingNamespace}
+namespace {data.TypeSymbol.ContainingNamespace}
 {{
 ");
         }
 
         #region Interface
 
-        private void Interface(RequestAwaiterData ra)
+        private void Interface(RequestAwaiterData data)
         {
-            StartInterface(ra);
-            InterfaceMethods(ra);
-            EndInterfaceOrClass(ra);
+            StartInterface(data);
+            InterfaceMethods(data);
+            EndInterfaceOrClass(data);
         }
 
-        private void StartInterface(RequestAwaiterData ra)
+        private void StartInterface(RequestAwaiterData data)
         {
             _builder.Append($@"
-    public interface I{ra.TypeSymbol.Name}RequestAwaiter
+    public interface I{data.TypeSymbol.Name}RequestAwaiter
     {{
 ");
         }
 
-        private void InterfaceMethods(RequestAwaiterData ra)
+        private void InterfaceMethods(RequestAwaiterData data)
         {
             _builder.Append($@"
-        public Task<KafkaExchanger.Common.Response<{ra.TypeSymbol.Name}.ResponseMessage>> Produce(
-            {ra.OutcomeKeyType.GetFullTypeName(true, true)} key,
-            {ra.OutcomeValueType.GetFullTypeName(true, true)} value,
+        public Task<KafkaExchanger.Common.Response<{data.TypeSymbol.Name}.ResponseMessage>> Produce(
+            {data.OutcomeKeyType.GetFullTypeName(true, true)} key,
+            {data.OutcomeValueType.GetFullTypeName(true, true)} value,
             int waitResponceTimeout = 0
             );
 
@@ -86,7 +86,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void EndInterfaceOrClass(RequestAwaiterData ra)
+        private void EndInterfaceOrClass(RequestAwaiterData data)
         {
             _builder.Append($@"
     }}
@@ -95,22 +95,22 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 
         #endregion
 
-        private void StartClass(RequestAwaiterData ra)
+        private void StartClass(RequestAwaiterData data)
         {
             _builder.Append($@"
-    public partial class {ra.TypeSymbol.Name} : I{ra.TypeSymbol.Name}RequestAwaiter
+    public partial class {data.TypeSymbol.Name} : I{data.TypeSymbol.Name}RequestAwaiter
     {{
-        private readonly ILoggerFactory _loggerFactory;
+        {(data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
         
-        public {ra.TypeSymbol.Name}(ILoggerFactory loggerFactory)
+        public {data.TypeSymbol.Name}({(data.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
-            _loggerFactory = loggerFactory;
+            {(data.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
         }}
 ");
         }
 
-        private void StartMethod(RequestAwaiterData ra)
+        private void StartMethod(RequestAwaiterData data)
         {
             _builder.Append($@"
         public void Start(KafkaExchanger.Common.ConfigRequestAwaiter config)
@@ -128,7 +128,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(RequestAwaiterData ra)
+        private void BuildPartitionItems(RequestAwaiterData data)
         {
             _builder.Append($@"
         private void BuildPartitionItems(KafkaExchanger.Common.ConfigRequestAwaiter config)
@@ -140,15 +140,15 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                 items[i] =
                     new PartitionItem(
                         config.OutcomeTopicName,
-                        config.ConsumerConfigs[i],
-                        _loggerFactory.CreateLogger($""{{config.ConsumerConfigs[i].TopicName}}:Partition{{string.Join(',',config.ConsumerConfigs[i].Partitions)}}"")
+                        config.ConsumerConfigs[i]
+                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partition{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         );
             }}
         }}
 ");
         }
 
-        private void StopAsync(RequestAwaiterData ra)
+        private void StopAsync(RequestAwaiterData data)
         {
             _builder.Append($@"
         public async Task StopAsync()
@@ -163,12 +163,12 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Produce(RequestAwaiterData ra)
+        private void Produce(RequestAwaiterData data)
         {
             _builder.Append($@"
-        public Task<KafkaExchanger.Common.Response<{ra.TypeSymbol.Name}.ResponseMessage>> Produce(
-            {ra.OutcomeKeyType.GetFullTypeName(true, true)} key,
-            {ra.OutcomeValueType.GetFullTypeName(true, true)} value,
+        public Task<KafkaExchanger.Common.Response<{data.TypeSymbol.Name}.ResponseMessage>> Produce(
+            {data.OutcomeKeyType.GetFullTypeName(true)} key,
+            {data.OutcomeValueType.GetFullTypeName(true)} value,
             int waitResponceTimeout = 0
             )
         {{
@@ -178,7 +178,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ChooseItemIndex(RequestAwaiterData ra)
+        private void ChooseItemIndex(RequestAwaiterData data)
         {
             _builder.Append($@"
         private uint _currentItemIndex = 0;
@@ -190,14 +190,14 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ResponseMessage(RequestAwaiterData ra)
+        private void ResponseMessage(RequestAwaiterData data)
         {
             _builder.Append($@"
         public class ResponseMessage
         {{
-            public Message<{GetConsumerTType(ra)}> OriginalMessage {{ get; set; }}
-            public {ra.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {ra.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
+            public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public kafka.ResponseHeader HeaderInfo {{ get; set; }}
         }}
 ");
@@ -205,53 +205,53 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 
         #region PartitionItem
 
-        private void PartitionItem(RequestAwaiterData ra)
+        private void PartitionItem(RequestAwaiterData data)
         {
-            StartPartitionItem(ra);
+            StartPartitionItem(data);
 
-            StartConsumePartitionItem(ra);
-            StopConsumePartitionItem(ra);
+            StartConsumePartitionItem(data);
+            StopConsumePartitionItem(data);
 
-            StartProducePartitionItem(ra);
-            StopProducePartitionItem(ra);
+            StartProducePartitionItem(data);
+            StopProducePartitionItem(data);
 
-            StopPartitionItem(ra);
-            ProducePartitionItem(ra);
-            RemoveAwaiter(ra);
-            CreateOutcomeHeader(ra);
+            StopPartitionItem(data);
+            ProducePartitionItem(data);
+            RemoveAwaiter(data);
+            CreateOutcomeHeader(data);
 
             EndPartitionItem();
         }
 
-        private void StartPartitionItem(RequestAwaiterData ra)
+        private void StartPartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
         private class PartitionItem
         {{
             public PartitionItem(
                 string outcomeTopicName,
-                KafkaExchanger.Common.ConsumerConfig consumerConfig,
-                ILogger logger
+                KafkaExchanger.Common.ConsumerConfig consumerConfig
+                {(data.UseLogger ? @",ILogger logger" : "")}
                 )
             {{
                 Partitions = consumerConfig.Partitions;
-                _logger = logger;
+                {(data.UseLogger ? @"_logger = logger;" : "")}
                 _outcomeTopicName = outcomeTopicName;
                 _incomeTopicName = consumerConfig.TopicName;
             }}
 
-            private readonly ILogger _logger;
+            {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _outcomeTopicName;
             private readonly string _incomeTopicName;
 
             private CancellationTokenSource _ctsConsume;
             private Task _routineConsume;
 
-            public IProducer<{GetProducerTType(ra)}> _producer;
+            public IProducer<{GetProducerTType(data)}> _producer;
 
             public int[] Partitions {{ get; init; }}
 
-            public ConcurrentDictionary<string, KafkaExchanger.Common.TopicResponse<{ra.TypeSymbol.Name}.ResponseMessage>> _responceAwaiters = new();
+            public ConcurrentDictionary<string, KafkaExchanger.Common.TopicResponse<{data.TypeSymbol.Name}.ResponseMessage>> _responceAwaiters = new();
 
             public void Start(
                 string bootstrapServers,
@@ -264,7 +264,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartConsumePartitionItem(RequestAwaiterData ra)
+        private void StartConsumePartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             private void StartConsume(
@@ -285,7 +285,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                     }};
 
                     var consumer =
-                        new ConsumerBuilder<{GetConsumerTType(ra)}>(conf)
+                        new ConsumerBuilder<{GetConsumerTType(data)}>(conf)
                         .Build()
                         ;
 
@@ -301,13 +301,13 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                                 
                                 var incomeMessage = new ResponseMessage();
                                 incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetResponseKey(ra)};
-                                incomeMessage.Value = {GetResponseValue(ra)};
+                                incomeMessage.Key = {GetResponseKey(data)};
+                                incomeMessage.Value = {GetResponseValue(data)};
 
-                                _logger.LogInformation($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}'."");
+                                {(data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    _logger.LogError($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}' not contain Info header"");
+                                    {(data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
@@ -316,7 +316,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 
                                 if (!_responceAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
                                 {{
-                                    _logger.LogError($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}': no one wait results"");
+                                    {(data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}': no one wait results"");" : "")}
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
@@ -340,14 +340,14 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 
                                 if (!isProcessed)
                                 {{
-                                    _logger.LogWarning(""Message must be marked as processed, probably not called FinishProcessing"");
+                                    {(data.UseLogger ? @"_logger.LogWarning(""Message must be marked as processed, probably not called FinishProcessing"");" : "")}
                                 }}
 
                                 consumer.Commit(consumeResult);
                             }}
                             catch (ConsumeException e)
                             {{
-                                _logger.LogError($""Error occured: {{e.Error.Reason}}"");
+                                {(data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "")}
                             }}
                         }}
                     }}
@@ -369,37 +369,37 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetProducerTType(RequestAwaiterData ra)
+        private string GetProducerTType(RequestAwaiterData data)
         {
-            return $@"{(ra.OutcomeKeyType.IsProtobuffType() ? "byte[]" : ra.OutcomeKeyType.GetFullTypeName(true))}, {(ra.OutcomeValueType.IsProtobuffType() ? "byte[]" : ra.OutcomeValueType.GetFullTypeName(true))}";
+            return $@"{(data.OutcomeKeyType.IsProtobuffType() ? "byte[]" : data.OutcomeKeyType.GetFullTypeName(true))}, {(data.OutcomeValueType.IsProtobuffType() ? "byte[]" : data.OutcomeValueType.GetFullTypeName(true))}";
         }
 
-        private string GetConsumerTType(RequestAwaiterData ra)
+        private string GetConsumerTType(RequestAwaiterData data)
         {
-            return $@"{(ra.IncomeKeyType.IsProtobuffType() ? "byte[]" : ra.IncomeKeyType.GetFullTypeName(true))}, {(ra.IncomeValueType.IsProtobuffType() ? "byte[]" : ra.IncomeValueType.GetFullTypeName(true))}";
+            return $@"{(data.IncomeKeyType.IsProtobuffType() ? "byte[]" : data.IncomeKeyType.GetFullTypeName(true))}, {(data.IncomeValueType.IsProtobuffType() ? "byte[]" : data.IncomeValueType.GetFullTypeName(true))}";
         }
 
-        private string GetResponseKey(RequestAwaiterData ra)
+        private string GetResponseKey(RequestAwaiterData data)
         {
-            if(ra.IncomeKeyType.IsProtobuffType())
+            if(data.IncomeKeyType.IsProtobuffType())
             {
-                return $"{ra.IncomeKeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
+                return $"{data.IncomeKeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
             }
 
             return "consumeResult.Message.Key";
         }
 
-        private string GetResponseValue(RequestAwaiterData ra)
+        private string GetResponseValue(RequestAwaiterData data)
         {
-            if (ra.IncomeValueType.IsProtobuffType())
+            if (data.IncomeValueType.IsProtobuffType())
             {
-                return $"{ra.IncomeValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
+                return $"{data.IncomeValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
             }
 
             return "consumeResult.Message.Value";
         }
 
-        private void StopConsumePartitionItem(RequestAwaiterData ra)
+        private void StopConsumePartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             private async Task StopConsume()
@@ -415,7 +415,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartProducePartitionItem(RequestAwaiterData ra)
+        private void StartProducePartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             private void StartProduce(string bootstrapServers)
@@ -427,14 +427,14 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                 }};
 
                 _producer =
-                    new ProducerBuilder<{GetProducerTType(ra)}>(config)
+                    new ProducerBuilder<{GetProducerTType(data)}>(config)
                     .Build()
                     ;
             }}
 ");
         }
 
-        private void StopProducePartitionItem(RequestAwaiterData ra)
+        private void StopProducePartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             private void StopProduce()
@@ -445,7 +445,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StopPartitionItem(RequestAwaiterData ra)
+        private void StopPartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             public async Task Stop()
@@ -456,17 +456,17 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ProducePartitionItem(RequestAwaiterData ra)
+        private void ProducePartitionItem(RequestAwaiterData data)
         {
             _builder.Append($@"
             public async Task<KafkaExchanger.Common.Response<ResponseMessage>> Produce(
-                {ra.OutcomeKeyType.GetFullTypeName(true)} key,
-                {ra.OutcomeValueType.GetFullTypeName(true)} value,
+                {data.OutcomeKeyType.GetFullTypeName(true)} key,
+                {data.OutcomeValueType.GetFullTypeName(true)} value,
                 int waitResponceTimeout = 0
                 )
             {{
 ");
-            CreateOutcomeMessage(ra);
+            CreateOutcomeMessage(data);
 
             _builder.Append($@"
                 var header = CreateOutcomeHeader();
@@ -486,9 +486,9 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                 {{
                     var deliveryResult = await _producer.ProduceAsync(_outcomeTopicName, message);
                 }}
-                catch (ProduceException<{GetProducerTType(ra)}> e)
+                catch (ProduceException<{GetProducerTType(data)}> e)
                 {{
-                    _logger.LogError($""Delivery failed: {{e.Error.Reason}}"");
+                    {(data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
                     _responceAwaiters.TryRemove(header.MessageGuid, out _);
                     awaiter.Dispose();
 
@@ -500,18 +500,18 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void CreateOutcomeMessage(RequestAwaiterData ra)
+        private void CreateOutcomeMessage(RequestAwaiterData data)
         {
             _builder.Append($@"
-                var message = new Message<{GetProducerTType(ra)}>()
+                var message = new Message<{GetProducerTType(data)}>()
                 {{
-                    Key = {(ra.OutcomeKeyType.IsProtobuffType() ? "key.ToByteArray()" : "key")},
-                    Value = {(ra.OutcomeValueType.IsProtobuffType() ? "value.ToByteArray()" : "value")}
+                    Key = {(data.OutcomeKeyType.IsProtobuffType() ? "key.ToByteArray()" : "key")},
+                    Value = {(data.OutcomeValueType.IsProtobuffType() ? "value.ToByteArray()" : "value")}
                 }};
 ");
         }
 
-        private void RemoveAwaiter(RequestAwaiterData ra)
+        private void RemoveAwaiter(RequestAwaiterData data)
         {
             _builder.Append($@"
             private void RemoveAwaiter(string guid)
@@ -524,7 +524,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void CreateOutcomeHeader(RequestAwaiterData ra)
+        private void CreateOutcomeHeader(RequestAwaiterData data)
         {
             _builder.Append($@"
             private kafka.RequestHeader CreateOutcomeHeader()

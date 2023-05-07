@@ -56,5 +56,25 @@
 
     }
 
+    [KafkaExchanger.Attributes.Listener
+        (
+        incomeKeyType: typeof(string),
+        incomeValueType: typeof(string)
+        )
+        ]
+    public partial class TestSimpleListener
+    {
 
+    }
+
+    [KafkaExchanger.Attributes.Listener
+        (
+        incomeKeyType: typeof(protobuff.SimpleKey),
+        incomeValueType: typeof(protobuff.SimpleValue)
+        )
+        ]
+    public partial class TestProtobuffListener
+    {
+
+    }
 }

@@ -5,10 +5,8 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class ResponderData
+    internal class ResponderData : BaseServiceData
     {
-        public INamedTypeSymbol TypeSymbol { get; set; }
-
         public ITypeSymbol OutcomeKeyType { get; set; }
 
         public ITypeSymbol OutcomeValueType { get; set; }
@@ -23,7 +21,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 4)
+            if (namedArguments.Length != 5)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -46,6 +44,11 @@ namespace KafkaExchanger.AttributeDatas
             if (!SetIncomeValueType(namedArguments[3], result))
             {
                 throw new Exception("Fail create ResponderData data: IncomeValueType");
+            }
+
+            if (!SetUseLogger(namedArguments[4], result))
+            {
+                throw new Exception("Fail create ResponderData data: UseLogger");
             }
 
             return result;

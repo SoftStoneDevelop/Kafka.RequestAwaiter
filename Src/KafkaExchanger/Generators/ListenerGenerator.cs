@@ -10,27 +10,27 @@ using System.Text;
 
 namespace KafkaExchanger.Generators
 {
-    internal class ResponderGenerator
+    internal class ListenerGenerator
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateResponder(ResponderData data, GeneratorExecutionContext context)
+        public void GenerateListener(ListenerData ld, GeneratorExecutionContext context)
         {
             _builder.Clear();
 
-            Start(data);
+            Start(ld);
 
-            Interface(data);
+            Interface(ld);
 
 
-            ResponderClass(data);
+            ResponderClass(ld);
 
             End();
 
-            context.AddSource($"{data.TypeSymbol.Name}Responder.g.cs", _builder.ToString());
+            context.AddSource($"{ld.TypeSymbol.Name}Listener.g.cs", _builder.ToString());
         }
 
-        private void ResponderClass(ResponderData data)
+        private void ResponderClass(ListenerData data)
         {
             StartClass(data);
 
@@ -38,18 +38,17 @@ namespace KafkaExchanger.Generators
             BuildPartitionItems(data);
             StopAsync(data);
 
-            ConfigResponder(data);
-            ConsumerResponderConfig(data);
+            ConfigListener(data);
+            ConsumerListenerConfig(data);
 
             IncomeMessage(data);
-            OutcomeMessage(data);
 
             PartitionItem(data);
 
             EndInterfaceOrClass(data);
         }
 
-        private void PartitionItem(ResponderData data)
+        private void PartitionItem(ListenerData data)
         {
             PartitionItemStartClass(data);
             PartitionItemStartMethod(data);
@@ -57,23 +56,19 @@ namespace KafkaExchanger.Generators
             PartitionItemStartConsume(data);
             PartitionItemStopConsume(data);
 
-            PartitionItemStartProduce(data);
-            PartitionItemStopProduce(data);
             PartitionItemStop(data);
-            PartitionItemProduce(data);
-            CreateOutcomeHeader(data);
 
             _builder.Append($@"
         }}
 ");
         }
 
-        private void Start(ResponderData data)
+        private void Start(ListenerData data)
         {
             _builder.Append($@"
 using Confluent.Kafka;
 using Google.Protobuf;
-{(data.UseLogger ? @"using Microsoft.Extensions.Logging;" : "")}
+{(data.UseLogger ? "using Microsoft.Extensions.Logging;" : "")}
 using System;
 using System.Linq;
 using System.Threading;
@@ -84,14 +79,14 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Interface(ResponderData data)
+        private void Interface(ListenerData data)
         {
             StartInterface(data);
             InterfaceMethods(data);
             EndInterfaceOrClass(data);
         }
 
-        private void StartInterface(ResponderData data)
+        private void StartInterface(ListenerData data)
         {
             _builder.Append($@"
     public interface I{data.TypeSymbol.Name}Responder
@@ -99,41 +94,41 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void InterfaceMethods(ResponderData data)
+        private void InterfaceMethods(ListenerData data)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigResponder config);
+        public void Start({data.TypeSymbol.Name}.ConfigListener config);
 
         public Task StopAsync();
 ");
         }
 
-        private void EndInterfaceOrClass(ResponderData data)
+        private void EndInterfaceOrClass(ListenerData data)
         {
             _builder.Append($@"
     }}
 ");
         }
 
-        private void StartClass(ResponderData data)
+        private void StartClass(ListenerData data)
         {
             _builder.Append($@"
     public partial class {data.TypeSymbol.Name} : I{data.TypeSymbol.Name}Responder
     {{
-        {(data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
+        {(data.UseLogger ? "private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
         
-        public {data.TypeSymbol.Name}({(data.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
+        public {data.TypeSymbol.Name}({(data.UseLogger ? "ILoggerFactory loggerFactory" : "")})
         {{
-            {(data.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
+            {(data.UseLogger ? "_loggerFactory = loggerFactory;" : "")}
         }}
 ");
         }
 
-        private void StartResponderMethod(ResponderData data)
+        private void StartResponderMethod(ListenerData data)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigResponder config)
+        public void Start({data.TypeSymbol.Name}.ConfigListener config)
         {{
             BuildPartitionItems(config);
 
@@ -148,10 +143,10 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(ResponderData data)
+        private void BuildPartitionItems(ListenerData data)
         {
             _builder.Append($@"
-        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigResponder config)
+        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigListener config)
         {{
             _items = new PartitionItem[config.ConsumerConfigs.Length];
             var items = _items.AsSpan();
@@ -160,7 +155,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 items[i] =
                     new PartitionItem(
                         config.ConsumerConfigs[i].TopicName,
-                        config.ConsumerConfigs[i].CreateAnswerDelegate,
+                        config.ConsumerConfigs[i].ProcessDelegate,
                         config.ConsumerConfigs[i].Partitions
                         {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         );
@@ -169,7 +164,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StopAsync(ResponderData data)
+        private void StopAsync(ListenerData data)
         {
             _builder.Append($@"
         public async Task StopAsync()
@@ -184,15 +179,15 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ConfigResponder(ResponderData data)
+        private void ConfigListener(ListenerData data)
         {
             _builder.Append($@"
-        public class ConfigResponder
+        public class ConfigListener
         {{
-            public ConfigResponder(
+            public ConfigListener(
                 string groupId,
                 string bootstrapServers,
-                ConsumerResponderConfig[] consumerConfigs
+                ConsumerListenerConfig[] consumerConfigs
                 )
             {{
                 GroupId = groupId;
@@ -204,33 +199,33 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
             public string BootstrapServers {{ get; init; }}
 
-            public ConsumerResponderConfig[] ConsumerConfigs {{ get; init; }}
+            public ConsumerListenerConfig[] ConsumerConfigs {{ get; init; }}
         }}
 ");
         }
 
-        private void ConsumerResponderConfig(ResponderData data)
+        private void ConsumerListenerConfig(ListenerData data)
         {
             _builder.Append($@"
-        public class ConsumerResponderConfig : KafkaExchanger.Common.ConsumerConfig
+        public class ConsumerListenerConfig : KafkaExchanger.Common.ConsumerConfig
         {{
-            public ConsumerResponderConfig(
-                Func<IncomeMessage, OutcomeMessage> createAnswerDelegate,
+            public ConsumerListenerConfig(
+                Action<IncomeMessage> processDelegate,
                 string topicName,
                 params int[] partitions
                 ) : base(topicName, partitions)
             {{
                 {{
-                    CreateAnswerDelegate = createAnswerDelegate;
+                    ProcessDelegate = processDelegate;
                 }}
             }}
 
-            public Func<IncomeMessage, OutcomeMessage> CreateAnswerDelegate {{ get; init; }}
+            public Action<IncomeMessage> ProcessDelegate {{ get; init; }}
         }}
 ");
         }
 
-        private void IncomeMessage(ResponderData data)
+        private void IncomeMessage(ListenerData data)
         {
             _builder.Append($@"
         public class IncomeMessage
@@ -243,25 +238,14 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void OutcomeMessage(ResponderData data)
-        {
-            _builder.Append($@"
-        public class OutcomeMessage
-        {{
-            public {data.OutcomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {data.OutcomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
-        }}
-");
-        }
-
-        private void PartitionItemStartClass(ResponderData data)
+        private void PartitionItemStartClass(ListenerData data)
         {
             _builder.Append($@"
         private class PartitionItem
         {{
             public PartitionItem(
                 string incomeTopicName,
-                Func<IncomeMessage, OutcomeMessage> createAnswer,
+                Action<IncomeMessage> processDelegate,
                 int[] partitions
                 {(data.UseLogger ? @",ILogger logger" : "")}
                 )
@@ -269,23 +253,21 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 Partitions = partitions;
                 {(data.UseLogger ? @"_logger = logger;" : "")}
                 _incomeTopicName = incomeTopicName;
-                _createAnswer = createAnswer;
+                _processDelegate = processDelegate;
             }}
 
             {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _incomeTopicName;
-            private readonly Func<IncomeMessage, OutcomeMessage> _createAnswer;
+            private readonly Action<IncomeMessage> _processDelegate;
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
-
-            private IProducer<{GetProducerTType(data)}> _producer;
 
             public int[] Partitions {{ get; init; }}
 ");
         }
 
-        private void PartitionItemStartMethod(ResponderData data)
+        private void PartitionItemStartMethod(ListenerData data)
         {
             _builder.Append($@"
             public void Start(
@@ -294,12 +276,11 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 )
             {{
                 StartConsume(bootstrapServers, groupId);
-                StartProduce(bootstrapServers);
             }}
 ");
         }
 
-        private void PartitionItemStartConsume(ResponderData data)
+        private void PartitionItemStartConsume(ListenerData data)
         {
             _builder.Append($@"
             private void StartConsume(
@@ -308,7 +289,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 )
             {{
                 _cts = new CancellationTokenSource();
-                _routineConsume = Task.Factory.StartNew(async () =>
+                _routineConsume = Task.Factory.StartNew(() =>
                 {{
                     var conf = new ConsumerConfig
                     {{
@@ -349,10 +330,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
                                 incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
 
-                                var asnwer = _createAnswer(incomeMessage);
+                                _processDelegate(incomeMessage);
                                 consumer.Commit(consumeResult);
-
-                                await Produce(asnwer, incomeMessage.HeaderInfo);
                             }}
                             catch (ConsumeException e)
                             {{
@@ -378,7 +357,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetIncomeMessageKey(ResponderData data)
+        private string GetIncomeMessageKey(ListenerData data)
         {
             if (data.IncomeKeyType.IsProtobuffType())
             {
@@ -388,7 +367,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             return "consumeResult.Message.Key";
         }
 
-        private string GetIncomeMessageValue(ResponderData data)
+        private string GetIncomeMessageValue(ListenerData data)
         {
             if (data.IncomeValueType.IsProtobuffType())
             {
@@ -398,7 +377,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             return "consumeResult.Message.Value";
         }
 
-        private void PartitionItemStopConsume(ResponderData data)
+        private void PartitionItemStopConsume(ListenerData data)
         {
             _builder.Append($@"
             private async Task StopConsume()
@@ -414,117 +393,17 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartProduce(ResponderData data)
-        {
-            _builder.Append($@"
-            private void StartProduce(string bootstrapServers)
-            {{
-                var config = new ProducerConfig
-                {{
-                    BootstrapServers = bootstrapServers,
-                    AllowAutoCreateTopics = false
-                }};
-
-                _producer =
-                    new ProducerBuilder<{GetProducerTType(data)}>(config)
-                    .Build()
-                    ;
-            }}
-");
-        }
-
-        private void PartitionItemStopProduce(ResponderData data)
-        {
-            _builder.Append($@"
-            private void StopProduce()
-            {{
-                _producer?.Flush();
-                _producer?.Dispose();
-            }}
-");
-        }
-
-        private void PartitionItemStop(ResponderData data)
+        private void PartitionItemStop(ListenerData data)
         {
             _builder.Append($@"
             public async Task Stop()
             {{
-                StopProduce();
                 await StopConsume();
             }}
 ");
         }
 
-        private void PartitionItemProduce(ResponderData data)
-        {
-            _builder.Append($@"
-            private async Task Produce(
-                OutcomeMessage outcomeMessage,
-                kafka.RequestHeader headerInfo
-                )
-            {{
-");
-
-            CreateOutcomeMessage(data);
-
-            _builder.Append($@"
-                var header = CreateOutcomeHeader(headerInfo);
-                message.Headers = new Headers
-                {{
-                    {{ ""Info"", header.ToByteArray() }}
-                }};
-
-                try
-                {{
-                    if (!headerInfo.TopicsForAnswer.Any())
-                    {{
-                        return;
-                    }}
-
-                    var topicsForAnswer = headerInfo.TopicsForAnswer.First();
-                    var topicPartition = new TopicPartition(topicsForAnswer.Name, topicsForAnswer.Partitions.First());
-                    var deliveryResult = await _producer.ProduceAsync(topicPartition, message);
-                }}
-                catch (ProduceException<{GetProducerTType(data)}> e)
-                {{
-                    {(data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "//ignore")}
-                }}
-            }}
-");
-        }
-
-        private void CreateOutcomeHeader(ResponderData data)
-        {
-            _builder.Append($@"
-            private kafka.ResponseHeader CreateOutcomeHeader(kafka.RequestHeader requestHeaderInfo)
-            {{
-                var headerInfo = new kafka.ResponseHeader()
-                {{
-                    AnswerToMessageGuid = requestHeaderInfo.MessageGuid
-                }};
-                
-                return headerInfo;
-            }}
-");
-        }
-
-        private void CreateOutcomeMessage(ResponderData data)
-        {
-            _builder.Append($@"
-                var message = new Message<{GetProducerTType(data)}>()
-                {{
-                    Key = {(data.OutcomeKeyType.IsProtobuffType() ? "outcomeMessage.Key.ToByteArray()" : "outcomeMessage.Key")},
-                    Value = {(data.OutcomeValueType.IsProtobuffType() ? "outcomeMessage.Value.ToByteArray()" : "outcomeMessage.Value")}
-                }};
-");
-        }
-
-        private string GetProducerTType(ResponderData data)
-        {
-            return $@"{(data.OutcomeKeyType.IsProtobuffType() ? "byte[]" : data.OutcomeKeyType.GetFullTypeName(true))}, {(data.OutcomeValueType.IsProtobuffType() ? "byte[]" : data.OutcomeValueType.GetFullTypeName(true))}";
-        }
-
-        private string GetConsumerTType(ResponderData data)
+        private string GetConsumerTType(ListenerData data)
         {
             return $@"{(data.IncomeKeyType.IsProtobuffType() ? "byte[]" : data.IncomeKeyType.GetFullTypeName(true))}, {(data.IncomeValueType.IsProtobuffType() ? "byte[]" : data.IncomeValueType.GetFullTypeName(true))}";
         }

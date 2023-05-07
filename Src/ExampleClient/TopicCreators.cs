@@ -19,6 +19,7 @@ namespace ExampleClient
             {
                 await CreateTopic(adminClient, TopicNames.TestRequestSimpleTopic);
                 await CreateTopic(adminClient, TopicNames.TestResponseSimpleTopic);
+                await CreateTopic(adminClient, TopicNames.TestListenerSimpleTopic);
             }
         }
 
@@ -33,6 +34,7 @@ namespace ExampleClient
             {
                 await CreateTopic(adminClient, TopicNames.TestRequestProtobuffTopic);
                 await CreateTopic(adminClient, TopicNames.TestResponseProtobuffTopic);
+                await CreateTopic(adminClient, TopicNames.TestListenerProtobuffTopic);
             }
         }
 

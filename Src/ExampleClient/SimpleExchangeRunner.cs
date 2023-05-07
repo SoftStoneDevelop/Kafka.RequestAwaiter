@@ -35,7 +35,7 @@ AllResults: {i + 1}
             {
                     new KafkaExchanger.Common.ConsumerConfig(
                         TopicNames.TestResponseSimpleTopic,
-                        new int[] { 0, 1, 2 }
+                        new int[] { 0 }
                         ),
                     new KafkaExchanger.Common.ConsumerConfig(
                         TopicNames.TestResponseSimpleTopic,

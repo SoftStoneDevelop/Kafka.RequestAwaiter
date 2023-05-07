@@ -12,6 +12,7 @@ namespace KafkaExchanger
     {
         private readonly List<RequestAwaiterData> _requestAwaiterDatas = new List<RequestAwaiterData>();
         private readonly List<ResponderData> _responderDatas = new List<ResponderData>();
+        private readonly List<ListenerData> _listenerDatas = new List<ListenerData>();
 
         public void FillTypes(INamespaceOrTypeSymbol symbol)
         {
@@ -61,6 +62,12 @@ namespace KafkaExchanger
                     _responderDatas.Add(ResponderData.Create(type, attribute));
                     break;
                 }
+
+                if (attribute.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ListenerAttribute"))
+                {
+                    _listenerDatas.Add(ListenerData.Create(type, attribute));
+                    break;
+                }
             }
         }
 
@@ -68,7 +75,7 @@ namespace KafkaExchanger
             GeneratorExecutionContext context
             )
         {
-            if (_requestAwaiterDatas.Any() || _responderDatas.Any())
+            if (_requestAwaiterDatas.Any() || _responderDatas.Any() || _listenerDatas.Any())
             {
                 var commonGenerator = new CommonGenarator();
                 commonGenerator.Generate(context);
@@ -77,16 +84,22 @@ namespace KafkaExchanger
                 headerGenerator.Generate(context);
             }
 
-            var generator = new RequestAwaiterGenerator();
-            foreach (var item in _requestAwaiterDatas)
+            var requestAwaiterGenerator = new RequestAwaiterGenerator();
+            foreach (var requestAwaiterData in _requestAwaiterDatas)
             {
-                generator.GenerateRequestAwaiter(item, context);
+                requestAwaiterGenerator.GenerateRequestAwaiter(requestAwaiterData, context);
             }
 
             var responderGenerator = new ResponderGenerator();
-            foreach (var responderType in _responderDatas)
+            foreach (var responderData in _responderDatas)
             {
-                responderGenerator.GenerateResponder(responderType, context);
+                responderGenerator.GenerateResponder(responderData, context);
+            }
+
+            var listenerGenerator = new ListenerGenerator();
+            foreach (var listenerData in _listenerDatas)
+            {
+                listenerGenerator.GenerateListener(listenerData, context);
             }
         }
     }
