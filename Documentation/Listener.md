@@ -34,17 +34,17 @@ var consumerConfigs = new TestProtobuffListener.ConsumerListenerConfig[]
 {
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    TopicNames.TestListenerProtobuffTopic,
+    "IncomeTopicName",
     new int[] { 0 }
   ),
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    TopicNames.TestListenerProtobuffTopic,
+    "IncomeTopicName",
     new int[] { 1 }
   ),
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    TopicNames.TestListenerProtobuffTopic,
+    "IncomeTopicName",
     new int[] { 2 }
   )
   };
