@@ -11,6 +11,10 @@
 
 </h3>
 
+<h3 align="center">
+  <a href="https://github.com/SoftStoneDevelop/KafkaExchanger/tree/main/Documentation/Readme.md">Documentation</a>
+</h3>
+
 A Kafka broker message processing service generator to simplify communication in a microservices environment.
 
 Usage with Protobuff key/value:
