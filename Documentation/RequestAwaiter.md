@@ -32,7 +32,7 @@ Usage:
 
     }
 
-
+//Implement IProducerPoolProtoProto for producerPool self or use delault generated pool ProducerPoolProtoProto
 var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
 var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
 {
@@ -57,7 +57,7 @@ var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
     consumerConfigs
     );
 
-  simpleAwaiter.Start(configKafka);
+  simpleAwaiter.Start(configKafka, producerPool);
   
   var answer = await simpleAwaiter.Produce(
     new protobuff.SimpleKey() { Id = 12  },
