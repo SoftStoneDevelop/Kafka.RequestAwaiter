@@ -9,19 +9,19 @@ package headers;
 message RequestHeader
 {
 	//8-4-4-4-12
-    string MessageGuid = 1;
+    	string MessageGuid = 1;
 	repeated Topic TopicsForAnswer = 2;
 }
 
 message ResponseHeader
 {
 	//8-4-4-4-12
-    string AnswerToMessageGuid = 1;
+	string AnswerToMessageGuid = 1;
 }
 
 message Topic
 {
-    string Name = 1;
+    	string Name = 1;
 	
 	//-1 or emty array - Any
 	repeated int32 Partitions = 2;
