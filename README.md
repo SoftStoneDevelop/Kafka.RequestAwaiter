@@ -121,7 +121,7 @@ Pass configs to Start methods. It's all what you need to do.
             //response.Result.Key is incomeKeyType(protobuff.SimpleKey)
             //response.Result.Value is incomeValueType(protobuff.SimpleValue)
             
-            result.FinishProcessing();
+            response.FinishProcessing();
 ```
 
 ```C#
