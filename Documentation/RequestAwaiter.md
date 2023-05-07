@@ -60,8 +60,8 @@ var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
   simpleAwaiter.Start(configKafka);
   
   var answer = await simpleAwaiter.Produce(
-    new protobuff.SimpleKey() { Id = i  },
-    new protobuff.SimpleValue() { Id = i, Priority = protobuff.Priority.Unspecified, Message = $"Value {i}" }
+    new protobuff.SimpleKey() { Id = 12  },
+    new protobuff.SimpleValue() { Id = 12, Message = "Hello" }
     );
     
     //process answer.Result
