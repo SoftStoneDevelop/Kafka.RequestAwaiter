@@ -4,10 +4,27 @@
 		<TargetFramework>net7.0</TargetFramework>
 	</PropertyGroup>
 	<ItemGroup>
+	  <PackageReference Include="Grpc.Tools" Version="2.54.0">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
 	  <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="7.0.0" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\RequestAwaiter.Attribute\KafkaExchanger.Attributes.csproj" />
-		<ProjectReference Include="..\RequestAwaiter\KafkaExchanger.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="True" />
+		<ProjectReference Include="..\KafkaExchanger.Attributes\KafkaExchanger.Attributes.csproj" />
+		<ProjectReference Include="..\KafkaExchanger\KafkaExchanger.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="True" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Protos\" />
+		<Protobuf Include="Protos\key.proto">
+			<GrpcServices>None</GrpcServices>
+			<CompileOutputs>false</CompileOutputs>
+			<OutputDir>$(AutoGenOutputBaseDir)</OutputDir>
+		</Protobuf>
+		<Protobuf Include="Protos\value.proto">
+			<GrpcServices>None</GrpcServices>
+			<CompileOutputs>false</CompileOutputs>
+			<OutputDir>$(AutoGenOutputBaseDir)</OutputDir>
+		</Protobuf>
 	</ItemGroup>
 </Project>

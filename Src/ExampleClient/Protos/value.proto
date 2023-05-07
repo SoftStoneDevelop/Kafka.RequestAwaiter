@@ -1,0 +1,18 @@
+syntax = "proto3";
+option csharp_namespace = "protobuff";
+package protobuffValues;
+
+message SimpleValue
+{
+    int32 Id = 1;
+    Priority Priority = 2;
+    string Message = 3;
+}
+
+enum Priority
+{
+    Priority_UNSPECIFIED = 0;
+    Priority_WHITE = 1;
+    Priority_YELLOW = 2;
+    Priority_RED = 3;
+}

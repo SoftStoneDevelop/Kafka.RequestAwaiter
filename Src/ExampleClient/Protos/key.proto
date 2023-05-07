@@ -1,0 +1,8 @@
+syntax = "proto3";
+option csharp_namespace = "protobuff";
+package protobuffKeys;
+
+message SimpleKey
+{
+    int32 Id = 1;
+}

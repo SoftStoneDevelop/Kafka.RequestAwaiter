@@ -4,6 +4,7 @@
         (
         incomeKeyType: typeof(string),
         incomeValueType: typeof(string),
+
         outcomeKeyType: typeof(string),
         outcomeValueType: typeof(string)
         )
@@ -17,6 +18,7 @@
         (
         incomeKeyType: typeof(string),
         incomeValueType: typeof(string),
+
         outcomeKeyType: typeof(string),
         outcomeValueType: typeof(string)
         )
@@ -25,4 +27,34 @@
     {
 
     }
+
+    [KafkaExchanger.Attributes.RequestAwaiter
+        (
+        incomeKeyType: typeof(protobuff.SimpleKey),
+        incomeValueType: typeof(protobuff.SimpleValue),
+
+        outcomeKeyType: typeof(protobuff.SimpleKey),
+        outcomeValueType: typeof(protobuff.SimpleValue)
+        )
+        ]
+    public partial class TestProtobuffAwaiter
+    {
+
+    }
+
+    [KafkaExchanger.Attributes.Responder
+        (
+        incomeKeyType: typeof(protobuff.SimpleKey),
+        incomeValueType: typeof(protobuff.SimpleValue),
+
+        outcomeKeyType: typeof(protobuff.SimpleKey),
+        outcomeValueType: typeof(protobuff.SimpleValue)
+        )
+        ]
+    public partial class TestProtobuffResponder
+    {
+
+    }
+
+
 }
