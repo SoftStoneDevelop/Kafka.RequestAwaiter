@@ -1,0 +1,1 @@
+Some methods, such as Start, for example, take a pool of producers as a parameter. In this case, you either need to use the class of the same name (without the "I" prefix) that the generator has already generated, or implement the interface yourself.

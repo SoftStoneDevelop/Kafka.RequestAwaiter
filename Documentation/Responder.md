@@ -30,6 +30,7 @@ Usage:
 
     }
 
+//Implement IProducerPoolProtoProto for producerPool self or use delault generated pool ProducerPoolProtoProto
 
 var simpleResponder = new TestProtobuffResponder(loggerFactory);
 var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
@@ -57,5 +58,5 @@ var configKafka = new TestProtobuffResponder.ConfigResponder(
   consumerConfigs
   );
 
-simpleResponder.Start(configKafka);
+simpleResponder.Start(configKafka, producerPool);
 ```
