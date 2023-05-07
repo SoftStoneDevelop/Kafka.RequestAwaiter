@@ -86,7 +86,7 @@ Declare partial classes with attributes:
 Pass configs to Start methods. It's all what you need to do.
 ```C#
 
-            var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
+            var awaitService = new TestProtobuffAwaiter(loggerFactory);
             //for each ConsumerConfig created own consumer and thread.
             //In this case simpleAwaiter create 3 thread/consumer/producer
             var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
@@ -112,19 +112,19 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            simpleAwaiter.Start(configKafka);
+            awaitService.Start(configKafka);
 
-          var responseMessage = await simpleAwaiter.Produce(
+            var responseMessage = await awaitService.Produce(
                     new protobuff.SimpleKey() { Id = i  },
                     new protobuff.SimpleValue() { Id = i, Priority = protobuff.Priority.Unspecified, Message = $"Value {i}" }
                     );
-          //responseMessage.Key is incomeKeyType(protobuff.SimpleKey)
-          //responseMessage.Value is incomeValueType(protobuff.SimpleValue)
+            //responseMessage.Key is incomeKeyType(protobuff.SimpleKey)
+            //responseMessage.Value is incomeValueType(protobuff.SimpleValue)
 ```
 
 ```C#
 
-            var simpleResponder = new TestProtobuffResponder(loggerFactory);
+            var responderService = new TestProtobuffResponder(loggerFactory);
             var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
             {
                     new TestProtobuffResponder.ConsumerResponderConfig(
@@ -192,6 +192,5 @@ Pass configs to Start methods. It's all what you need to do.
                 consumerConfigs
                 );
 
-            simpleResponder.Start(configKafka);
-
+            responderService.Start(configKafka);
 ```
