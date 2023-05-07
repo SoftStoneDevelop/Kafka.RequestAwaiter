@@ -141,7 +141,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                     new PartitionItem(
                         config.OutcomeTopicName,
                         config.ConsumerConfigs[i],
-                        _loggerFactory.CreateLogger($""{{config.ConsumerConfigs[i].TopicName}}:Partition{{string.Join(',',config.ConsumerConfigs[i])}}"")
+                        _loggerFactory.CreateLogger($""{{config.ConsumerConfigs[i].TopicName}}:Partition{{string.Join(',',config.ConsumerConfigs[i].Partitions)}}"")
                         );
             }}
         }}
@@ -195,9 +195,9 @@ namespace {ra.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
         public class ResponseMessage
         {{
-            public Message<string, string> OriginalMessage {{ get; set; }}
-            public string Key {{ get; set; }}
-            public string Value {{ get; set; }}
+            public Message<{GetConsumerTType(ra)}> OriginalMessage {{ get; set; }}
+            public {ra.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {ra.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public kafka.ResponseHeader HeaderInfo {{ get; set; }}
         }}
 ");
@@ -304,10 +304,10 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                                 incomeMessage.Key = {GetResponseKey(ra)};
                                 incomeMessage.Value = {GetResponseValue(ra)};
 
-                                _logger.LogInformation($""Consumed incomeMessage '{{consumeResult.Message}}'."");
+                                _logger.LogInformation($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}'."");
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    _logger.LogError($""Consumed incomeMessage '{{consumeResult.Message}}' not contain Info header"");
+                                    _logger.LogError($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}' not contain Info header"");
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
@@ -316,7 +316,7 @@ namespace {ra.TypeSymbol.ContainingNamespace}
 
                                 if (!_responceAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
                                 {{
-                                    _logger.LogError($""Consumed incomeMessage '{{consumeResult.Message}}': no one wait results"");
+                                    _logger.LogError($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}': no one wait results"");
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}

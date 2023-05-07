@@ -339,10 +339,10 @@ namespace {ra.TypeSymbol.ContainingNamespace}
                                 incomeMessage.Key = {GetIncomeMessageKey(ra)};
                                 incomeMessage.Value = {GetIncomeMessageValue(ra)};
 
-                                _logger.LogInformation($""Consumed incomeMessage '{{consumeResult.Message}}'."");
+                                _logger.LogInformation($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}'."");
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    _logger.LogError($""Consumed incomeMessage '{{consumeResult.Message}}' not contain Info header"");
+                                    _logger.LogError($""Consumed incomeMessage 'Key: {{consumeResult.Message.Key}}, Value: {{consumeResult.Message.Value}}' not contain Info header"");
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
