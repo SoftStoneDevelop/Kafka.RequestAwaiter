@@ -99,7 +99,7 @@ namespace KafkaExchanger
 
                 if (!classDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
                 {
-                    throw new Exception("Class '{type.Name}' must be declared as partial");
+                    throw new Exception($"Class '{type.Name}' must be declared as partial");
                 }
             }
         }
