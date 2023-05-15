@@ -77,12 +77,27 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
         private void InterfaceMethods(RequestAwaiterData data, ProducerPair producerPair)
         {
-            _builder.Append($@"
+            if(data.OutcomeKeyType.IsKafkaNull())
+            {
+                _builder.Append($@"
+        public Task<KafkaExchanger.Common.Response<{data.TypeSymbol.Name}.ResponseMessage>> Produce(
+            {data.OutcomeValueType.GetFullTypeName(true, true)} value,
+            int waitResponceTimeout = 0
+            );
+");
+            }
+            else
+            {
+                _builder.Append($@"
         public Task<KafkaExchanger.Common.Response<{data.TypeSymbol.Name}.ResponseMessage>> Produce(
             {data.OutcomeKeyType.GetFullTypeName(true, true)} key,
             {data.OutcomeValueType.GetFullTypeName(true, true)} value,
             int waitResponceTimeout = 0
             );
+");
+            }
+
+            _builder.Append($@"
 
         public void Start(KafkaExchanger.Common.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool);
 
@@ -106,7 +121,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
     {{
         {(data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
-        
+
         public {data.TypeSymbol.Name}({(data.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
             {(data.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
@@ -172,6 +187,23 @@ namespace {data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
         public Task<KafkaExchanger.Common.Response<{data.TypeSymbol.Name}.ResponseMessage>> Produce(
+");
+
+            if (data.OutcomeKeyType.IsKafkaNull())
+            {
+                _builder.Append($@"
+            {data.OutcomeValueType.GetFullTypeName(true)} value,
+            int waitResponceTimeout = 0
+            )
+        {{
+            var item = _items[ChooseItemIndex()];
+            return item.Produce(value, waitResponceTimeout);
+        }}
+");
+            }
+            else
+            {
+                _builder.Append($@"
             {data.OutcomeKeyType.GetFullTypeName(true)} key,
             {data.OutcomeValueType.GetFullTypeName(true)} value,
             int waitResponceTimeout = 0
@@ -181,6 +213,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             return item.Produce(key, value, waitResponceTimeout);
         }}
 ");
+            }
         }
 
         private void ChooseItemIndex(RequestAwaiterData data)
@@ -200,10 +233,18 @@ namespace {data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
         public class ResponseMessage
         {{
-            public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
-            public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public kafka.ResponseHeader HeaderInfo {{ get; set; }}
+            public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
+");
+            if(!data.IncomeKeyType.IsKafkaNull())
+            {
+                _builder.Append($@"
+            public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
+");
+            }
+
+            _builder.Append($@"
+            public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
         }}
 ");
         }
@@ -302,10 +343,12 @@ namespace {data.TypeSymbol.ContainingNamespace}
                             {{
                                 var consumeResult = consumer.Consume(_ctsConsume.Token);
                                 
-                                var incomeMessage = new ResponseMessage();
-                                incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetResponseKey(data)};
-                                incomeMessage.Value = {GetResponseValue(data)};
+                                var incomeMessage = new ResponseMessage()
+                                {{
+                                    OriginalMessage = consumeResult.Message,
+                                    {(data.IncomeKeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(data)},")}
+                                    Value = {GetResponseValue(data)}
+                                }};
 
                                 {(data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
@@ -427,7 +470,16 @@ namespace {data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
             public async Task<KafkaExchanger.Common.Response<ResponseMessage>> Produce(
+");
+
+            if (!data.OutcomeKeyType.IsKafkaNull())
+            {
+                _builder.Append($@"
                 {data.OutcomeKeyType.GetFullTypeName(true)} key,
+");
+            }
+
+            _builder.Append($@"
                 {data.OutcomeValueType.GetFullTypeName(true)} value,
                 int waitResponceTimeout = 0
                 )
@@ -477,7 +529,16 @@ namespace {data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
                 var message = new Message<{producerPair.TypesPair}>()
                 {{
+");
+
+            if (!data.OutcomeKeyType.IsKafkaNull())
+            {
+                _builder.Append($@"
                     Key = {(data.OutcomeKeyType.IsProtobuffType() ? "key.ToByteArray()" : "key")},
+");
+            }
+
+            _builder.Append($@"
                     Value = {(data.OutcomeValueType.IsProtobuffType() ? "value.ToByteArray()" : "value")}
                 }};
 ");

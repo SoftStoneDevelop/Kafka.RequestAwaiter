@@ -181,5 +181,10 @@ namespace KafkaExchanger.Helpers
         {
             return type.Interfaces.Any(an => an.GetFullTypeName() == "Google.Protobuf.IMessage");
         }
+
+        internal static bool IsKafkaNull(this ITypeSymbol type)
+        {
+            return type.GetFullTypeName(true) == "Confluent.Kafka.Null";
+        }
     }
 }

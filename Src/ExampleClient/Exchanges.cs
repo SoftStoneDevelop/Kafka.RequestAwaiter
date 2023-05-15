@@ -1,11 +1,13 @@
-﻿namespace ExampleClient
+﻿using Confluent.Kafka;
+
+namespace ExampleClient
 {
     [KafkaExchanger.Attributes.RequestAwaiter
         (
-        incomeKeyType: typeof(string),
+        incomeKeyType: typeof(Null),
         incomeValueType: typeof(string),
 
-        outcomeKeyType: typeof(string),
+        outcomeKeyType: typeof(Null),
         outcomeValueType: typeof(string)
         )
         ]
@@ -16,10 +18,10 @@
 
     [KafkaExchanger.Attributes.Responder
         (
-        incomeKeyType: typeof(string),
+        incomeKeyType: typeof(Null),
         incomeValueType: typeof(string),
 
-        outcomeKeyType: typeof(string),
+        outcomeKeyType: typeof(Null),
         outcomeValueType: typeof(string)
         )
         ]

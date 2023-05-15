@@ -44,9 +44,9 @@ namespace KafkaExchanger.Datas
 
         public ITypeSymbol ValueType { get; private set; }
 
-        public string ValueTypeAlias => KeyType.IsProtobuffType() ? "Proto" : KeyType.GetTypeAliasName();
+        public string ValueTypeAlias => ValueType.IsProtobuffType() ? "Proto" : ValueType.GetTypeAliasName();
 
-        public string FullValueTypeName => KeyType.IsProtobuffType() ? "byte[]" : KeyType.GetFullTypeName(true);
+        public string FullValueTypeName => ValueType.IsProtobuffType() ? "byte[]" : ValueType.GetFullTypeName(true);
 
         public string PoolInterfaceName => $"IProducerPool{KeyTypeAlias}{ValueTypeAlias}";
 

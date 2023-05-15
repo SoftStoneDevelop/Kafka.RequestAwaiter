@@ -8,18 +8,18 @@ namespace ExampleClient
     {
         internal static async Task RunExchange(ILoggerFactory loggerFactory)
         {
-            var producerPool = new ProducerPoolStringString(3, "localhost:9194, localhost:9294, localhost:9394");
+            var producerPool = new ProducerPoolNullString(3, "localhost:9194, localhost:9294, localhost:9394");
             var simpleAwaiter = CreateAwaiter(loggerFactory, producerPool);
             var simpleResponder = CreateResponder(loggerFactory, producerPool);
 
             var consoleLog = loggerFactory.CreateLogger<Program>();
             for (var i = 0; i < 10; i++)
             {
-                var result = await simpleAwaiter.Produce($"Key {i}", $"Value {i}");
+                var result = await simpleAwaiter.Produce($"Value {i}");
                 consoleLog.LogWarning($@"
 
 
-Get result: key:{result.Result.Key}, value:{result.Result.Value}
+Get result: value:{result.Result.Value}
 AllResults: {i + 1}
 
 ");
@@ -31,7 +31,7 @@ AllResults: {i + 1}
             producerPool.Dispose();
         }
 
-        private static TestSimpleAwaiter CreateAwaiter(ILoggerFactory loggerFactory, IProducerPoolStringString producerPool)
+        private static TestSimpleAwaiter CreateAwaiter(ILoggerFactory loggerFactory, IProducerPoolNullString producerPool)
         {
             var simpleAwaiter = new TestSimpleAwaiter(loggerFactory);
             var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
@@ -62,23 +62,23 @@ AllResults: {i + 1}
             return simpleAwaiter;
         }
 
-        private static TestSimpleResponder CreateResponder(ILoggerFactory loggerFactory, IProducerPoolStringString producerPool)
+        private static TestSimpleResponder CreateResponder(ILoggerFactory loggerFactory, IProducerPoolNullString producerPool)
         {
             var simpleResponder = new TestSimpleResponder(loggerFactory);
             var consumerConfigs = new TestSimpleResponder.ConsumerResponderConfig[]
             {
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => new TestSimpleResponder.OutcomeMessage(){ Key = $"{income.Key}", Value = $"'{income.Value}' back from 0"},
+                        (income) => new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 0"},
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 0 }
                         ),
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => new TestSimpleResponder.OutcomeMessage(){ Key = $"{income.Key}", Value = $"'{income.Value}' back from 1"},
+                        (income) => new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 1"},
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 1 }
                         ),
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => new TestSimpleResponder.OutcomeMessage(){ Key = $"{income.Key}", Value = $"'{income.Value}' back from 2"},
+                        (income) => new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 2"},
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 2 }
                         )
