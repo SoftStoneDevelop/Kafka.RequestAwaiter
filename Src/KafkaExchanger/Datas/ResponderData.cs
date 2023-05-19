@@ -7,6 +7,10 @@ namespace KafkaExchanger.AttributeDatas
 {
     internal class ResponderData : BaseServiceData
     {
+        public ConsumerData ConsumerData { get; } = new ConsumerData();
+
+        public ProducerData ProducerData { get; } = new ProducerData();
+
         public ITypeSymbol OutcomeKeyType { get; set; }
 
         public ITypeSymbol OutcomeValueType { get; set; }
@@ -21,7 +25,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 5)
+            if (namedArguments.Length != 11)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -49,6 +53,36 @@ namespace KafkaExchanger.AttributeDatas
             if (!SetUseLogger(namedArguments[4], result))
             {
                 throw new Exception("Fail create ResponderData data: UseLogger");
+            }
+
+            if (!result.ConsumerData.SetCommitAfter(namedArguments[5]))
+            {
+                throw new Exception("Fail create ResponderData data: CommitAfter");
+            }
+
+            if (!result.ConsumerData.SetOrderMatters(namedArguments[6]))
+            {
+                throw new Exception("Fail create ResponderData data: OrderMatters");
+            }
+
+            if (!result.ConsumerData.SetCheckDuplicate(namedArguments[7]))
+            {
+                throw new Exception("Fail create ResponderData data: CheckDuplicate");
+            }
+
+            if (!result.ProducerData.SetBeforeSendResponse(namedArguments[8]))
+            {
+                throw new Exception("Fail create ResponderData data: BeforeSendResponse");
+            }
+
+            if (!result.ProducerData.SetAfterSendResponse(namedArguments[9]))
+            {
+                throw new Exception("Fail create ResponderData data: AfterSendResponse");
+            }
+
+            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[10]))
+            {
+                throw new Exception("Fail create ResponderData data: UseAfterCommit");
             }
 
             return result;

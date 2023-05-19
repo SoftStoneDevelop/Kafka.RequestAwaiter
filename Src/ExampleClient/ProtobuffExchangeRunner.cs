@@ -71,7 +71,7 @@ AllResults: {i + 1}
             {
                     new TestProtobuffResponder.ConsumerResponderConfig(
                         (income) =>
-                        new TestProtobuffResponder.OutcomeMessage()
+                        Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         {
                             Key = new protobuff.SimpleKey()
                             {
@@ -84,13 +84,13 @@ AllResults: {i + 1}
                                 Priority = protobuff.Priority.White,
                                 Message = $"'{income.Value.Message}' back from 0"
                             }
-                        },
+                        }),
                         TopicNames.TestRequestProtobuffTopic,
                         new int[] { 0 }
                         ),
                     new TestProtobuffResponder.ConsumerResponderConfig(
                         (income) =>
-                        new TestProtobuffResponder.OutcomeMessage()
+                        Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         {
                             Key = new protobuff.SimpleKey()
                             {
@@ -103,13 +103,13 @@ AllResults: {i + 1}
                                 Priority = protobuff.Priority.Yellow,
                                 Message = $"'{income.Value.Message}' back from 1"
                             }
-                        },
+                        }),
                         TopicNames.TestRequestProtobuffTopic,
                         new int[] { 1 }
                         ),
                     new TestProtobuffResponder.ConsumerResponderConfig(
                         (income) => 
-                        new TestProtobuffResponder.OutcomeMessage()
+                        Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         { 
                             Key = new protobuff.SimpleKey() 
                             { 
@@ -122,7 +122,7 @@ AllResults: {i + 1}
                                 Priority = protobuff.Priority.Red, 
                                 Message = $"'{income.Value.Message}' back from 2" 
                             }
-                        },
+                        }),
                         TopicNames.TestRequestProtobuffTopic,
                         new int[] { 2 }
                         )
