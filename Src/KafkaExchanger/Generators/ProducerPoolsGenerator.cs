@@ -34,7 +34,7 @@ namespace KafkaExchanger.Generators
             }
         }
 
-        public void GenerateProducerPools(GeneratorExecutionContext context)
+        public void GenerateProducerPools(SourceProductionContext context)
         {
             _builder.Clear();
 

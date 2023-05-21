@@ -17,7 +17,7 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateResponder(ResponderData data, GeneratorExecutionContext context)
+        public void GenerateResponder(ResponderData data, SourceProductionContext context)
         {
             _builder.Clear();
 

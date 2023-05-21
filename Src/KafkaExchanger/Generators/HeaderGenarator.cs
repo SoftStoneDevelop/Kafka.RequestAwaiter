@@ -7,7 +7,7 @@ namespace KafkaExchanger.Generators
 {
     public class HeaderGenarator
     {
-        public void Generate(GeneratorExecutionContext context)
+        public void Generate(IncrementalGeneratorPostInitializationContext context)
         {
             context.AddSource($"Headers.g.cs", GetHeaderCode());
         }

@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators
     {
         private readonly StringBuilder _builder = new StringBuilder();
 
-        public void Generate(GeneratorExecutionContext context)
+        public void Generate(IncrementalGeneratorPostInitializationContext context)
         {
             _builder.Clear();
 

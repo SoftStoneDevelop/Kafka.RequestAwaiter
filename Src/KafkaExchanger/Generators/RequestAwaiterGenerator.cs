@@ -15,7 +15,7 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateRequestAwaiter(RequestAwaiterData data, GeneratorExecutionContext context)
+        public void GenerateRequestAwaiter(RequestAwaiterData data, SourceProductionContext context)
         {
             _builder.Clear();
             var producerPair = new ProducerPair(data.OutcomeKeyType, data.OutcomeValueType);
