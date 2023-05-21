@@ -98,7 +98,7 @@ var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
 {
   new KafkaExchanger.Common.ConsumerConfig(
     "IncomeTopicName",
-    new int[] { 0 }//one consumer can response for many partitions or ane partition in this case
+    new int[] { 0 }//one consumer can response for many partitions or one partition in this case
     ),
   new KafkaExchanger.Common.ConsumerConfig(
     "IncomeTopicName",
