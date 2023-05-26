@@ -280,7 +280,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {(data.UseLogger ? @",ILogger logger" : "")}
                 {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @",Func<Task> afterCommit" : "")}
-                {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
+                {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
                 )
             {{
                 Partitions = partitions;
