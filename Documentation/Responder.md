@@ -7,7 +7,12 @@ public ResponderAttribute(
   Type outcomeValueType,
   Type incomeKeyType,
   Type incomeValueType,
-  bool useLogger = true
+  bool useLogger = true,
+  uint commitAfter = 1,
+  OrderMatters orderMatters = OrderMatters.NotMatters,
+  bool checkCurrentState = false,
+  bool useAfterSendResponse = false,
+  bool useAfterCommit = false
   )
 
 ```
