@@ -70,7 +70,7 @@ AllResults: {i + 1}
             var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
             {
                     new TestProtobuffResponder.ConsumerResponderConfig(
-                        (income) =>
+                        (income, currentState) =>
                         Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         {
                             Key = new protobuff.SimpleKey()
@@ -89,7 +89,7 @@ AllResults: {i + 1}
                         new int[] { 0 }
                         ),
                     new TestProtobuffResponder.ConsumerResponderConfig(
-                        (income) =>
+                        (income, currentState) =>
                         Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         {
                             Key = new protobuff.SimpleKey()
@@ -108,7 +108,7 @@ AllResults: {i + 1}
                         new int[] { 1 }
                         ),
                     new TestProtobuffResponder.ConsumerResponderConfig(
-                        (income) => 
+                        (income, currentState) => 
                         Task.FromResult(new TestProtobuffResponder.OutcomeMessage()
                         { 
                             Key = new protobuff.SimpleKey() 

@@ -68,17 +68,17 @@ AllResults: {i + 1}
             var consumerConfigs = new TestSimpleResponder.ConsumerResponderConfig[]
             {
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 0"}),
+                        (income, currentState) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 0"}),
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 0 }
                         ),
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 1"}),
+                        (income, currentState) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 1"}),
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 1 }
                         ),
                     new TestSimpleResponder.ConsumerResponderConfig(
-                        (income) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 2"}),
+                        (income, currentState) => Task.FromResult(new TestSimpleResponder.OutcomeMessage(){ Value = $"'{income.Value}' back from 2"}),
                         TopicNames.TestRequestSimpleTopic,
                         new int[] { 2 }
                         )

@@ -9,27 +9,27 @@ namespace KafkaExchanger.AttributeDatas
 {
     internal class ConsumerData
     {
-        public int CommitAfter { get; private set; }
+        public uint CommitAfter { get; private set; }
         public OrderMatters OrderMatters { get; private set; }
 
-        public bool CheckDuplicate { get; private set; }
+        public bool CheckCurrentState { get; private set; }
 
         public bool UseAfterCommit { get; private set; }
 
         internal bool SetCommitAfter(TypedConstant argument)
         {
             if (!(argument.Type is INamedTypeSymbol useLogger) ||
-                useLogger.Name != nameof(Int32)
+                useLogger.Name != nameof(UInt32)
                 )
             {
                 return false;
             }
 
-            CommitAfter = (int)argument.Value;
+            CommitAfter = (uint)argument.Value;
             return true;
         }
 
-        internal bool SetCheckDuplicate(TypedConstant argument)
+        internal bool SetCheckCurrentState(TypedConstant argument)
         {
             if (!(argument.Type is INamedTypeSymbol useLogger) ||
                 useLogger.Name != nameof(Boolean)
@@ -38,7 +38,7 @@ namespace KafkaExchanger.AttributeDatas
                 return false;
             }
 
-            CheckDuplicate = (bool)argument.Value;
+            CheckCurrentState = (bool)argument.Value;
             return true;
         }
 
@@ -72,22 +72,7 @@ namespace KafkaExchanger.AttributeDatas
 
     internal class ProducerData
     {
-        public bool BeforeSendResponse { get; private set; }
-
         public bool AfterSendResponse { get; private set; }
-
-        internal bool SetBeforeSendResponse(TypedConstant argument)
-        {
-            if (!(argument.Type is INamedTypeSymbol useLogger) ||
-                useLogger.Name != nameof(Boolean)
-                )
-            {
-                return false;
-            }
-
-            BeforeSendResponse = (bool)argument.Value;
-            return true;
-        }
 
         internal bool SetAfterSendResponse(TypedConstant argument)
         {

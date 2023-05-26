@@ -166,9 +166,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
                         config.ConsumerConfigs[i].Partitions,
                         producerPool
                         {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
-                        {(data.ConsumerData.CheckDuplicate ? @",config.ConsumerConfigs[i].CheckDuplicateDelegate" : "")}
+                        {(data.ConsumerData.CheckCurrentState ? @",config.ConsumerConfigs[i].GetCurrentStateDelegate" : "")}
                         {(data.ConsumerData.UseAfterCommit ? @",config.ConsumerConfigs[i].AfterCommitDelegate" : "")}
-                        {(data.ProducerData.BeforeSendResponse ? @",config.ConsumerConfigs[i].BeforeSendResponseDelegate" : "")}
                         {(data.ProducerData.AfterSendResponse ? @",config.ConsumerConfigs[i].AfterSendResponseDelegate" : "")}
                         );
             }}
@@ -222,27 +221,24 @@ namespace {data.TypeSymbol.ContainingNamespace}
         public class ConsumerResponderConfig : KafkaExchanger.Common.ConsumerConfig
         {{
             public ConsumerResponderConfig(
-                Func<IncomeMessage, Task<OutcomeMessage>> createAnswerDelegate,
-                {(data.ConsumerData.CheckDuplicate ? "Func<IncomeMessage, Task<bool>> checkDuplicateDelegate," : "")}
-                {(data.ConsumerData.UseAfterCommit ? "Func<Task<bool>> afterCommitDelegate," : "")}
-                {(data.ProducerData.BeforeSendResponse ? @"Func<IncomeMessage, OutcomeMessage, Task> beforeSendResponseDelegate," : "")}
-                {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, OutcomeMessage, Task> afterSendResponseDelegate," : "")}
+                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswerDelegate,
+                {(data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate," : "")}
+                {(data.ConsumerData.UseAfterCommit ? "Func<Task> afterCommitDelegate," : "")}
+                {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponseDelegate," : "")}
                 string topicName,
                 params int[] partitions
                 ) : base(topicName, partitions)
             {{
                 CreateAnswerDelegate = createAnswerDelegate;
-                {(data.ConsumerData.CheckDuplicate ? "CheckDuplicateDelegate = checkDuplicateDelegate;" : "")}
+                {(data.ConsumerData.CheckCurrentState ? "GetCurrentStateDelegate = getCurrentStateDelegate;" : "")}
                 {(data.ConsumerData.UseAfterCommit ? "AfterCommitDelegate = afterCommitDelegate;" : "")}
-                {(data.ProducerData.BeforeSendResponse ? @"BeforeSendResponseDelegate = beforeSendResponseDelegate;" : "")}
                 {(data.ProducerData.AfterSendResponse ? @"AfterSendResponseDelegate = afterSendResponseDelegate;" : "")}
             }}
 
-            public Func<IncomeMessage, Task<OutcomeMessage>> CreateAnswerDelegate {{ get; init; }}
-            {(data.ConsumerData.CheckDuplicate ? "public Func<IncomeMessage, Task<bool>> CheckDuplicateDelegate { get; init; }" : "")}
+            public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> CreateAnswerDelegate {{ get; init; }}
+            {(data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentStateDelegate { get; init; }" : "")}
             {(data.ConsumerData.UseAfterCommit ? "public Func<Task> AfterCommitDelegate { get; init; }" : "")}
-            {(data.ProducerData.BeforeSendResponse ? "public Func<IncomeMessage, OutcomeMessage, Task> BeforeSendResponseDelegate { get; init; }" : "")}
-            {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, OutcomeMessage, Task> AfterSendResponseDelegate { get; init; }" : "")}
+            {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponseDelegate { get; init; }" : "")}
         }}
 ");
         }
@@ -278,14 +274,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
         {{
             public PartitionItem(
                 string incomeTopicName,
-                Func<IncomeMessage, Task<OutcomeMessage>> createAnswer,
+                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswer,
                 int[] partitions,
                 {producerPair.FullPoolInterfaceName} producerPool
                 {(data.UseLogger ? @",ILogger logger" : "")}
-                {(data.ConsumerData.CheckDuplicate ? @",Func<IncomeMessage, Task<bool>> checkDuplicate" : "")}
+                {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @",Func<Task> afterCommit" : "")}
-                {(data.ProducerData.BeforeSendResponse ? @",Func<IncomeMessage, OutcomeMessage, Task> beforeSendResponse" : "")}
-                {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, OutcomeMessage, Task> afterSendResponse" : "")}
+                {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
                 )
             {{
                 Partitions = partitions;
@@ -293,19 +288,17 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 _incomeTopicName = incomeTopicName;
                 _createAnswer = createAnswer;
                 _producerPool = producerPool;
-                {(data.ConsumerData.CheckDuplicate ? @"_checkDuplicate = checkDuplicate;" : "")}
+                {(data.ConsumerData.CheckCurrentState ? @"_getCurrentStateDelegate = getCurrentStateDelegate;" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @"_afterCommit = afterCommit;" : "")}
-                {(data.ProducerData.BeforeSendResponse ? @"_beforeSendResponse = beforeSendResponse;" : "")}
                 {(data.ProducerData.AfterSendResponse ? @"_afterSendResponse = afterSendResponse;" : "")}
             }}
 
             {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _incomeTopicName;
-            private readonly Func<IncomeMessage, Task<OutcomeMessage>> _createAnswer;
-            {(data.ConsumerData.CheckDuplicate ? @"private readonly Func<IncomeMessage, Task<bool>> _checkDuplicate;" : "")}
+            private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> _createAnswer;
+            {(data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentStateDelegate;" : "")}
             {(data.ConsumerData.UseAfterCommit ? @"private readonly Func<Task> _afterCommit;" : "")}
-            {(data.ProducerData.BeforeSendResponse ? @"private readonly Func<IncomeMessage, OutcomeMessage, Task> _beforeSendResponse;" : "")}
-            {(data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, OutcomeMessage, Task> _afterSendResponse;" : "")}
+            {(data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> _afterSendResponse;" : "")}
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
@@ -399,12 +392,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
                     try
                     {{
+                        {(data.ConsumerData.CommitAfter > 1 ? "int mesaggesPast = 0;" : "")}
                         while (!_cts.Token.IsCancellationRequested)
                         {{
                             try
                             {{
                                 var consumeResult = consumer.Consume(_cts.Token);
-
+                                {(data.ConsumerData.CommitAfter > 1 ? "mesaggesPast++;" : "")}
                                 var incomeMessage = new IncomeMessage();
                                 incomeMessage.OriginalMessage = consumeResult.Message;
                                 incomeMessage.Key = {GetIncomeMessageKey(data)};
@@ -419,29 +413,33 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 }}
 
                                 incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
-");
-            if(data.ConsumerData.CheckDuplicate)
-            {
-                _builder.Append($@"
-                                if(!await _checkDuplicate(incomeMessage))
+                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentStateDelegate(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
+                                    var answer = await _createAnswer(incomeMessage, currentState);
+                                    await Produce(answer, incomeMessage.HeaderInfo);
+                                    {(data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, currentState, answer);" : "")}
+                                }}
 ");
-            }
-            _builder.Append($@"
-                                var answer = await _createAnswer(incomeMessage);
-                                {(data.ProducerData.BeforeSendResponse ? "await _beforeSendResponse(incomeMessage, answer);" : "")}
-                                await Produce(answer, incomeMessage.HeaderInfo);
-                                {(data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, answer);" : "")}
-");
-            if (data.ConsumerData.CheckDuplicate)
+            if(data.ConsumerData.CommitAfter > 1)
             {
                 _builder.Append($@"
+                                if (mesaggesPast == {data.ConsumerData.CommitAfter})
+                                {{
+                                    consumer.Commit(consumeResult);
+                                    {(data.ConsumerData.UseAfterCommit ? "await _afterCommit();" : "")}
+                                    mesaggesPast = 0;
                                 }}
 ");
             }
-            _builder.Append($@"
+            else
+            {
+                _builder.Append($@"
                                 consumer.Commit(consumeResult);
                                 {(data.ConsumerData.UseAfterCommit ? "await _afterCommit();" : "")}
+");
+            }
+            _builder.Append($@"
                             }}
                             catch (ConsumeException e)
                             {{
@@ -486,40 +484,26 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 }}
 
                                 incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
-
-");
-            if (data.ConsumerData.CheckDuplicate)
-            {
-                _builder.Append($@"
-                                if(!await _checkDuplicate(incomeMessage))
+                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentStateDelegate(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
-");
-            }
-            _builder.Append($@"
-                                package.Add(
-                                    _createAnswer(incomeMessage)
-                                    .ContinueWith
-                                    (async (task) =>
-                                    {{
-                                        {(data.ProducerData.BeforeSendResponse ? "await _beforeSendResponse(incomeMessage, task.Result);" : "")}
-                                        await Produce(task.Result, incomeMessage.HeaderInfo);
-                                        {(data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, task.Result);" : "")}
-                                    }},
-                                    continuationOptions: TaskContinuationOptions.RunContinuationsAsynchronously
-                                    )
-                                    );
-");
-            if (data.ConsumerData.CheckDuplicate)
-            {
-                _builder.Append($@"
+                                    package.Add(
+                                            _createAnswer(incomeMessage, currentState)
+                                        .ContinueWith
+                                        (async (task) =>
+                                        {{
+                                            await Produce(task.Result, incomeMessage.HeaderInfo);
+                                            {(data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, currentState, task.Result);" : "")}
+                                        }},
+                                        continuationOptions: TaskContinuationOptions.RunContinuationsAsynchronously
+                                        )
+                                        );
                                 }}
                                 else
                                 {{
                                     package.Add(Task.FromResult(Task.CompletedTask));
                                 }}
-");
-            }
-            _builder.Append($@"
+
                                 if (package.Count == {data.ConsumerData.CommitAfter})
                                 {{
                                     await Task.WhenAll(await Task.WhenAll(package));

@@ -25,7 +25,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 11)
+            if (namedArguments.Length != 10)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -65,22 +65,17 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create ResponderData data: OrderMatters");
             }
 
-            if (!result.ConsumerData.SetCheckDuplicate(namedArguments[7]))
+            if (!result.ConsumerData.SetCheckCurrentState(namedArguments[7]))
             {
-                throw new Exception("Fail create ResponderData data: CheckDuplicate");
+                throw new Exception("Fail create ResponderData data: SetCheckCurrentState");
             }
 
-            if (!result.ProducerData.SetBeforeSendResponse(namedArguments[8]))
-            {
-                throw new Exception("Fail create ResponderData data: BeforeSendResponse");
-            }
-
-            if (!result.ProducerData.SetAfterSendResponse(namedArguments[9]))
+            if (!result.ProducerData.SetAfterSendResponse(namedArguments[8]))
             {
                 throw new Exception("Fail create ResponderData data: AfterSendResponse");
             }
 
-            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[10]))
+            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[9]))
             {
                 throw new Exception("Fail create ResponderData data: UseAfterCommit");
             }
