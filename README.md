@@ -112,7 +112,7 @@ var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
 var configKafka = new KafkaExchanger.Common.ConfigRequestAwaiter(
   "TestGroup",
   "localhost:9194, localhost:9294, localhost:9394",
-  "OutcomeTopicName,
+  "OutcomeTopicName",
   consumerConfigs
   );
 
