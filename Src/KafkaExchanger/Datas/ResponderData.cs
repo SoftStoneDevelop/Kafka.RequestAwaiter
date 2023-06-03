@@ -85,7 +85,7 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create ResponderData data: CustomOutcomeHeader");
             }
 
-            if (!result.ProducerData.SetCustomHeaders(namedArguments[10]))
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[11]))
             {
                 throw new Exception("Fail create ResponderData data: CustomHeaders");
             }
