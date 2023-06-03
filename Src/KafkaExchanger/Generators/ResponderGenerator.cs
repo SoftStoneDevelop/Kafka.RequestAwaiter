@@ -223,7 +223,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             public ConsumerResponderConfig(
                 Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswerDelegate,
                 {(data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate," : "")}
-                {(data.ConsumerData.UseAfterCommit ? "Func<Task> afterCommitDelegate," : "")}
+                {(data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommitDelegate," : "")}
                 {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponseDelegate," : "")}
                 string topicName,
                 params int[] partitions
@@ -237,7 +237,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
             public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> CreateAnswerDelegate {{ get; init; }}
             {(data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentStateDelegate { get; init; }" : "")}
-            {(data.ConsumerData.UseAfterCommit ? "public Func<Task> AfterCommitDelegate { get; init; }" : "")}
+            {(data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommitDelegate { get; init; }" : "")}
             {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponseDelegate { get; init; }" : "")}
         }}
 ");
@@ -280,7 +280,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {producerPair.FullPoolInterfaceName} producerPool
                 {(data.UseLogger ? @",ILogger logger" : "")}
                 {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate" : "")}
-                {(data.ConsumerData.UseAfterCommit ? @",Func<Task> afterCommit" : "")}
+                {(data.ConsumerData.UseAfterCommit ? @",Func<HashSet<int>, Task> afterCommit" : "")}
                 {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
                 )
             {{
@@ -298,7 +298,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             private readonly string _incomeTopicName;
             private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> _createAnswer;
             {(data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentStateDelegate;" : "")}
-            {(data.ConsumerData.UseAfterCommit ? @"private readonly Func<Task> _afterCommit;" : "")}
+            {(data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
             {(data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> _afterSendResponse;" : "")}
 
             private CancellationTokenSource _cts;
@@ -394,12 +394,14 @@ namespace {data.TypeSymbol.ContainingNamespace}
                     try
                     {{
                         {(data.ConsumerData.CommitAfter > 1 ? "int mesaggesPast = 0;" : "")}
+                        {(data.ConsumerData.UseAfterCommit ? "var partitionsInPackage = new HashSet<int>();" : "")}
                         while (!_cts.Token.IsCancellationRequested)
                         {{
                             try
                             {{
                                 var consumeResult = consumer.Consume(_cts.Token);
                                 {(data.ConsumerData.CommitAfter > 1 ? "mesaggesPast++;" : "")}
+                                {(data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Add(consumeResult.Partition.Value);" : "")}
                                 var incomeMessage = new IncomeMessage();
                                 incomeMessage.Partition = consumeResult.Partition;
                                 incomeMessage.OriginalMessage = consumeResult.Message;
@@ -429,7 +431,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 if (mesaggesPast == {data.ConsumerData.CommitAfter})
                                 {{
                                     consumer.Commit(consumeResult);
-                                    {(data.ConsumerData.UseAfterCommit ? "await _afterCommit();" : "")}
+                                    {(data.ConsumerData.UseAfterCommit ? "await _afterCommit(partitionsInPackage);" : "")}
+                                    {(data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Clear();" : "")}
                                     mesaggesPast = 0;
                                 }}
 ");
@@ -438,7 +441,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {
                 _builder.Append($@"
                                 consumer.Commit(consumeResult);
-                                {(data.ConsumerData.UseAfterCommit ? "await _afterCommit();" : "")}
+                                {(data.ConsumerData.UseAfterCommit ? "await _afterCommit(partitionsInPackage);" : "")}
+                                {(data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Clear();" : "")}
 ");
             }
             _builder.Append($@"
@@ -465,6 +469,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
                     var package = new List<Task<Task>>({data.ConsumerData.CommitAfter});
+                    {(data.ConsumerData.UseAfterCommit ? "var partitionsInPackage = new HashSet<int>();" : "")}
                     try
                     {{
                         while (!_cts.Token.IsCancellationRequested)
@@ -474,6 +479,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 var consumeResult = consumer.Consume(_cts.Token);
 
                                 var incomeMessage = new IncomeMessage();
+                                {(data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Add(consumeResult.Partition.Value);" : "")}
                                 incomeMessage.Partition = consumeResult.Partition;
                                 incomeMessage.OriginalMessage = consumeResult.Message;
                                 incomeMessage.Key = {GetIncomeMessageKey(data)};
@@ -512,7 +518,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                     await Task.WhenAll(await Task.WhenAll(package));
                                     package.Clear();
                                     consumer.Commit(consumeResult);
-                                    {(data.ConsumerData.UseAfterCommit ? "await _afterCommit();" : "")}
+                                    {(data.ConsumerData.UseAfterCommit ? "await _afterCommit(partitionsInPackage);" : "")}
+                                    {(data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Clear();" : "")}
                                 }}
                             }}
                             catch (ConsumeException e)
