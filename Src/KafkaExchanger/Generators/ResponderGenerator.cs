@@ -252,6 +252,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
             public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public kafka.RequestHeader HeaderInfo {{ get; set; }}
+            public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
@@ -400,6 +401,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 var consumeResult = consumer.Consume(_cts.Token);
                                 {(data.ConsumerData.CommitAfter > 1 ? "mesaggesPast++;" : "")}
                                 var incomeMessage = new IncomeMessage();
+                                incomeMessage.Partition = consumeResult.Partition;
                                 incomeMessage.OriginalMessage = consumeResult.Message;
                                 incomeMessage.Key = {GetIncomeMessageKey(data)};
                                 incomeMessage.Value = {GetIncomeMessageValue(data)};
@@ -472,6 +474,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 var consumeResult = consumer.Consume(_cts.Token);
 
                                 var incomeMessage = new IncomeMessage();
+                                incomeMessage.Partition = consumeResult.Partition;
                                 incomeMessage.OriginalMessage = consumeResult.Message;
                                 incomeMessage.Key = {GetIncomeMessageKey(data)};
                                 incomeMessage.Value = {GetIncomeMessageValue(data)};

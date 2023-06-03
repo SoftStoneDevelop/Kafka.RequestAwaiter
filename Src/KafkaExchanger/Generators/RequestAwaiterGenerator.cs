@@ -245,6 +245,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
             _builder.Append($@"
             public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
@@ -347,7 +348,8 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 {{
                                     OriginalMessage = consumeResult.Message,
                                     {(data.IncomeKeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(data)},")}
-                                    Value = {GetResponseValue(data)}
+                                    Value = {GetResponseValue(data)},
+                                    Partition = consumeResult.Partition
                                 }};
 
                                 {(data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
