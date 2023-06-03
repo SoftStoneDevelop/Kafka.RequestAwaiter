@@ -209,18 +209,22 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void ConsumerListenerConfig(ListenerData data)
         {
             _builder.Append($@"
-        public class ConsumerListenerConfig : KafkaExchanger.Common.ConsumerConfig
+        public class ConsumerListenerConfig
         {{
             public ConsumerListenerConfig(
                 Action<IncomeMessage> processDelegate,
                 string topicName,
                 params int[] partitions
-                ) : base(topicName, partitions)
+                )
             {{
                 {{
                     ProcessDelegate = processDelegate;
                 }}
             }}
+
+            public string TopicName {{ get; init; }}
+
+            public int[] Partitions {{ get; init; }}
 
             public Action<IncomeMessage> ProcessDelegate {{ get; init; }}
         }}

@@ -25,7 +25,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 10)
+            if (namedArguments.Length != 12)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -78,6 +78,16 @@ namespace KafkaExchanger.AttributeDatas
             if (!result.ConsumerData.SetUseAfterCommit(namedArguments[9]))
             {
                 throw new Exception("Fail create ResponderData data: UseAfterCommit");
+            }
+
+            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[10]))
+            {
+                throw new Exception("Fail create ResponderData data: CustomOutcomeHeader");
+            }
+
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[10]))
+            {
+                throw new Exception("Fail create ResponderData data: CustomHeaders");
             }
 
             return result;

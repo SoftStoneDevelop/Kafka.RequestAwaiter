@@ -36,23 +36,23 @@ AllResults: {i + 1}
         private static TestProtobuffAwaiter CreateAwaiter(ILoggerFactory loggerFactory, IProducerPoolProtoProto producerPool)
         {
             var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
-            var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
+            var consumerConfigs = new TestProtobuffAwaiter.ConsumerRequestAwaiterConfig[]
             {
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestProtobuffAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseProtobuffTopic,
                         new int[] { 0 }
                         ),
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestProtobuffAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseProtobuffTopic,
                         new int[] { 1 }
                         ),
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestProtobuffAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseProtobuffTopic,
                         new int[] { 2 }
                         )
             };
 
-            var configKafka = new KafkaExchanger.Common.ConfigRequestAwaiter(
+            var configKafka = new TestProtobuffAwaiter.ConfigRequestAwaiter(
                 "TestGroup",
                 "localhost:9194, localhost:9294, localhost:9394",
                 TopicNames.TestRequestProtobuffTopic,

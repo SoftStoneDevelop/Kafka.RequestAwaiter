@@ -28,6 +28,10 @@ namespace KafkaExchanger.Generators
             StartMethod(data, producerPair);
             BuildPartitionItems(data, producerPair);
             StopAsync(data);
+
+            ConfigResponder(data);
+            ConsumerResponderConfig(data);
+
             Produce(data);
             ChooseItemIndex(data);
 
@@ -99,7 +103,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
             _builder.Append($@"
 
-        public void Start(KafkaExchanger.Common.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool);
+        public void Start({data.TypeSymbol.Name}.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool);
 
         public Task StopAsync();
 ");
@@ -132,7 +136,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void StartMethod(RequestAwaiterData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-        public void Start(KafkaExchanger.Common.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool)
+        public void Start({data.TypeSymbol.Name}.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool)
         {{
             BuildPartitionItems(config, producerPool);
 
@@ -150,7 +154,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void BuildPartitionItems(RequestAwaiterData data, ProducerPair producerPair)
         {
             _builder.Append($@"
-        private void BuildPartitionItems(KafkaExchanger.Common.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool)
+        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigRequestAwaiter config, {producerPair.FullPoolInterfaceName} producerPool)
         {{
             _items = new PartitionItem[config.ConsumerConfigs.Length];
             var items = _items.AsSpan();
@@ -158,10 +162,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {{
                 items[i] =
                     new PartitionItem(
+                        config.ConsumerConfigs[i].IncomeTopicName,
                         config.OutcomeTopicName,
-                        config.ConsumerConfigs[i],
+                        config.ConsumerConfigs[i].Partitions,
                         producerPool
-                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partition{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
+                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].IncomeTopicName}:Partition{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
+                        {(data.ProducerData.CustomOutcomeHeader ? @",config.ConsumerConfigs[i].CreateOutcomeHeader" : "")}
+                        {(data.ProducerData.CustomHeaders ? @",config.ConsumerConfigs[i].SetHeaders" : "")}
                         );
             }}
         }}
@@ -179,6 +186,63 @@ namespace {data.TypeSymbol.ContainingNamespace}
             }}
             
             _items = null;
+        }}
+");
+        }
+
+        private void ConfigResponder(RequestAwaiterData data)
+        {
+            _builder.Append($@"
+        public class ConfigRequestAwaiter
+        {{
+            public ConfigRequestAwaiter(
+                string groupId,
+                string bootstrapServers,
+                string outcomeTopicName,
+                ConsumerRequestAwaiterConfig[] consumerConfigs
+                )
+            {{
+                GroupId = groupId;
+                BootstrapServers = bootstrapServers;
+                OutcomeTopicName = outcomeTopicName;
+                ConsumerConfigs = consumerConfigs;
+            }}
+
+            public string GroupId {{ get; init; }}
+
+            public string BootstrapServers {{ get; init; }}
+
+            public string OutcomeTopicName {{ get; init; }}
+
+            public ConsumerRequestAwaiterConfig[] ConsumerConfigs {{ get; init; }}
+        }}
+");
+        }
+
+        private void ConsumerResponderConfig(RequestAwaiterData data)
+        {
+            _builder.Append($@"
+        public class ConsumerRequestAwaiterConfig
+        {{
+            public ConsumerRequestAwaiterConfig(
+                {(data.ProducerData.CustomOutcomeHeader ? @"Func<Task<kafka.ResponseHeader>> createOutcomeHeader," : "")}
+                {(data.ProducerData.CustomHeaders ? @"Func<Headers, Task> setHeaders," : "")}
+                string incomeTopicName,
+                params int[] partitions
+                )
+            {{
+                IncomeTopicName = incomeTopicName;
+                Partitions = partitions;
+                {(data.ProducerData.CustomOutcomeHeader ? @"CreateOutcomeHeader = createOutcomeHeader;" : "")}
+                {(data.ProducerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
+            }}
+
+            {(data.ProducerData.CustomOutcomeHeader ? "public Func<Task<kafka.ResponseHeader>> CreateOutcomeHeader { get; init; }" : "")}
+            {(data.ProducerData.CustomHeaders ? "public Func<Headers, Task> SetHeaders { get; init; }" : "")}
+
+            public string IncomeTopicName {{ get; init; }}
+
+            public int[] Partitions {{ get; init; }}
         }}
 ");
         }
@@ -273,22 +337,28 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private class PartitionItem
         {{
             public PartitionItem(
+                string incomeTopicName,
                 string outcomeTopicName,
-                KafkaExchanger.Common.ConsumerConfig consumerConfig,
+                int[] partitions,
                 {producerPair.FullPoolInterfaceName} producerPool
                 {(data.UseLogger ? @",ILogger logger" : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? @",Func<Task<kafka.ResponseHeader>> createOutcomeHeader" : "")}
+                {(data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
                 )
             {{
-                Partitions = consumerConfig.Partitions;
+                Partitions = partitions;
                 {(data.UseLogger ? @"_logger = logger;" : "")}
                 _outcomeTopicName = outcomeTopicName;
-                _incomeTopicName = consumerConfig.TopicName;
+                _incomeTopicName = incomeTopicName;
                 _producerPool = producerPool;
             }}
 
             {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _outcomeTopicName;
             private readonly string _incomeTopicName;
+
+            {(data.ProducerData.CustomOutcomeHeader ? @"private readonly Func<Task<kafka.ResponseHeader>> _createOutcomeHeader;" : "")}
+            {(data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
 
             private CancellationTokenSource _ctsConsume;
             private Task _routineConsume;
@@ -334,7 +404,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                         .Build()
                         ;
 
-                    consumer.Assign(Partitions.Select(partitionId => new TopicPartition(_incomeTopicName, partitionId)));
+                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_incomeTopicName, sel)));
 
                     try
                     {{
@@ -490,11 +560,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
             CreateOutcomeMessage(data, producerPair);
 
             _builder.Append($@"
-                var header = CreateOutcomeHeader();
+                {(data.ProducerData.CustomOutcomeHeader ? "var header = await _createOutcomeHeader();" : "var header = CreateOutcomeHeader();")}
                 message.Headers = new Headers
                 {{
                     {{ ""Info"", header.ToByteArray() }}
                 }};
+
+                {(data.ProducerData.CustomHeaders ? "await _setHeaders(message.Headers);" : "")}
 
                 var awaiter = new KafkaExchanger.Common.TopicResponse<ResponseMessage>(header.MessageGuid, RemoveAwaiter, waitResponceTimeout);
                 if (!_responceAwaiters.TryAdd(header.MessageGuid, awaiter))
@@ -561,7 +633,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
         private void CreateOutcomeHeader(RequestAwaiterData data)
         {
-            _builder.Append($@"
+            if (data.ProducerData.CustomOutcomeHeader)
+            {
+                //nothing
+            }
+            else
+            {
+                _builder.Append($@"
             private kafka.RequestHeader CreateOutcomeHeader()
             {{
                 var guid = Guid.NewGuid();
@@ -574,6 +652,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {{
                     Name = _incomeTopicName
                 }};
+
                 topic.Partitions.Add(Partitions);
 
                 headerInfo.TopicsForAnswer.Add(topic);
@@ -581,6 +660,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 return headerInfo;
             }}
 ");
+            }
         }
 
         private void EndPartitionItem()

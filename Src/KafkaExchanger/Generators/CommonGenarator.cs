@@ -15,9 +15,6 @@ namespace KafkaExchanger.Generators
 
             Start();
 
-            ConfigRequestAwaiter();
-            ConsumerConfig();
-
             ResponseT();
             TopicResponseT();
 
@@ -42,56 +39,6 @@ namespace KafkaExchanger.Common
         {
             _builder.Append($@"
 }}
-");
-        }
-
-        public void ConfigRequestAwaiter()
-        {
-            _builder.Append($@"
-    public class ConfigRequestAwaiter
-    {{
-        public ConfigRequestAwaiter(
-            string groupId,
-            string bootstrapServers,
-            string outcomeTopicName,
-            ConsumerConfig[] consumerConfigs
-            )
-        {{
-            GroupId = groupId;
-            BootstrapServers = bootstrapServers;
-            OutcomeTopicName = outcomeTopicName;
-            ConsumerConfigs = consumerConfigs;
-        }}
-
-        public string GroupId {{ get; init; }}
-
-        public string BootstrapServers {{ get; init; }}
-
-        public string OutcomeTopicName {{ get; init; }}
-
-        public ConsumerConfig[] ConsumerConfigs {{ get; init; }}
-    }}
-");
-        }
-
-        public void ConsumerConfig()
-        {
-            _builder.Append($@"
-    public class ConsumerConfig
-    {{
-        public ConsumerConfig(
-            string topicName,
-            int[] partitions
-            )
-        {{
-            TopicName = topicName;
-            Partitions = partitions;
-        }}
-
-        public string TopicName {{ get; init; }}
-
-        public int[] Partitions {{ get; init; }}
-    }}
 ");
         }
 

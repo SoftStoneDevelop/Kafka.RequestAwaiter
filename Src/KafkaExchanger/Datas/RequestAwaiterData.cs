@@ -7,6 +7,8 @@ namespace KafkaExchanger.AttributeDatas
 {
     internal class RequestAwaiterData : BaseServiceData
     {
+        public ProducerData ProducerData { get; } = new ProducerData();
+
         public ITypeSymbol OutcomeKeyType { get; set; }
 
         public ITypeSymbol OutcomeValueType { get; set; }
@@ -21,7 +23,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 5)
+            if (namedArguments.Length != 7)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -49,6 +51,16 @@ namespace KafkaExchanger.AttributeDatas
             if (!SetUseLogger(namedArguments[4], result))
             {
                 throw new Exception("Fail create RequestAwaiter data: UseLogger");
+            }
+
+            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[5]))
+            {
+                throw new Exception("Fail create ResponderData data: CustomOutcomeHeader");
+            }
+
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[6]))
+            {
+                throw new Exception("Fail create ResponderData data: CustomHeaders");
             }
 
             return result;

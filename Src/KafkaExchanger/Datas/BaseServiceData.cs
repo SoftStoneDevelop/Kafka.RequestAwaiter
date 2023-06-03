@@ -86,6 +86,36 @@ namespace KafkaExchanger.AttributeDatas
             AfterSendResponse = (bool)argument.Value;
             return true;
         }
+
+        public bool CustomOutcomeHeader { get; private set; }
+
+        internal bool SetCustomOutcomeHeader(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(Boolean)
+                )
+            {
+                return false;
+            }
+
+            CustomOutcomeHeader = (bool)argument.Value;
+            return true;
+        }
+
+        public bool CustomHeaders { get; private set; }
+
+        internal bool SetCustomHeaders(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(Boolean)
+                )
+            {
+                return false;
+            }
+
+            CustomHeaders = (bool)argument.Value;
+            return true;
+        }
     }
 
     internal class BaseServiceData

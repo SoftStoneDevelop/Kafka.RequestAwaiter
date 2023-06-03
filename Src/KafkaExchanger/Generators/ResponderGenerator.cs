@@ -161,14 +161,16 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {{
                 items[i] =
                     new PartitionItem(
-                        config.ConsumerConfigs[i].TopicName,
-                        config.ConsumerConfigs[i].CreateAnswerDelegate,
+                        config.ConsumerConfigs[i].IncomeTopicName,
+                        config.ConsumerConfigs[i].CreateAnswer,
                         config.ConsumerConfigs[i].Partitions,
                         producerPool
-                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
-                        {(data.ConsumerData.CheckCurrentState ? @",config.ConsumerConfigs[i].GetCurrentStateDelegate" : "")}
-                        {(data.ConsumerData.UseAfterCommit ? @",config.ConsumerConfigs[i].AfterCommitDelegate" : "")}
-                        {(data.ProducerData.AfterSendResponse ? @",config.ConsumerConfigs[i].AfterSendResponseDelegate" : "")}
+                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].IncomeTopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
+                        {(data.ConsumerData.CheckCurrentState ? @",config.ConsumerConfigs[i].GetCurrentState" : "")}
+                        {(data.ConsumerData.UseAfterCommit ? @",config.ConsumerConfigs[i].AfterCommit" : "")}
+                        {(data.ProducerData.AfterSendResponse ? @",config.ConsumerConfigs[i].AfterSendResponse" : "")}
+                        {(data.ProducerData.CustomOutcomeHeader ? @",config.ConsumerConfigs[i].CreateOutcomeHeader" : "")}
+                        {(data.ProducerData.CustomHeaders ? @",config.ConsumerConfigs[i].SetHeaders" : "")}
                         );
             }}
         }}
@@ -218,27 +220,40 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void ConsumerResponderConfig(ResponderData data)
         {
             _builder.Append($@"
-        public class ConsumerResponderConfig : KafkaExchanger.Common.ConsumerConfig
+        public class ConsumerResponderConfig
         {{
             public ConsumerResponderConfig(
-                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswerDelegate,
-                {(data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate," : "")}
-                {(data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommitDelegate," : "")}
-                {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponseDelegate," : "")}
-                string topicName,
+                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswer,
+                {(data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState," : "")}
+                {(data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommit," : "")}
+                {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse," : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? @"Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> createOutcomeHeader," : "")}
+                {(data.ProducerData.CustomHeaders ? @"Func<Headers, Task> setHeaders," : "")}
+                string incomeTopicName,
                 params int[] partitions
-                ) : base(topicName, partitions)
+                )
             {{
-                CreateAnswerDelegate = createAnswerDelegate;
-                {(data.ConsumerData.CheckCurrentState ? "GetCurrentStateDelegate = getCurrentStateDelegate;" : "")}
-                {(data.ConsumerData.UseAfterCommit ? "AfterCommitDelegate = afterCommitDelegate;" : "")}
-                {(data.ProducerData.AfterSendResponse ? @"AfterSendResponseDelegate = afterSendResponseDelegate;" : "")}
+                CreateAnswer = createAnswer;
+                IncomeTopicName = incomeTopicName;
+                Partitions = partitions;
+
+                {(data.ConsumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
+                {(data.ConsumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
+                {(data.ProducerData.AfterSendResponse ? @"AfterSendResponse = afterSendResponse;" : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? @"CreateOutcomeHeader = createOutcomeHeader;" : "")}
+                {(data.ProducerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
             }}
 
-            public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> CreateAnswerDelegate {{ get; init; }}
-            {(data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentStateDelegate { get; init; }" : "")}
-            {(data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommitDelegate { get; init; }" : "")}
-            {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponseDelegate { get; init; }" : "")}
+            public string IncomeTopicName {{ get; init; }}
+
+            public int[] Partitions {{ get; init; }}
+
+            public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> CreateAnswer {{ get; init; }}
+            {(data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentState { get; init; }" : "")}
+            {(data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommit { get; init; }" : "")}
+            {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponse { get; init; }" : "")}
+            {(data.ProducerData.CustomOutcomeHeader ? "public Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> CreateOutcomeHeader { get; init; }" : "")}
+            {(data.ProducerData.CustomHeaders ? "public Func<Headers, Task> SetHeaders { get; init; }" : "")}
         }}
 ");
         }
@@ -279,9 +294,11 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 int[] partitions,
                 {producerPair.FullPoolInterfaceName} producerPool
                 {(data.UseLogger ? @",ILogger logger" : "")}
-                {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentStateDelegate" : "")}
+                {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @",Func<HashSet<int>, Task> afterCommit" : "")}
                 {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? @",Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> createOutcomeHeader" : "")}
+                {(data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
                 )
             {{
                 Partitions = partitions;
@@ -289,17 +306,21 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 _incomeTopicName = incomeTopicName;
                 _createAnswer = createAnswer;
                 _producerPool = producerPool;
-                {(data.ConsumerData.CheckCurrentState ? @"_getCurrentStateDelegate = getCurrentStateDelegate;" : "")}
+                {(data.ConsumerData.CheckCurrentState ? @"_getCurrentState = getCurrentState;" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @"_afterCommit = afterCommit;" : "")}
                 {(data.ProducerData.AfterSendResponse ? @"_afterSendResponse = afterSendResponse;" : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? @"_createOutcomeHeader = createOutcomeHeader;" : "")}
+                {(data.ProducerData.CustomHeaders ? @"_setHeaders = setHeaders;" : "")}
             }}
 
             {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _incomeTopicName;
             private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> _createAnswer;
-            {(data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentStateDelegate;" : "")}
+            {(data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
             {(data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
             {(data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> _afterSendResponse;" : "")}
+            {(data.ProducerData.CustomOutcomeHeader ? @"private readonly Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> _createOutcomeHeader;" : "")}
+            {(data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
@@ -326,7 +347,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
         private void PartitionItemStartConsume(ResponderData data)
         {
             PartitionItemStartStartConsume(data);
-            if(data.ConsumerData.CommitAfter == 1 || 
+            if(data.ConsumerData.CommitAfter <= 1 || 
                 (data.ConsumerData.OrderMatters.HasFlag(Enums.OrderMatters.ForProcess) && data.ConsumerData.OrderMatters.HasFlag(Enums.OrderMatters.ForResponse)))
             {
                 StartConsumeBody(data);
@@ -417,7 +438,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 }}
 
                                 incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
-                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentStateDelegate(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
                                     var answer = await _createAnswer(incomeMessage, currentState);
@@ -493,7 +514,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 }}
 
                                 incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
-                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentStateDelegate(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
                                     package.Add(
@@ -611,12 +632,14 @@ namespace {data.TypeSymbol.ContainingNamespace}
             CreateOutcomeMessage(data, producerPair);
 
             _builder.Append($@"
-                var header = CreateOutcomeHeader(headerInfo);
+                {(data.ProducerData.CustomOutcomeHeader ? "var header = await _createOutcomeHeader(headerInfo);" : "var header = CreateOutcomeHeader(headerInfo);")}
                 message.Headers = new Headers
                 {{
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
+                {(data.ProducerData.CustomHeaders ? "await _setHeaders(message.Headers);" : "")}
+                
                 try
                 {{
                     if (!headerInfo.TopicsForAnswer.Any())
@@ -647,7 +670,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
 
         private void CreateOutcomeHeader(ResponderData data)
         {
-            _builder.Append($@"
+            if(data.ProducerData.CustomOutcomeHeader)
+            {
+                //nothing
+            }
+            else
+            {
+                _builder.Append($@"
             private kafka.ResponseHeader CreateOutcomeHeader(kafka.RequestHeader requestHeaderInfo)
             {{
                 var headerInfo = new kafka.ResponseHeader()
@@ -658,6 +687,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 return headerInfo;
             }}
 ");
+            }
         }
 
         private void CreateOutcomeMessage(ResponderData data, ProducerPair producerPair)

@@ -34,23 +34,23 @@ AllResults: {i + 1}
         private static TestSimpleAwaiter CreateAwaiter(ILoggerFactory loggerFactory, IProducerPoolNullString producerPool)
         {
             var simpleAwaiter = new TestSimpleAwaiter(loggerFactory);
-            var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
+            var consumerConfigs = new TestSimpleAwaiter.ConsumerRequestAwaiterConfig[]
             {
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestSimpleAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseSimpleTopic,
                         new int[] { 0 }
                         ),
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestSimpleAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseSimpleTopic,
                         new int[] { 1 }
                         ),
-                    new KafkaExchanger.Common.ConsumerConfig(
+                    new TestSimpleAwaiter.ConsumerRequestAwaiterConfig(
                         TopicNames.TestResponseSimpleTopic,
                         new int[] { 2 }
                         )
             };
 
-            var configKafka = new KafkaExchanger.Common.ConfigRequestAwaiter(
+            var configKafka = new TestSimpleAwaiter.ConfigRequestAwaiter(
                 "TestGroup",
                 "localhost:9194, localhost:9294, localhost:9394",
                 TopicNames.TestRequestSimpleTopic,
