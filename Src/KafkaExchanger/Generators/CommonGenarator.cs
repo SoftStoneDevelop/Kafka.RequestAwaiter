@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators
@@ -9,11 +10,11 @@ namespace KafkaExchanger.Generators
     {
         private readonly StringBuilder _builder = new StringBuilder();
 
-        public void Generate(IncrementalGeneratorPostInitializationContext context)
+        public void Generate(string assemblyName, SourceProductionContext context)
         {
             _builder.Clear();
 
-            Start();
+            Start(assemblyName);
 
             ResponseT();
             TopicResponseT();
@@ -23,14 +24,14 @@ namespace KafkaExchanger.Generators
             context.AddSource($"KafkaExchangerCommon.g.cs", _builder.ToString());
         }
 
-        public void Start()
+        public void Start(string assemblyName)
         {
             _builder.Append($@"
 using System.Threading.Tasks;
 using System.Threading;
 using System;
 
-namespace KafkaExchanger.Common
+namespace {assemblyName}
 {{
 ");
         }

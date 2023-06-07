@@ -24,8 +24,6 @@ namespace KafkaExchanger
 
             context.RegisterSourceOutput(compilationAndClasses,
                 (spc, source) => Execute(source.Item1, source.Item2, spc));
-
-            context.RegisterPostInitializationOutput(ExecutePostInitialization);
         }
 
         static bool IsSyntaxTargetForGeneration(SyntaxNode node)
@@ -83,15 +81,6 @@ namespace KafkaExchanger
             return null;
         }
 
-        private void ExecutePostInitialization(IncrementalGeneratorPostInitializationContext context)
-        {
-            var commonGenerator = new CommonGenarator();
-            commonGenerator.Generate(context);
-
-            var headerGenerator = new HeaderGenarator();
-            headerGenerator.Generate(context);
-        }
-
         public void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> types, SourceProductionContext context)
         {
             //System.Diagnostics.Debugger.Launch();
@@ -99,6 +88,17 @@ namespace KafkaExchanger
             {
                 return;
             }
+
+            if(string.IsNullOrEmpty(compilation.AssemblyName))
+            {
+                throw new System.NotSupportedException("Assembly don`t have name");
+            }
+
+            var commonGenerator = new CommonGenarator();
+            commonGenerator.Generate(compilation.AssemblyName, context);
+
+            var headerGenerator = new HeaderGenarator();
+            headerGenerator.Generate(compilation.AssemblyName, context);
 
             var distinctTypes = types.Distinct().GroupBy(gr => gr.Identifier.ValueText);
             var processor = new Processor();
@@ -109,7 +109,7 @@ namespace KafkaExchanger
                 processor.TryFillFrom(type);
             }
 
-            processor.Generate(context);
+            processor.Generate(compilation.AssemblyName, context);
         }
     }
 }

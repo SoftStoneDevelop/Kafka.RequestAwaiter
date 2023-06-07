@@ -69,7 +69,7 @@ namespace ExampleClient
                 .Build()
                 ;
 
-            var headerInfo = new kafka.ResponseHeader()
+            var headerInfo = new ResponseHeader()
             {
             };
 

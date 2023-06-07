@@ -1,8 +1,9 @@
 ﻿using Confluent.Kafka;
+using KafkaExchanger.Attributes;
 
 namespace ExampleClient
 {
-    [KafkaExchanger.Attributes.RequestAwaiter
+    [RequestAwaiter
         (
         incomeKeyType: typeof(Null),
         incomeValueType: typeof(string),
@@ -16,7 +17,7 @@ namespace ExampleClient
 
     }
 
-    [KafkaExchanger.Attributes.Responder
+    [Responder
         (
         incomeKeyType: typeof(Null),
         incomeValueType: typeof(string),
@@ -30,7 +31,7 @@ namespace ExampleClient
 
     }
 
-    [KafkaExchanger.Attributes.RequestAwaiter
+    [RequestAwaiter
         (
         incomeKeyType: typeof(protobuff.SimpleKey),
         incomeValueType: typeof(protobuff.SimpleValue),
@@ -44,7 +45,7 @@ namespace ExampleClient
 
     }
 
-    [KafkaExchanger.Attributes.Responder
+    [Responder
         (
         incomeKeyType: typeof(protobuff.SimpleKey),
         incomeValueType: typeof(protobuff.SimpleValue),
@@ -58,7 +59,7 @@ namespace ExampleClient
 
     }
 
-    [KafkaExchanger.Attributes.Listener
+    [Listener
         (
         incomeKeyType: typeof(string),
         incomeValueType: typeof(string)
@@ -69,7 +70,7 @@ namespace ExampleClient
 
     }
 
-    [KafkaExchanger.Attributes.Listener
+    [Listener
         (
         incomeKeyType: typeof(protobuff.SimpleKey),
         incomeValueType: typeof(protobuff.SimpleValue)

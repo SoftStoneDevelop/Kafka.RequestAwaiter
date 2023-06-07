@@ -16,7 +16,7 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateListener(ListenerData ld, SourceProductionContext context)
+        public void GenerateListener(string assemblyName, ListenerData ld, SourceProductionContext context)
         {
             _builder.Clear();
 
@@ -25,14 +25,14 @@ namespace KafkaExchanger.Generators
             Interface(ld);
 
 
-            ResponderClass(ld);
+            ResponderClass(assemblyName, ld);
 
             End();
 
             context.AddSource($"{ld.TypeSymbol.Name}Listener.g.cs", _builder.ToString());
         }
 
-        private void ResponderClass(ListenerData data)
+        private void ResponderClass(string assemblyName, ListenerData data)
         {
             StartClass(data);
 
@@ -43,19 +43,19 @@ namespace KafkaExchanger.Generators
             ConfigListener(data);
             ConsumerListenerConfig(data);
 
-            IncomeMessage(data);
+            IncomeMessage(assemblyName, data);
 
-            PartitionItem(data);
+            PartitionItem(assemblyName, data);
 
             EndInterfaceOrClass(data);
         }
 
-        private void PartitionItem(ListenerData data)
+        private void PartitionItem(string assemblyName, ListenerData data)
         {
             PartitionItemStartClass(data);
             PartitionItemStartMethod(data);
 
-            PartitionItemStartConsume(data);
+            PartitionItemStartConsume(assemblyName, data);
             PartitionItemStopConsume(data);
 
             PartitionItemStop(data);
@@ -231,7 +231,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void IncomeMessage(ListenerData data)
+        private void IncomeMessage(string assemblyName, ListenerData data)
         {
             _builder.Append($@"
         public class IncomeMessage
@@ -239,7 +239,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
             public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
             public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
-            public kafka.RequestHeader HeaderInfo {{ get; set; }}
+            public {assemblyName}.RequestHeader HeaderInfo {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
@@ -287,7 +287,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartConsume(ListenerData data)
+        private void PartitionItemStartConsume(string assemblyName, ListenerData data)
         {
             _builder.Append($@"
             private void StartConsume(
@@ -336,7 +336,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
+                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
 
                                 _processDelegate(incomeMessage);
                                 consumer.Commit(consumeResult);

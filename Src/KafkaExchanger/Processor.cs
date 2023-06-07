@@ -78,6 +78,7 @@ namespace KafkaExchanger
         }
 
         public void Generate(
+            string assemblyName,
             SourceProductionContext context
             )
         {
@@ -88,19 +89,19 @@ namespace KafkaExchanger
             var requestAwaiterGenerator = new RequestAwaiterGenerator();
             foreach (var requestAwaiterData in _requestAwaiterDatas)
             {
-                requestAwaiterGenerator.GenerateRequestAwaiter(requestAwaiterData, context);
+                requestAwaiterGenerator.GenerateRequestAwaiter(assemblyName, requestAwaiterData, context);
             }
 
             var responderGenerator = new ResponderGenerator();
             foreach (var responderData in _responderDatas)
             {
-                responderGenerator.GenerateResponder(responderData, context);
+                responderGenerator.GenerateResponder(assemblyName, responderData, context);
             }
 
             var listenerGenerator = new ListenerGenerator();
             foreach (var listenerData in _listenerDatas)
             {
-                listenerGenerator.GenerateListener(listenerData, context);
+                listenerGenerator.GenerateListener(assemblyName, listenerData, context);
             }
         }
     }

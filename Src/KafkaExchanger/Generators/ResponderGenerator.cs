@@ -17,7 +17,7 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateResponder(ResponderData data, SourceProductionContext context)
+        public void GenerateResponder(string assemblyName, ResponderData data, SourceProductionContext context)
         {
             _builder.Clear();
 
@@ -26,14 +26,14 @@ namespace KafkaExchanger.Generators
 
             Interface(data, producerPair);
 
-            ResponderClass(data, producerPair);
+            ResponderClass(assemblyName, data, producerPair);
 
             End();
 
             context.AddSource($"{data.TypeSymbol.Name}Responder.g.cs", _builder.ToString());
         }
 
-        private void ResponderClass(ResponderData data, ProducerPair producerPair)
+        private void ResponderClass(string assemblyName, ResponderData data, ProducerPair producerPair)
         {
             StartClass(data);
 
@@ -42,27 +42,27 @@ namespace KafkaExchanger.Generators
             StopAsync(data);
 
             ConfigResponder(data);
-            ConsumerResponderConfig(data);
+            ConsumerResponderConfig(assemblyName, data);
 
-            IncomeMessage(data);
+            IncomeMessage(assemblyName, data);
             OutcomeMessage(data);
 
-            PartitionItem(data, producerPair);
+            PartitionItem(assemblyName, data, producerPair);
 
             EndInterfaceOrClass(data);
         }
 
-        private void PartitionItem(ResponderData data, ProducerPair producerPair)
+        private void PartitionItem(string assemblyName, ResponderData data, ProducerPair producerPair)
         {
-            PartitionItemStartClass(data, producerPair);
+            PartitionItemStartClass(assemblyName, data, producerPair);
             PartitionItemStartMethod(data);
 
-            PartitionItemStartConsume(data);
+            PartitionItemStartConsume(assemblyName, data);
             PartitionItemStopConsume(data);
 
             PartitionItemStop(data);
-            PartitionItemProduce(data, producerPair);
-            CreateOutcomeHeader(data);
+            PartitionItemProduce(assemblyName, data, producerPair);
+            CreateOutcomeHeader(assemblyName, data);
 
             _builder.Append($@"
         }}
@@ -217,7 +217,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ConsumerResponderConfig(ResponderData data)
+        private void ConsumerResponderConfig(string assemblyName, ResponderData data)
         {
             _builder.Append($@"
         public class ConsumerResponderConfig
@@ -227,7 +227,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {(data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState," : "")}
                 {(data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommit," : "")}
                 {(data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse," : "")}
-                {(data.ProducerData.CustomOutcomeHeader ? @"Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> createOutcomeHeader," : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? $@"Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutcomeHeader," : "")}
                 {(data.ProducerData.CustomHeaders ? @"Func<Headers, Task> setHeaders," : "")}
                 string incomeTopicName,
                 params int[] partitions
@@ -252,13 +252,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {(data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentState { get; init; }" : "")}
             {(data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommit { get; init; }" : "")}
             {(data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponse { get; init; }" : "")}
-            {(data.ProducerData.CustomOutcomeHeader ? "public Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> CreateOutcomeHeader { get; init; }" : "")}
+            {(data.ProducerData.CustomOutcomeHeader ? $"public Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> CreateOutcomeHeader {{ get; init; }}" : "")}
             {(data.ProducerData.CustomHeaders ? "public Func<Headers, Task> SetHeaders { get; init; }" : "")}
         }}
 ");
         }
 
-        private void IncomeMessage(ResponderData data)
+        private void IncomeMessage(string assemblyName, ResponderData data)
         {
             _builder.Append($@"
         public class IncomeMessage
@@ -266,7 +266,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
             public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
             public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
-            public kafka.RequestHeader HeaderInfo {{ get; set; }}
+            public {assemblyName}.RequestHeader HeaderInfo {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
@@ -283,7 +283,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartClass(ResponderData data, ProducerPair producerPair)
+        private void PartitionItemStartClass(string assemblyName, ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
         private class PartitionItem
@@ -297,7 +297,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 {(data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState" : "")}
                 {(data.ConsumerData.UseAfterCommit ? @",Func<HashSet<int>, Task> afterCommit" : "")}
                 {(data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
-                {(data.ProducerData.CustomOutcomeHeader ? @",Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> createOutcomeHeader" : "")}
+                {(data.ProducerData.CustomOutcomeHeader ? $@",Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutcomeHeader" : "")}
                 {(data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
                 )
             {{
@@ -319,7 +319,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             {(data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
             {(data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
             {(data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> _afterSendResponse;" : "")}
-            {(data.ProducerData.CustomOutcomeHeader ? @"private readonly Func<kafka.RequestHeader, Task<kafka.ResponseHeader>> _createOutcomeHeader;" : "")}
+            {(data.ProducerData.CustomOutcomeHeader ? $@"private readonly Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> _createOutcomeHeader;" : "")}
             {(data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
 
             private CancellationTokenSource _cts;
@@ -344,13 +344,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartConsume(ResponderData data)
+        private void PartitionItemStartConsume(string assemblyName, ResponderData data)
         {
             PartitionItemStartStartConsume(data);
             if(data.ConsumerData.CommitAfter <= 1 || 
                 (data.ConsumerData.OrderMatters.HasFlag(Enums.OrderMatters.ForProcess) && data.ConsumerData.OrderMatters.HasFlag(Enums.OrderMatters.ForResponse)))
             {
-                StartConsumeBody(data);
+                StartConsumeBody(assemblyName, data);
             }
             else if(data.ConsumerData.OrderMatters.HasFlag(Enums.OrderMatters.ForProcess))
             {
@@ -362,7 +362,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
             }
             else//NotMatters
             {
-                StartConsumeBodyNotMatters(data);
+                StartConsumeBodyNotMatters(assemblyName, data);
             }
 
             PartitionItemEndStartConsume(data);
@@ -409,7 +409,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartConsumeBody(ResponderData data)
+        private void StartConsumeBody(string assemblyName, ResponderData data)
         {
             _builder.Append($@"
                     try
@@ -437,7 +437,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
+                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
                                 var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
@@ -486,7 +486,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartConsumeBodyNotMatters(ResponderData data)
+        private void StartConsumeBodyNotMatters(string assemblyName, ResponderData data)
         {
             _builder.Append($@"
                     var package = new List<Task<Task>>({data.ConsumerData.CommitAfter});
@@ -513,7 +513,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = kafka.RequestHeader.Parser.ParseFrom(infoBytes);
+                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
                                 var currentState = {(data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
@@ -619,12 +619,12 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemProduce(ResponderData data, ProducerPair producerPair)
+        private void PartitionItemProduce(string assemblyName, ResponderData data, ProducerPair producerPair)
         {
             _builder.Append($@"
             private async Task Produce(
                 OutcomeMessage outcomeMessage,
-                kafka.RequestHeader headerInfo
+                {assemblyName}.RequestHeader headerInfo
                 )
             {{
 ");
@@ -668,7 +668,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void CreateOutcomeHeader(ResponderData data)
+        private void CreateOutcomeHeader(string assemblyName, ResponderData data)
         {
             if(data.ProducerData.CustomOutcomeHeader)
             {
@@ -677,9 +677,9 @@ namespace {data.TypeSymbol.ContainingNamespace}
             else
             {
                 _builder.Append($@"
-            private kafka.ResponseHeader CreateOutcomeHeader(kafka.RequestHeader requestHeaderInfo)
+            private {assemblyName}.ResponseHeader CreateOutcomeHeader({assemblyName}.RequestHeader requestHeaderInfo)
             {{
-                var headerInfo = new kafka.ResponseHeader()
+                var headerInfo = new {assemblyName}.ResponseHeader()
                 {{
                     AnswerToMessageGuid = requestHeaderInfo.MessageGuid
                 }};
