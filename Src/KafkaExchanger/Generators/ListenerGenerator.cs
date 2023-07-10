@@ -2,12 +2,6 @@
 using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Reflection.Metadata;
 using System.Text;
 
 namespace KafkaExchanger.Generators
@@ -16,121 +10,121 @@ namespace KafkaExchanger.Generators
     {
         StringBuilder _builder = new StringBuilder();
 
-        public void GenerateListener(string assemblyName, ListenerData ld, SourceProductionContext context)
+        public void GenerateListener(string assemblyName, Listener listener, SourceProductionContext context)
         {
             _builder.Clear();
 
-            Start(ld);
+            Start(listener);
 
-            Interface(ld);
+            Interface(listener);
 
 
-            ResponderClass(assemblyName, ld);
+            ResponderClass(assemblyName, listener);
 
             End();
 
-            context.AddSource($"{ld.TypeSymbol.Name}Listener.g.cs", _builder.ToString());
+            context.AddSource($"{listener.Data.TypeSymbol.Name}Listener.g.cs", _builder.ToString());
         }
 
-        private void ResponderClass(string assemblyName, ListenerData data)
+        private void ResponderClass(string assemblyName, Listener listener)
         {
-            StartClass(data);
+            StartClass(listener);
 
-            StartResponderMethod(data);
-            BuildPartitionItems(data);
-            StopAsync(data);
+            StartResponderMethod(listener);
+            BuildPartitionItems(listener);
+            StopAsync();
 
-            ConfigListener(data);
-            ConsumerListenerConfig(data);
+            ConfigListener();
+            ConsumerListenerConfig();
 
-            IncomeMessage(assemblyName, data);
+            IncomeMessage(assemblyName, listener);
 
-            PartitionItem(assemblyName, data);
+            PartitionItem(assemblyName, listener);
 
-            EndInterfaceOrClass(data);
+            EndInterfaceOrClass(listener);
         }
 
-        private void PartitionItem(string assemblyName, ListenerData data)
+        private void PartitionItem(string assemblyName, Listener listener)
         {
-            PartitionItemStartClass(data);
-            PartitionItemStartMethod(data);
+            PartitionItemStartClass(listener);
+            PartitionItemStartMethod();
 
-            PartitionItemStartConsume(assemblyName, data);
-            PartitionItemStopConsume(data);
+            PartitionItemStartConsume(assemblyName, listener);
+            PartitionItemStopConsume();
 
-            PartitionItemStop(data);
+            PartitionItemStop();
 
             _builder.Append($@"
         }}
 ");
         }
 
-        private void Start(ListenerData data)
+        private void Start(Listener listener)
         {
             _builder.Append($@"
 using Confluent.Kafka;
 using Google.Protobuf;
-{(data.UseLogger ? "using Microsoft.Extensions.Logging;" : "")}
+{(listener.Data.UseLogger ? "using Microsoft.Extensions.Logging;" : "")}
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace {data.TypeSymbol.ContainingNamespace}
+namespace {listener.Data.TypeSymbol.ContainingNamespace}
 {{
 ");
         }
 
-        private void Interface(ListenerData data)
+        private void Interface(Listener listener)
         {
-            StartInterface(data);
-            InterfaceMethods(data);
-            EndInterfaceOrClass(data);
+            StartInterface(listener);
+            InterfaceMethods(listener);
+            EndInterfaceOrClass(listener);
         }
 
-        private void StartInterface(ListenerData data)
+        private void StartInterface(Listener listener)
         {
             _builder.Append($@"
-    {data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{data.TypeSymbol.Name}Responder
+    {listener.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{listener.Data.TypeSymbol.Name}Responder
     {{
 ");
         }
 
-        private void InterfaceMethods(ListenerData data)
+        private void InterfaceMethods(Listener listener)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigListener config);
+        public void Start({listener.Data.TypeSymbol.Name}.ConfigListener config);
 
         public Task StopAsync();
 ");
         }
 
-        private void EndInterfaceOrClass(ListenerData data)
+        private void EndInterfaceOrClass(Listener listener)
         {
             _builder.Append($@"
     }}
 ");
         }
 
-        private void StartClass(ListenerData data)
+        private void StartClass(Listener listener)
         {
             _builder.Append($@"
-    {data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {data.TypeSymbol.Name} : I{data.TypeSymbol.Name}Responder
+    {listener.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {listener.Data.TypeSymbol.Name} : I{listener.Data.TypeSymbol.Name}Responder
     {{
-        {(data.UseLogger ? "private readonly ILoggerFactory _loggerFactory;" : "")}
+        {(listener.Data.UseLogger ? "private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
         
-        public {data.TypeSymbol.Name}({(data.UseLogger ? "ILoggerFactory loggerFactory" : "")})
+        public {listener.Data.TypeSymbol.Name}({(listener.Data.UseLogger ? "ILoggerFactory loggerFactory" : "")})
         {{
-            {(data.UseLogger ? "_loggerFactory = loggerFactory;" : "")}
+            {(listener.Data.UseLogger ? "_loggerFactory = loggerFactory;" : "")}
         }}
 ");
         }
 
-        private void StartResponderMethod(ListenerData data)
+        private void StartResponderMethod(Listener listener)
         {
             _builder.Append($@"
-        public void Start({data.TypeSymbol.Name}.ConfigListener config)
+        public void Start({listener.Data.TypeSymbol.Name}.ConfigListener config)
         {{
             BuildPartitionItems(config);
 
@@ -145,10 +139,10 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(ListenerData data)
+        private void BuildPartitionItems(Listener listener)
         {
             _builder.Append($@"
-        private void BuildPartitionItems({data.TypeSymbol.Name}.ConfigListener config)
+        private void BuildPartitionItems({listener.Data.TypeSymbol.Name}.ConfigListener config)
         {{
             _items = new PartitionItem[config.ConsumerConfigs.Length];
             var items = _items.AsSpan();
@@ -159,14 +153,14 @@ namespace {data.TypeSymbol.ContainingNamespace}
                         config.ConsumerConfigs[i].TopicName,
                         config.ConsumerConfigs[i].ProcessDelegate,
                         config.ConsumerConfigs[i].Partitions
-                        {(data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
+                        {(listener.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].TopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         );
             }}
         }}
 ");
         }
 
-        private void StopAsync(ListenerData data)
+        private void StopAsync()
         {
             _builder.Append($@"
         public async Task StopAsync()
@@ -181,7 +175,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ConfigListener(ListenerData data)
+        private void ConfigListener()
         {
             _builder.Append($@"
         public class ConfigListener
@@ -206,7 +200,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ConsumerListenerConfig(ListenerData data)
+        private void ConsumerListenerConfig()
         {
             _builder.Append($@"
         public class ConsumerListenerConfig
@@ -231,21 +225,21 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void IncomeMessage(string assemblyName, ListenerData data)
+        private void IncomeMessage(string assemblyName, Listener listener)
         {
             _builder.Append($@"
         public class IncomeMessage
         {{
-            public Message<{GetConsumerTType(data)}> OriginalMessage {{ get; set; }}
-            public {data.IncomeKeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {data.IncomeValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public Message<{GetConsumerTType(listener)}> OriginalMessage {{ get; set; }}
+            public {listener.IncomeDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {listener.IncomeDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public {assemblyName}.RequestHeader HeaderInfo {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
 
-        private void PartitionItemStartClass(ListenerData data)
+        private void PartitionItemStartClass(Listener listener)
         {
             _builder.Append($@"
         private class PartitionItem
@@ -254,16 +248,16 @@ namespace {data.TypeSymbol.ContainingNamespace}
                 string incomeTopicName,
                 Action<IncomeMessage> processDelegate,
                 int[] partitions
-                {(data.UseLogger ? @",ILogger logger" : "")}
+                {(listener.Data.UseLogger ? @",ILogger logger" : "")}
                 )
             {{
                 Partitions = partitions;
-                {(data.UseLogger ? @"_logger = logger;" : "")}
+                {(listener.Data.UseLogger ? @"_logger = logger;" : "")}
                 _incomeTopicName = incomeTopicName;
                 _processDelegate = processDelegate;
             }}
 
-            {(data.UseLogger ? @"private readonly ILogger _logger;" : "")}
+            {(listener.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _incomeTopicName;
             private readonly Action<IncomeMessage> _processDelegate;
 
@@ -274,7 +268,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartMethod(ListenerData data)
+        private void PartitionItemStartMethod()
         {
             _builder.Append($@"
             public void Start(
@@ -287,7 +281,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStartConsume(string assemblyName, ListenerData data)
+        private void PartitionItemStartConsume(string assemblyName, Listener listener)
         {
             _builder.Append($@"
             private void StartConsume(
@@ -308,7 +302,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                     }};
 
                     var consumer =
-                        new ConsumerBuilder<{GetConsumerTType(data)}>(conf)
+                        new ConsumerBuilder<{GetConsumerTType(listener)}>(conf)
                         .Build()
                         ;
 
@@ -325,13 +319,13 @@ namespace {data.TypeSymbol.ContainingNamespace}
                                 var incomeMessage = new IncomeMessage();
                                 incomeMessage.Partition = consumeResult.Partition;
                                 incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetIncomeMessageKey(data)};
-                                incomeMessage.Value = {GetIncomeMessageValue(data)};
+                                incomeMessage.Key = {GetIncomeMessageKey(listener)};
+                                incomeMessage.Value = {GetIncomeMessageValue(listener)};
 
-                                {(data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
+                                {(listener.Data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    {(data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
+                                    {(listener.Data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
@@ -343,7 +337,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
                             }}
                             catch (ConsumeException e)
                             {{
-                                {(data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
+                                {(listener.Data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
                             }}
                         }}
                     }}
@@ -365,27 +359,27 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetIncomeMessageKey(ListenerData data)
+        private string GetIncomeMessageKey(Listener listener)
         {
-            if (data.IncomeKeyType.IsProtobuffType())
+            if (listener.IncomeDatas[0].KeyType.IsProtobuffType())
             {
-                return $"{data.IncomeKeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
+                return $"{listener.IncomeDatas[0].KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
             }
 
             return "consumeResult.Message.Key";
         }
 
-        private string GetIncomeMessageValue(ListenerData data)
+        private string GetIncomeMessageValue(Listener listener)
         {
-            if (data.IncomeValueType.IsProtobuffType())
+            if (listener.IncomeDatas[0].ValueType.IsProtobuffType())
             {
-                return $"{data.IncomeValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
+                return $"{listener.IncomeDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
             }
 
             return "consumeResult.Message.Value";
         }
 
-        private void PartitionItemStopConsume(ListenerData data)
+        private void PartitionItemStopConsume()
         {
             _builder.Append($@"
             private async Task StopConsume()
@@ -401,7 +395,7 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void PartitionItemStop(ListenerData data)
+        private void PartitionItemStop()
         {
             _builder.Append($@"
             public async Task Stop()
@@ -411,9 +405,9 @@ namespace {data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetConsumerTType(ListenerData data)
+        private string GetConsumerTType(Listener listener)
         {
-            return $@"{(data.IncomeKeyType.IsProtobuffType() ? "byte[]" : data.IncomeKeyType.GetFullTypeName(true))}, {(data.IncomeValueType.IsProtobuffType() ? "byte[]" : data.IncomeValueType.GetFullTypeName(true))}";
+            return $@"{(listener.IncomeDatas[0].KeyType.IsProtobuffType() ? "byte[]" : listener.IncomeDatas[0].KeyType.GetFullTypeName(true))}, {(listener.IncomeDatas[0].ValueType.IsProtobuffType() ? "byte[]" : listener.IncomeDatas[0].ValueType.GetFullTypeName(true))}";
         }
 
         private void End()

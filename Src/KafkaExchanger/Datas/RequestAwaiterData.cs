@@ -5,17 +5,22 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
+    internal class RequestAwaiter
+    {
+        public RequestAwaiterData Data { get; set; }
+        public List<IncomeData> IncomeDatas { get; } = new List<IncomeData>();
+
+        public List<OutcomeData> OutcomeDatas { get; } = new List<OutcomeData>();
+
+        public bool IsEmpty()
+        {
+            return Data == null && OutcomeDatas.Count == 0 && IncomeDatas.Count == 0;
+        }
+    }
+
     internal class RequestAwaiterData : BaseServiceData
     {
         public ProducerData ProducerData { get; } = new ProducerData();
-
-        public ITypeSymbol OutcomeKeyType { get; set; }
-
-        public ITypeSymbol OutcomeValueType { get; set; }
-
-        public ITypeSymbol IncomeKeyType { get; set; }
-
-        public ITypeSymbol IncomeValueType { get; set; }
 
         public static RequestAwaiterData Create(INamedTypeSymbol type, AttributeData attribute)
         {
@@ -23,91 +28,27 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 7)
+            if (namedArguments.Length != 3)
             {
                 throw new Exception("Unknown attribute constructor");
             }
-
-            if (!SetOutcomeKeyType(namedArguments[0], result))
-            {
-                throw new Exception("Fail create RequestAwaiter data: OutcomeKeyType");
-            }
-
-            if (!SetOutcomeValueType(namedArguments[1], result))
-            {
-                throw new Exception("Fail create RequestAwaiter data: OutcomeValueType");
-            }
-
-            if (!SetIncomeKeyType(namedArguments[2], result))
-            {
-                throw new Exception("Fail create RequestAwaiter data: IncomeKeyType");
-            }
-
-            if (!SetIncomeValueType(namedArguments[3], result))
-            {
-                throw new Exception("Fail create RequestAwaiter data: IncomeValueType");
-            }
-
-            if (!SetUseLogger(namedArguments[4], result))
+            
+            if (!SetUseLogger(namedArguments[0], result))
             {
                 throw new Exception("Fail create RequestAwaiter data: UseLogger");
             }
 
-            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[5]))
+            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[1]))
             {
                 throw new Exception("Fail create ResponderData data: CustomOutcomeHeader");
             }
 
-            if (!result.ProducerData.SetCustomHeaders(namedArguments[6]))
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[2]))
             {
                 throw new Exception("Fail create ResponderData data: CustomHeaders");
             }
 
             return result;
-        }
-
-        private static bool SetIncomeKeyType(TypedConstant argument, RequestAwaiterData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol keyType))
-            {
-                return false;
-            }
-
-            result.IncomeKeyType = keyType;
-            return true;
-        }
-
-        private static bool SetIncomeValueType(TypedConstant argument, RequestAwaiterData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol valueType))
-            {
-                return false;
-            }
-
-            result.IncomeValueType = valueType;
-            return true;
-        }
-
-        private static bool SetOutcomeKeyType(TypedConstant argument, RequestAwaiterData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol keyType))
-            {
-                return false;
-            }
-
-            result.OutcomeKeyType = keyType;
-            return true;
-        }
-
-        private static bool SetOutcomeValueType(TypedConstant argument, RequestAwaiterData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol valueType))
-            {
-                return false;
-            }
-
-            result.OutcomeValueType = valueType;
-            return true;
         }
     }
 }

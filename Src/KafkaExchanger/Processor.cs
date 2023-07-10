@@ -12,41 +12,69 @@ namespace KafkaExchanger
 {
     internal class Processor
     {
-        private readonly List<RequestAwaiterData> _requestAwaiterDatas = new List<RequestAwaiterData>();
-        private readonly List<ResponderData> _responderDatas = new List<ResponderData>();
-        private readonly List<ListenerData> _listenerDatas = new List<ListenerData>();
+        private readonly List<Listener> _listeners = new List<Listener>();
+        private readonly List<Responder> _responders = new List<Responder>();
+        private readonly List<RequestAwaiter> _requestAwaiters = new List<RequestAwaiter>();
 
-        public void TryFillFrom(INamedTypeSymbol type)
-        {
-            ProcessAttributes(type);
-        }
+        List<IncomeData> _incomesTemp = new List<IncomeData>();
+        List<OutcomeData> _outcomesTemp = new List<OutcomeData>();
 
-        private void ProcessAttributes(
-            INamedTypeSymbol type
+        public void ProcessAttributes(
+            ClassDeclarationSyntax classDeclarationSyntax,
+            Compilation compilation
             )
         {
-            foreach (var attribute in type.GetAttributes())
+            var type = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree).GetDeclaredSymbol(classDeclarationSyntax);
+            CheckGeneralTypeRequirements(type);
+            foreach (var attributeListSyntax in classDeclarationSyntax.AttributeLists)
             {
-                if (attribute.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "RequestAwaiterAttribute"))
+                var parentSymbol = attributeListSyntax.Parent.GetDeclaredSymbol(compilation);
+                var parentAttributes = parentSymbol.GetAttributes();
+
+                _incomesTemp.Clear();
+                _outcomesTemp.Clear();
+                ListenerData listenerData = null;
+                ResponderData responderData = null;
+                RequestAwaiterData requestAwaiterData = null;
+
+                foreach (var attributeSyntax in attributeListSyntax.Attributes)
                 {
-                    CheckGeneralTypeRequirements(type);
-                    _requestAwaiterDatas.Add(RequestAwaiterData.Create(type, attribute));
-                    break;
+                    var attributeData = parentAttributes.First(f => f.ApplicationSyntaxReference.GetSyntax() == attributeSyntax);
+
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "IncomeAttribute"))
+                    {
+                        _incomesTemp.Add(IncomeData.Create(type, attributeData));
+                        continue;
+                    }
+
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "OutcomeAttribute"))
+                    {
+                        _outcomesTemp.Add(OutcomeData.Create(type, attributeData));
+                        continue;
+                    }
+
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "RequestAwaiterAttribute"))
+                    {
+                        requestAwaiterData = RequestAwaiterData.Create(type, attributeData);
+                        continue;
+                    }
+
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ResponderAttribute"))
+                    {
+                        responderData = ResponderData.Create(type, attributeData);
+                        continue;
+                    }
+
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ListenerAttribute"))
+                    {
+                        listenerData = ListenerData.Create(type, attributeData);
+                        continue;
+                    }
                 }
 
-                if (attribute.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ResponderAttribute"))
-                {
-                    CheckGeneralTypeRequirements(type);
-                    _responderDatas.Add(ResponderData.Create(type, attribute));
-                    break;
-                }
-
-                if (attribute.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ListenerAttribute"))
-                {
-                    CheckGeneralTypeRequirements(type);
-                    _listenerDatas.Add(ListenerData.Create(type, attribute));
-                    break;
-                }
+                TryAddListener(listenerData);
+                TryAddResponder(responderData);
+                TryAddRequestAwaiter(requestAwaiterData);
             }
         }
 
@@ -77,32 +105,90 @@ namespace KafkaExchanger
             }
         }
 
+        private void TryAddRequestAwaiter(
+            RequestAwaiterData requestAwaiterData
+            )
+        {
+            if (requestAwaiterData == null)
+            {
+                return;
+            }
+
+            var newRA = new RequestAwaiter();
+            newRA.Data = requestAwaiterData;
+            newRA.IncomeDatas.AddRange(_incomesTemp);
+            newRA.OutcomeDatas.AddRange(_outcomesTemp);
+
+            _requestAwaiters.Add(newRA);
+            _incomesTemp.Clear();
+            _outcomesTemp.Clear();
+        }
+
+        private void TryAddResponder(
+            ResponderData responderData
+            )
+        {
+            if (responderData == null)
+            {
+                return;
+            }
+
+            var newRes = new Responder();
+            newRes.Data = responderData;
+            newRes.IncomeDatas.AddRange(_incomesTemp);
+            newRes.OutcomeDatas.AddRange(_outcomesTemp);
+
+            _responders.Add(newRes);
+            _incomesTemp.Clear();
+            _outcomesTemp.Clear();
+        }
+
+        private void TryAddListener(
+            ListenerData listenerData
+            )
+        {
+            if (listenerData == null)
+            {
+                return;
+            }
+
+            var newLis = new Listener();
+            newLis.Data = listenerData;
+            newLis.IncomeDatas.AddRange(_incomesTemp);
+
+            _listeners.Add(newLis);
+            _incomesTemp.Clear();
+        }
+
         public void Generate(
             string assemblyName,
             SourceProductionContext context
             )
         {
             var producerPoolsGenerator = new ProducerPoolsGenerator();
-            producerPoolsGenerator.FillProducerTypes(_requestAwaiterDatas, _responderDatas);
+            producerPoolsGenerator.FillProducerTypes(_requestAwaiters, _responders);
             producerPoolsGenerator.GenerateProducerPools(context);
 
             var requestAwaiterGenerator = new RequestAwaiterGenerator();
-            foreach (var requestAwaiterData in _requestAwaiterDatas)
+            foreach (var requestAwaiter in _requestAwaiters)
             {
-                requestAwaiterGenerator.GenerateRequestAwaiter(assemblyName, requestAwaiterData, context);
+                requestAwaiterGenerator.GenerateRequestAwaiter(assemblyName, requestAwaiter, context);
             }
+            _requestAwaiters.Clear();
 
             var responderGenerator = new ResponderGenerator();
-            foreach (var responderData in _responderDatas)
+            foreach (var responder in _responders)
             {
-                responderGenerator.GenerateResponder(assemblyName, responderData, context);
+                responderGenerator.GenerateResponder(assemblyName, responder, context);
             }
+            _responders.Clear();
 
             var listenerGenerator = new ListenerGenerator();
-            foreach (var listenerData in _listenerDatas)
+            foreach (var listener in _listeners)
             {
-                listenerGenerator.GenerateListener(assemblyName, listenerData, context);
+                listenerGenerator.GenerateListener(assemblyName, listener, context);
             }
+            _listeners.Clear();
         }
     }
 }

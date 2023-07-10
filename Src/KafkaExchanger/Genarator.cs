@@ -105,8 +105,7 @@ namespace KafkaExchanger
             foreach (var item in distinctTypes)
             {
                 var firstOfPartial = item.First();
-                var type = compilation.GetSemanticModel(firstOfPartial.SyntaxTree).GetDeclaredSymbol(firstOfPartial);
-                processor.TryFillFrom(type);
+                processor.ProcessAttributes(firstOfPartial, compilation);
             }
 
             processor.Generate(compilation.AssemblyName, context);

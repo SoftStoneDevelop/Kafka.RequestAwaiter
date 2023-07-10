@@ -186,5 +186,11 @@ namespace KafkaExchanger.Helpers
         {
             return type.GetFullTypeName(true) == "Confluent.Kafka.Null";
         }
+
+        public static ISymbol GetDeclaredSymbol(this SyntaxNode node, Compilation compilation)
+        {
+            var model = compilation.GetSemanticModel(node.SyntaxTree);
+            return model.GetDeclaredSymbol(node);
+        }
     }
 }

@@ -118,10 +118,8 @@ namespace KafkaExchanger.AttributeDatas
         }
     }
 
-    internal class BaseServiceData
+    internal class BaseServiceData : BaseData
     {
-        public INamedTypeSymbol TypeSymbol { get; set; }
-
         public bool UseLogger { get; set; }
 
         protected static bool SetUseLogger(TypedConstant argument, BaseServiceData result)
@@ -136,5 +134,10 @@ namespace KafkaExchanger.AttributeDatas
             result.UseLogger = (bool)argument.Value;
             return true;
         }
+    }
+
+    internal abstract class BaseData
+    {
+        public INamedTypeSymbol TypeSymbol { get; set; }
     }
 }
