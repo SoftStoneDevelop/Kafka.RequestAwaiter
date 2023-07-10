@@ -3,16 +3,14 @@ Constructors:
 ```C#
 
 public ResponderAttribute(
-  Type outcomeKeyType,
-  Type outcomeValueType,
-  Type incomeKeyType,
-  Type incomeValueType,
   bool useLogger = true,
-  uint commitAfter = 1,
+  uint commitAfter = 1u,
   OrderMatters orderMatters = OrderMatters.NotMatters,
   bool checkCurrentState = false,
   bool useAfterSendResponse = false,
-  bool useAfterCommit = false
+  bool useAfterCommit = false,
+  bool customOutcomeHeader = false,
+  bool customHeaders = false
   )
 
 ```
@@ -21,14 +19,9 @@ Usage:
 
 ```C#
 
-[Responder
-        (
-        incomeKeyType: typeof(protobuff.SimpleKey),
-        incomeValueType: typeof(protobuff.SimpleValue),
-
-        outcomeKeyType: typeof(protobuff.SimpleKey),
-        outcomeValueType: typeof(protobuff.SimpleValue)
-        )
+[Responder(),
+        Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+        Outcome(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
         ]
     public partial class TestProtobuffResponder
     {
