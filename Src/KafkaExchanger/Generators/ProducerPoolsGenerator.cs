@@ -24,7 +24,7 @@ namespace KafkaExchanger.Generators
                 }
             }
 
-            foreach (var responder in requestAwaiters)
+            foreach (var responder in responders)
             {
                 foreach (var outcomeData in responder.OutcomeDatas)
                 {
