@@ -3,8 +3,6 @@ Constructors:
 ```C#
 
 public ListenerAttribute(
-  Type incomeKeyType,
-  Type incomeValueType,
   bool useLogger = true
   )
 
@@ -16,11 +14,8 @@ Usage:
 
 ```C#
 
-[KafkaExchanger.Attributes.Listener
-        (
-        incomeKeyType: typeof(protobuff.SimpleKey),
-        incomeValueType: typeof(protobuff.SimpleValue)
-        )
+[KafkaExchanger.Attributes.Listener(),
+        Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
         ]
     public partial class TestProtobuffListener
     {
