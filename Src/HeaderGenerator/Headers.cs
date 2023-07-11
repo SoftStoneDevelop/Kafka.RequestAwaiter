@@ -27,15 +27,15 @@ namespace kafka {
             "Cg1oZWFkZXJzLnByb3RvEgdoZWFkZXJzIk0KDVJlcXVlc3RIZWFkZXISEwoL",
             "TWVzc2FnZUd1aWQYASABKAkSJwoPVG9waWNzRm9yQW5zd2VyGAIgAygLMg4u",
             "aGVhZGVycy5Ub3BpYyJBCg5SZXNwb25zZUhlYWRlchIbChNBbnN3ZXJUb01l",
-            "c3NhZ2VHdWlkGAEgASgJEhIKCkFuc3dlckZyb20YAiABKAkiKQoFVG9waWMS",
-            "DAoETmFtZRgBIAEoCRISCgpQYXJ0aXRpb25zGAIgAygFQgiqAgVrYWZrYWIG",
-            "cHJvdG8z"));
+            "c3NhZ2VHdWlkGAEgASgJEhIKCkFuc3dlckZyb20YAiABKAkiQAoFVG9waWMS",
+            "DAoETmFtZRgBIAEoCRISCgpQYXJ0aXRpb25zGAIgAygFEhUKDUNhbkFuc3dl",
+            "ckZyb20YAyADKAlCCKoCBWthZmthYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::kafka.RequestHeader), global::kafka.RequestHeader.Parser, new[]{ "MessageGuid", "TopicsForAnswer" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::kafka.ResponseHeader), global::kafka.ResponseHeader.Parser, new[]{ "AnswerToMessageGuid", "AnswerFrom" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::kafka.Topic), global::kafka.Topic.Parser, new[]{ "Name", "Partitions" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::kafka.Topic), global::kafka.Topic.Parser, new[]{ "Name", "Partitions", "CanAnswerFrom" }, null, null, null, null)
           }));
     }
     #endregion
@@ -528,6 +528,7 @@ namespace kafka {
     public Topic(Topic other) : this() {
       name_ = other.name_;
       partitions_ = other.partitions_.Clone();
+      canAnswerFrom_ = other.canAnswerFrom_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -563,6 +564,20 @@ namespace kafka {
       get { return partitions_; }
     }
 
+    /// <summary>Field number for the "CanAnswerFrom" field.</summary>
+    public const int CanAnswerFromFieldNumber = 3;
+    private static readonly pb::FieldCodec<string> _repeated_canAnswerFrom_codec
+        = pb::FieldCodec.ForString(26);
+    private readonly pbc::RepeatedField<string> canAnswerFrom_ = new pbc::RepeatedField<string>();
+    /// <summary>
+    ///Determines whether the current handler(Service) (if its name is the same) should(and can) send to this topic
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<string> CanAnswerFrom {
+      get { return canAnswerFrom_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -580,6 +595,7 @@ namespace kafka {
       }
       if (Name != other.Name) return false;
       if(!partitions_.Equals(other.partitions_)) return false;
+      if(!canAnswerFrom_.Equals(other.canAnswerFrom_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -589,6 +605,7 @@ namespace kafka {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       hash ^= partitions_.GetHashCode();
+      hash ^= canAnswerFrom_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -612,6 +629,7 @@ namespace kafka {
         output.WriteString(Name);
       }
       partitions_.WriteTo(output, _repeated_partitions_codec);
+      canAnswerFrom_.WriteTo(output, _repeated_canAnswerFrom_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -627,6 +645,7 @@ namespace kafka {
         output.WriteString(Name);
       }
       partitions_.WriteTo(ref output, _repeated_partitions_codec);
+      canAnswerFrom_.WriteTo(ref output, _repeated_canAnswerFrom_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -641,6 +660,7 @@ namespace kafka {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
       }
       size += partitions_.CalculateSize(_repeated_partitions_codec);
+      size += canAnswerFrom_.CalculateSize(_repeated_canAnswerFrom_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -657,6 +677,7 @@ namespace kafka {
         Name = other.Name;
       }
       partitions_.Add(other.partitions_);
+      canAnswerFrom_.Add(other.canAnswerFrom_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -681,6 +702,10 @@ namespace kafka {
             partitions_.AddEntriesFrom(input, _repeated_partitions_codec);
             break;
           }
+          case 26: {
+            canAnswerFrom_.AddEntriesFrom(input, _repeated_canAnswerFrom_codec);
+            break;
+          }
         }
       }
     #endif
@@ -703,6 +728,10 @@ namespace kafka {
           case 18:
           case 16: {
             partitions_.AddEntriesFrom(ref input, _repeated_partitions_codec);
+            break;
+          }
+          case 26: {
+            canAnswerFrom_.AddEntriesFrom(ref input, _repeated_canAnswerFrom_codec);
             break;
           }
         }

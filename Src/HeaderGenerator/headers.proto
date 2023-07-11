@@ -26,4 +26,7 @@ message Topic
 	
 	//-1 or emty array - Any
 	repeated int32 Partitions = 2;
+
+	//Determines whether the current handler(Service) (if its name is the same) should(and can) send to this topic
+	repeated string CanAnswerFrom = 3;
 }
