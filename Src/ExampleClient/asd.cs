@@ -11,8 +11,35 @@ using System.Collections.Generic;
 
 namespace ExampleClient2
 {
-    public abstract record BaseResponse(string TopicName);
-    public record ResponseItem<T>(string TopicName, T Result) : BaseResponse(TopicName);
+    public abstract class BaseResponse
+    {
+        private BaseResponse()
+        {
+
+        }
+
+        public BaseResponse(string topicName) 
+        {
+            TopicName = topicName;
+        }
+
+        public string TopicName { get; init; }
+    }
+
+    public class ResponseItem<T> : BaseResponse
+    {
+        private ResponseItem(string topicName) : base(topicName)
+        {
+
+        }
+
+        public ResponseItem(string topicName, T result) : base(topicName)
+        {
+            Result = result;
+        }
+
+        public T Result { get; init; }
+    }
 
     public class Response : IDisposable
     {
