@@ -57,28 +57,18 @@ enum Priority
 Declare partial classes with attributes:
 ```C#
 
-[RequestAwaiter
-(
-  incomeKeyType: typeof(protobuff.SimpleKey),
-  incomeValueType: typeof(protobuff.SimpleValue),
-
-  outcomeKeyType: typeof(protobuff.SimpleKey),
-  outcomeValueType: typeof(protobuff.SimpleValue)
-  )
+[RequestAwaiter(),
+  Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+  Outcome(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
 ]
 public partial class TestProtobuffAwaiter
 {
 
 }
 
-[Responder
-(
-  incomeKeyType: typeof(protobuff.SimpleKey),
-  incomeValueType: typeof(protobuff.SimpleValue),
-
-  outcomeKeyType: typeof(protobuff.SimpleKey),
-  outcomeValueType: typeof(protobuff.SimpleValue)
-  )
+[Responder(),
+  Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+  Outcome(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
 ]
 public partial class TestProtobuffResponder
 {
