@@ -17,6 +17,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
+            PrivateFilds(sb, requestAwaiter);
             Start(sb, requestAwaiter);
 
             StartConsumePartitionItem(sb, assemblyName, requestAwaiter);
@@ -39,9 +40,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         private class PartitionItem
         {{
-            public ConcurrentDictionary<string, {assemblyName}.TopicResponse> _responceAwaiters = new();
+            public ConcurrentDictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters = new();
             {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
-            private readonly string _outcomeTopicName;
 
             {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? $@"private readonly Func<Task<{assemblyName}.ResponseHeader>> _createOutcomeHeader;" : "")}
             {(requestAwaiter.Data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
@@ -99,7 +99,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
                 builder.Append($@"
-                _outcomeTopic{i}Name = _outcomeTopic{i}Name;
+                _outcomeTopic{i}Name = outcomeTopic{i}Name;
                 _producerPool{i} = producerPool{i};
 ");
             }
@@ -107,6 +107,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             }}
 ");
+        }
+
+        private static void PrivateFilds(
+            StringBuilder builder,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            )
+        {
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                private readonly string _incomeTopic{i}Name;
+                private readonly int[] _incomeTopic{i}Partitions;
+                private readonly string[] _incomeTopic{i}CanAnswerService;
+");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                private readonly string _outcomeTopic{i}Name;
+                private readonly {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} _producerPool{i};
+");
+            }
         }
 
         private static void Start(
@@ -126,9 +149,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId, _incomeTopic{i}Partitions, _incomeTopic{i}Name);
+                _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId);
 ");
             }
+            builder.Append($@"
+            }}
+");
         }
 
         private static void StartConsumePartitionItem(
@@ -162,7 +188,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         .Build()
                         ;
 
-                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_incomeTopic{i}Name, sel)));
+                    consumer.Assign(_incomeTopic{i}Partitions.Select(sel => new TopicPartition(_incomeTopic{i}Name, sel)));
 
                     try
                     {{
@@ -190,14 +216,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                                 incomeMessage.HeaderInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
 
-                                if (!_responceAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
+                                if (!_responseAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
                                 {{
                                     {LogIncomeMessage(requestAwaiter, incomeData, "LogError", ": no one wait results")}
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
 
-                                awaiter.TrySetResponce({i},incomeMessage);
+                                awaiter.TrySetResponse({i},incomeMessage);
 
                                 bool isProcessed = false;
                                 try
@@ -259,7 +285,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             var temp = new StringBuilder(170);
-            temp.Append($@"_logger.{logMethod}LogInformation($""Consumed incomeMessage Key: ");
+            temp.Append($@"_logger.{logMethod}($""Consumed incomeMessage Key: ");
             if (incomeData.KeyType.IsProtobuffType())
             {
                 temp.Append(@"'{incomeMessage.Key}'");
@@ -351,7 +377,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                int waitResponceTimeout = 0
+                int waitResponseTimeout = 0
                 )
             {{
                 var messageGuid = Guid.NewGuid().ToString(""D"");
@@ -386,7 +412,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@"
                 var awaiter = 
-                    new TestProtobuffAwaiter.TopicResponse(
+                    new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
@@ -395,11 +421,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                        header.MessageGuid.
+                        header.MessageGuid,
                         RemoveAwaiter, 
-                        waitResponceTimeout
+                        waitResponseTimeout
                         );
-                if (!_responceAwaiters.TryAdd(header.MessageGuid, awaiter))
+                if (!_responseAwaiters.TryAdd(header.MessageGuid, awaiter))
                 {{
                     awaiter.Dispose();
                     throw new Exception();
@@ -418,19 +444,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 catch (ProduceException<{outcomeData.TypesPair}> e)
                 {{
                     _logger.LogError($""Delivery failed: {{e.Error.Reason}}"");
-                    _responceAwaiters.TryRemove(header.MessageGuid, out _);
+                    _responseAwaiters.TryRemove(header.MessageGuid, out _);
                     awaiter.Dispose();
 
                     throw;
                 }}
                 finally
                 {{
-                    _producerPool.Return(producer);
+                    _producerPool{i}.Return(producer);
                 }}
 ");
             }
             builder.Append($@"
-                return await awaiter.GetResponce();
+                return await awaiter.GetResponse();
             }}
 ");
         }
@@ -450,12 +476,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             if (!outcomeData.KeyType.IsKafkaNull())
             {
                 builder.Append($@"
-                    Key = {(outcomeData.KeyType.IsProtobuffType() ? "key.ToByteArray()" : "key")},
+                    Key = {(outcomeData.KeyType.IsProtobuffType() ? $"key{messageNum}.ToByteArray()" : $"key{messageNum}")},
 ");
             }
 
             builder.Append($@"
-                    Value = {(outcomeData.ValueType.IsProtobuffType() ? "value.ToByteArray()" : "value")}
+                    Value = {(outcomeData.ValueType.IsProtobuffType() ? $"value{messageNum}.ToByteArray()" : $"value{messageNum}")}
                 }};
 ");
         }
@@ -465,7 +491,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private void RemoveAwaiter(string guid)
             {{
-                if (_responceAwaiters.TryRemove(guid, out var value))
+                if (_responseAwaiters.TryRemove(guid, out var value))
                 {{
                     value.Dispose();
                 }}
@@ -497,9 +523,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {variable} = new {assemblyName}.Topic()
                 {{
                     Name = _incomeTopic{i}Name
-                }}
+                }};
                 topic.Partitions.Add(_incomeTopic{i}Partitions);
-                topic.CanAnswerFrom.Add(_incomeTopic{i}CanAswerService);
+                topic.CanAnswerFrom.Add(_incomeTopic{i}CanAnswerService);
                 headerInfo.TopicsForAnswer.Add(topic);
 ");
 

@@ -87,25 +87,28 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 
         private void InterfaceProduceMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
-            if (requestAwaiter.OutcomeDatas[0].KeyType.IsKafkaNull())
+            _builder.Append($@"
+        public Task<{assemblyName}.Response> Produce(
+");
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
+                var outcomeData = requestAwaiter.OutcomeDatas[i];
+                if(!outcomeData.KeyType.IsKafkaNull())
+                {
+                    _builder.Append($@"
+            {outcomeData.KeyType.GetFullTypeName(true, true)} key{i},
+");
+                }
+
                 _builder.Append($@"
-        public Task<{assemblyName}.Response<{requestAwaiter.Data.TypeSymbol.Name}.ResponseMessage>> Produce(
-            {requestAwaiter.OutcomeDatas[0].ValueType.GetFullTypeName(true, true)} value,
-            int waitResponceTimeout = 0
-            );
+            {outcomeData.ValueType.GetFullTypeName(true, true)} value{i},
 ");
             }
-            else
-            {
-                _builder.Append($@"
-        public Task<{assemblyName}.Response<{requestAwaiter.Data.TypeSymbol.Name}.ResponseMessage>> Produce(
-            {requestAwaiter.OutcomeDatas[0].KeyType.GetFullTypeName(true, true)} key,
-            {requestAwaiter.OutcomeDatas[0].ValueType.GetFullTypeName(true, true)} value,
-            int waitResponceTimeout = 0
+
+            _builder.Append($@"
+            int waitResponseTimeout = 0
             );
 ");
-            }
         }
 
         private void InterfaceStartMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
@@ -161,7 +164,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
         public void Start(
-            {requestAwaiter.Data.TypeSymbol.Name}.ConfigRequestAwaiter config
+            {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -238,7 +241,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         producerPool{i}
 ");
             }
-            _builder.Append($@",
+            _builder.Append($@"
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.Consumers[i].GroupName}"")" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Consumers[i].CreateOutcomeHeader" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Consumers[i].SetHeaders" : "")}
@@ -308,7 +311,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 ConsumerInfo income{i}
 ");
             }
-            _builder.Append($@",
+            _builder.Append($@"
                 )
             {{
                 GroupName = groupName;
@@ -384,7 +387,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             }
             _builder.Append($@"
-            int waitResponceTimeout = 0
+            int waitResponseTimeout = 0
             )
         {{
             var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
@@ -406,9 +409,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             }
             _builder.Append($@"
-                    waitResponceTimeout
+                    waitResponseTimeout
                 );
         }}
+        private uint _currentItemIndex = 0;
 ");
         }
 

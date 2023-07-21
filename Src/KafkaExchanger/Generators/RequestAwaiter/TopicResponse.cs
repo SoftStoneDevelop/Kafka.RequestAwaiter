@@ -19,8 +19,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             CreateGetResponse(builder, assemblyName, requestAwaiter);
             GetProcessStatus(builder);
-            GetResponce(builder, assemblyName);
-            TrySetResponce(builder, requestAwaiter);
+            GetResponse(builder, assemblyName);
+            TrySetResponse(builder, requestAwaiter);
             SetException(builder, requestAwaiter);
             Dispose(builder);
             End(builder);
@@ -32,7 +32,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        private class TopicResponse : IDisposable
+        public class TopicResponse : IDisposable
         {{
             private TaskCompletionSource<bool> _responseProcess = new();
             private CancellationTokenSource _cts;
@@ -71,7 +71,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 string guid,
                 Action<string> removeAction,
-                int waitResponceTimeout = 0
+                int waitResponseTimeout = 0
                 )
             {{
                 _response = CreateGetResponse(
@@ -90,12 +90,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
             }
             builder.Append($@"
-                if (waitResponceTimeout != 0)
+                if (waitResponseTimeout != 0)
                 {{
-                    _cts = new CancellationTokenSource(waitResponceTimeout);
+                    _cts = new CancellationTokenSource(waitResponseTimeout);
                     _cts.Token.Register(() =>
                     {{
-                        var canceled = _responseTopic1.TrySetCanceled() | _responseTopic2.TrySetCanceled();
+                        var canceled =
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                if(i != 0)
+                {
+                    builder.Append(" | ");
+                }
+                builder.Append($@"
+                            _responseTopic{i}.TrySetCanceled()
+");
+            }
+            builder.Append($@"
+                            ;
                         if (canceled)
                         {{
                             removeAction(guid);
@@ -179,26 +192,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void GetResponce(
+        private static void GetResponse(
             StringBuilder builder,
             string assemblyName
             )
         {
             builder.Append($@"
-            public Task<{assemblyName}.Response> GetResponce()
+            public Task<{assemblyName}.Response> GetResponse()
             {{
                 return _response;
             }}
 ");
         }
 
-        private static void TrySetResponce(
+        private static void TrySetResponse(
             StringBuilder builder,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public bool TrySetResponce(int topicNumber, BaseResponseMessage responce)
+            public bool TrySetResponse(int topicNumber, BaseResponseMessage response)
             {{
                 switch (topicNumber)
                 {{
