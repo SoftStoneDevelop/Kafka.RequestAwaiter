@@ -16,8 +16,7 @@ namespace KafkaExchanger.Generators
 
             Start(assemblyName);
 
-            ResponseT();
-            TopicResponseT();
+            Response();
 
             End();
 
@@ -43,89 +42,94 @@ namespace {assemblyName}
 ");
         }
 
-        public void ResponseT()
+        public void Response()
         {
             _builder.Append($@"
-    public class Response<T>
+    public abstract class BaseResponse
     {{
+        private BaseResponse()
+        {{
+
+        }}
+
+        public BaseResponse(string topicName) 
+        {{
+            TopicName = topicName;
+        }}
+
+        public string TopicName {{ get; init; }}
+    }}
+
+    public class ResponseItem<T> : BaseResponse
+    {{
+        private ResponseItem(string topicName) : base(topicName)
+        {{
+
+        }}
+
+        public ResponseItem(string topicName, T result) : base(topicName)
+        {{
+            Result = result;
+        }}
+
+        public T Result {{ get; init; }}
+    }}
+
+    public class Response : IDisposable
+    {{
+
         public Response(
-            T result,
+            BaseResponse[] response,
             TaskCompletionSource<bool> responseProcess
             )
         {{
-            Result = result;
+            Result = response;
             _responseProcess = responseProcess;
         }}
 
         private TaskCompletionSource<bool> _responseProcess;
 
-        public T Result {{ get; init; }}
+        public BaseResponse[] Result {{ get; private set; }}
 
-        public void FinishProcessing()
-        {{
-            _responseProcess.SetResult(true);
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-            GC.SuppressFinalize(this);
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
-        }}
-
-        ~Response() 
-        {{
-            _responseProcess.SetResult(false);
-        }}
-    }}
-");
-        }
-
-        public void TopicResponseT()
-        {
-            _builder.Append($@"
-    public class TopicResponse<T> : IDisposable
-    {{
-        public TaskCompletionSource<Response<T>> _response = new();
-        private TaskCompletionSource<bool> _responseProcess = new();
-        private CancellationTokenSource _cts;
-
-        public TopicResponse(string guid, Action<string> removeAction, int waitResponceTimeout = 0)
-        {{
-            if (waitResponceTimeout != 0)
-            {{
-                _cts = new CancellationTokenSource(waitResponceTimeout);
-                _cts.Token.Register(() =>
-                {{
-                    if(_response.TrySetCanceled())
-                    {{
-                        removeAction(guid);
-                    }}
-                }},
-                useSynchronizationContext: false
-                );
-            }}
-        }}
-
-        public Task<bool> GetProcessStatus()
-        {{
-            return _responseProcess.Task;
-        }}
-
-        public Task<Response<T>> GetResponce()
-        {{
-            return _response.Task;
-        }}
-
-        public bool TrySetResponce(T responce)
-        {{
-            return _response.TrySetResult(new Response<T>(responce, _responseProcess));
-        }}
-
-        public void SetException(Exception exception)
-        {{
-            _response.SetException(exception);
-        }}
+        private bool _disposed;
 
         public void Dispose()
         {{
-            _cts?.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }}
+
+        protected virtual void Dispose(bool disposing)
+        {{
+            if (_disposed)
+            {{
+                return;
+            }}
+
+            if(disposing)
+            {{
+                _responseProcess.SetResult(disposing);
+            }}
+            else
+            {{
+                try
+                {{
+                    _responseProcess.SetResult(disposing);
+                }}
+                catch
+                {{
+                    //ignore
+                }}
+            }}
+
+            _disposed = true;
+            _responseProcess = null;
+            Result = null;
+        }}
+
+        ~Response()
+        {{
+            Dispose(false);
         }}
     }}
 ");
