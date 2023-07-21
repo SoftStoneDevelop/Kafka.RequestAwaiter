@@ -5,15 +5,15 @@ using Microsoft.CodeAnalysis;
 using System.IO;
 using System.Text;
 
-namespace KafkaExchanger.Generators
+namespace KafkaExchanger.Generators.RequestAwaiter
 {
-    internal class RequestAwaiterGenerator
+    internal class Generator
     {
         StringBuilder _builder = new StringBuilder();
 
         public void GenerateRequestAwaiter(
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter,
+            AttributeDatas.RequestAwaiter requestAwaiter,
             SourceProductionContext context
             )
         {
@@ -36,8 +36,8 @@ namespace KafkaExchanger.Generators
             BaseResponseMessage();
             ResponseMessages(assemblyName, requestAwaiter);
 
-            RequestAwaiter.TopicResponse.Append(_builder, assemblyName, requestAwaiter);
-            RequestAwaiter.PartitionItem.Append(_builder, assemblyName, requestAwaiter);
+            TopicResponse.Append(_builder, assemblyName, requestAwaiter);
+            PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
             EndInterfaceOrClass(requestAwaiter);
 
@@ -46,7 +46,7 @@ namespace KafkaExchanger.Generators
             context.AddSource($"{requestAwaiter.Data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
-        private void Start(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Start(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
 using Confluent.Kafka;
@@ -66,7 +66,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 
         #region Interface
 
-        private void Interface(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Interface(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             StartInterface(requestAwaiter);
 
@@ -77,7 +77,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             EndInterfaceOrClass(requestAwaiter);
         }
 
-        private void StartInterface(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void StartInterface(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
     {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
@@ -85,7 +85,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void InterfaceProduceMethod(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void InterfaceProduceMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             if (requestAwaiter.OutcomeDatas[0].KeyType.IsKafkaNull())
             {
@@ -108,7 +108,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
         }
 
-        private void InterfaceStartMethod(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void InterfaceStartMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public void Start(
@@ -126,14 +126,14 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void InterfaceStopMethod(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void InterfaceStopMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public Task StopAsync();
 ");
         }
 
-        private void EndInterfaceOrClass(KafkaExchanger.AttributeDatas.RequestAwaiter data)
+        private void EndInterfaceOrClass(AttributeDatas.RequestAwaiter data)
         {
             _builder.Append($@"
     }}
@@ -142,7 +142,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 
         #endregion
 
-        private void StartClass(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void StartClass(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
     {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
@@ -157,7 +157,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartMethod(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void StartMethod(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public void Start(
@@ -195,7 +195,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
         }
 
-        private void BuildPartitionItems(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void BuildPartitionItems(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         private void BuildPartitionItems(
@@ -218,7 +218,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
-                if(i != 0)
+                if (i != 0)
                 {
                     _builder.Append(',');
                 }
@@ -292,7 +292,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Consumers(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Consumers(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public class Consumers
@@ -338,14 +338,14 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ConsumerInfo(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void ConsumerInfo(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public class ConsumerInfo
         {{
             private ConsumerInfo() {{ }}
 
-            public Consumers(
+            public ConsumerInfo(
                 string topicName,
                 string[] canAnswerService,
                 int[] partitions
@@ -365,7 +365,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Produce(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Produce(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public Task<{assemblyName}.Response> Produce(
@@ -422,7 +422,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ResponseMessages(string assemblyName, KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private void ResponseMessages(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {

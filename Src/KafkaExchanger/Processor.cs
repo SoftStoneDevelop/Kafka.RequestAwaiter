@@ -169,7 +169,7 @@ namespace KafkaExchanger
             producerPoolsGenerator.FillProducerTypes(_requestAwaiters, _responders);
             producerPoolsGenerator.GenerateProducerPools(context);
 
-            var requestAwaiterGenerator = new RequestAwaiterGenerator();
+            var requestAwaiterGenerator = new KafkaExchanger.Generators.RequestAwaiter.Generator();
             foreach (var requestAwaiter in _requestAwaiters)
             {
                 requestAwaiterGenerator.GenerateRequestAwaiter(assemblyName, requestAwaiter, context);
