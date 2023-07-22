@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Reflection.PortableExecutable;
 
 namespace KafkaExchengerTests2
 {
@@ -251,6 +253,15 @@ namespace KafkaExchengerTests2
                 int waitResponseTimeout = 0
                 )
             {
+                _responseProcess.Task.ContinueWith(
+                    (t) => 
+                    {
+                        if(t.IsCompleted && t.Result)
+                        {
+                            removeAction(guid);
+                        }
+                    }
+                    );
                 _response = CreateGetResponse(
 
                 topic0Name,
@@ -371,14 +382,484 @@ namespace KafkaExchengerTests2
 
         private class PartitionItem
         {
-            public ConcurrentDictionary<string, RequestAwaiterManyToOneSimple.TopicResponse> _responseAwaiters = new();
+            private class Bucket
+            {
+                private readonly int _bucketId;
+                private readonly int _maxInFly = 100;
+                private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+                private int _addedCount;
+                private readonly Dictionary<string, RequestAwaiterManyToOneSimple.TopicResponse> _responseAwaiters;
+                
+                private CancellationTokenSource _ctsConsume;
+                private Task[] _consumeRoutines;
+
+                public Bucket(
+
+                string incomeTopic0Name,
+                int[] incomeTopic0Partitions,
+                string[] incomeTopic0CanAnswerService,
+
+                string incomeTopic1Name,
+                int[] incomeTopic1Partitions,
+                string[] incomeTopic1CanAnswerService,
+
+                string outcomeTopic0Name,
+                KafkaExchanger.Common.IProducerPoolNullString producerPool0,
+                int bucketId
+                )
+                {
+                    _bucketId = bucketId;
+                    _responseAwaiters = new(_maxInFly);
+
+                    _incomeTopic0Name = incomeTopic0Name;
+                    _incomeTopic0Partitions = incomeTopic0Partitions;
+                    _incomeTopic0CanAnswerService = incomeTopic0CanAnswerService;
+
+                    _incomeTopic1Name = incomeTopic1Name;
+                    _incomeTopic1Partitions = incomeTopic1Partitions;
+                    _incomeTopic1CanAnswerService = incomeTopic1CanAnswerService;
+
+                    _outcomeTopic0Name = outcomeTopic0Name;
+                    _producerPool0 = producerPool0;
+
+                }
+
+                private readonly string _incomeTopic0Name;
+                private readonly int[] _incomeTopic0Partitions;
+                private readonly string[] _incomeTopic0CanAnswerService;
+
+                private readonly string _incomeTopic1Name;
+                private readonly int[] _incomeTopic1Partitions;
+                private readonly string[] _incomeTopic1CanAnswerService;
+
+                private readonly string _outcomeTopic0Name;
+                private readonly KafkaExchanger.Common.IProducerPoolNullString _producerPool0;
+
+                public void Start(
+                string bootstrapServers,
+                string groupId
+                )
+                {
+                    _consumeRoutines = new Task[2];
+                    _ctsConsume = new CancellationTokenSource();
+
+                    _consumeRoutines[0] = StartTopic0Consume(bootstrapServers, groupId);
+
+                    _consumeRoutines[1] = StartTopic1Consume(bootstrapServers, groupId);
+
+                }
+
+                private Task StartTopic0Consume(
+                string bootstrapServers,
+                string groupId
+                )
+                {
+                    return Task.Factory.StartNew(async () =>
+                    {
+                        var conf = new Confluent.Kafka.ConsumerConfig
+                        {
+                            GroupId = $"{groupId}Bucket{_bucketId}",
+                            BootstrapServers = bootstrapServers,
+                            AutoOffsetReset = AutoOffsetReset.Earliest,
+                            AllowAutoCreateTopics = false,
+                            EnableAutoCommit = false
+                        };
+
+                        var consumer =
+                            new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign(_incomeTopic0Partitions.Select(sel => new TopicPartition(_incomeTopic0Name, sel)));
+
+                        try
+                        {
+                            int? leaderEpoch = null;
+                            Offset offset = default;
+                            TopicPartition topicPartition = null;
+                            while (!_ctsConsume.Token.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    _lock.EnterUpgradeableReadLock();
+                                    try
+                                    {
+                                        if(_addedCount == _maxInFly)
+                                        {
+                                            _lock.EnterWriteLock();
+                                            try
+                                            {
+                                                var process = false;
+                                                foreach (var response in _responseAwaiters.Values)
+                                                {
+                                                    try
+                                                    {
+                                                        process = response.GetProcessStatus().Result;
+                                                    }
+                                                    catch { /*ignore*/ }
+
+                                                    if(!process)
+                                                    {
+                                                        //todo something??? Exception??
+                                                    }
+                                                }
+
+                                                _addedCount = 0;
+                                                consumer.Commit(new[] { new TopicPartitionOffset(topicPartition, offset + 1, leaderEpoch) });
+                                            }
+                                            finally
+                                            {
+                                                _lock.ExitWriteLock();
+                                            }
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        _lock.ExitUpgradeableReadLock();
+                                    }
+                                    var consumeResult = consumer.Consume(_ctsConsume.Token);
+                                    leaderEpoch = consumeResult.LeaderEpoch;
+                                    offset = consumeResult.Offset;
+                                    topicPartition = consumeResult.TopicPartition;
+
+                                    var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic0Message()
+                                    {
+                                        OriginalMessage = consumeResult.Message,
+
+                                        Value = consumeResult.Message.Value,
+                                        Partition = consumeResult.Partition
+                                    };
+
+
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
+                                    {
+                                        continue;
+                                    }
+
+                                    incomeMessage.HeaderInfo = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
+
+                                    TopicResponse topicResponse;
+                                    _lock.EnterReadLock();
+                                    try
+                                    {
+                                        if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse))
+                                        {
+                                            continue;
+                                        }
+
+                                        topicResponse.TrySetResponse(0, incomeMessage);
+                                    }
+                                    finally
+                                    {
+                                        _lock.ExitReadLock();
+                                    }
+                                }
+                                catch (ConsumeException)
+                                {
+                                    //ignore
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Ensure the consumer leaves the group cleanly and final offsets are committed.
+                            consumer.Close();
+                        }
+                        finally
+                        {
+                            consumer.Dispose();
+                        }
+                    },
+                _ctsConsume.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default
+                );
+                }
+
+                private Task StartTopic1Consume(
+                    string bootstrapServers,
+                    string groupId
+                    )
+                {
+                    return Task.Factory.StartNew(async () =>
+                    {
+                        var conf = new Confluent.Kafka.ConsumerConfig
+                        {
+                            GroupId = $"{groupId}Bucket{_bucketId}",
+                            BootstrapServers = bootstrapServers,
+                            AutoOffsetReset = AutoOffsetReset.Earliest,
+                            AllowAutoCreateTopics = false,
+                            EnableAutoCommit = false
+                        };
+
+                        var consumer =
+                            new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign(_incomeTopic1Partitions.Select(sel => new TopicPartition(_incomeTopic1Name, sel)));
+
+                        try
+                        {
+                            int? leaderEpoch = null;
+                            Offset offset = default;
+                            TopicPartition topicPartition = null;
+                            while (!_ctsConsume.Token.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    _lock.EnterUpgradeableReadLock();
+                                    try
+                                    {
+                                        if (_addedCount == _maxInFly)
+                                        {
+                                            _lock.EnterWriteLock();
+                                            try
+                                            {
+                                                var process = false;
+                                                foreach (var response in _responseAwaiters.Values)
+                                                {
+                                                    try
+                                                    {
+                                                        process = await response.GetProcessStatus();
+                                                    }
+                                                    catch { /*ignore*/ }
+
+                                                    if (!process)
+                                                    {
+                                                        //todo something??? Exception??
+                                                    }
+                                                }
+
+                                                _addedCount = 0;
+                                                consumer.Commit(new[] { new TopicPartitionOffset(topicPartition, offset + 1, leaderEpoch) });
+                                            }
+                                            finally
+                                            {
+                                                _lock.ExitWriteLock();
+                                            }
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        _lock.ExitUpgradeableReadLock();
+                                    }
+                                    var consumeResult = consumer.Consume(_ctsConsume.Token);
+                                    leaderEpoch = consumeResult.LeaderEpoch;
+                                    offset = consumeResult.Offset;
+                                    topicPartition = consumeResult.TopicPartition;
+
+                                    var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic1Message()
+                                    {
+                                        OriginalMessage = consumeResult.Message,
+
+                                        Value = consumeResult.Message.Value,
+                                        Partition = consumeResult.Partition
+                                    };
+
+
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
+                                    {
+                                        continue;
+                                    }
+
+                                    incomeMessage.HeaderInfo = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
+
+                                    TopicResponse topicResponse;
+                                    _lock.EnterReadLock();
+                                    try
+                                    {
+                                        if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse))
+                                        {
+                                            continue;
+                                        }
+
+                                        topicResponse.TrySetResponse(1, incomeMessage);
+                                    }
+                                    finally
+                                    {
+                                        _lock.ExitReadLock();
+                                    }
+                                }
+                                catch (ConsumeException)
+                                {
+                                    //ignore
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Ensure the consumer leaves the group cleanly and final offsets are committed.
+                            consumer.Close();
+                        }
+                        finally
+                        {
+                            consumer.Dispose();
+                        }
+                    },
+                _ctsConsume.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default
+                );
+                }
+
+                public async Task StopConsume()
+                {
+                    _ctsConsume?.Cancel();
+                    foreach (var consumeRoutine in _consumeRoutines)
+                    {
+                        await consumeRoutine;
+                    }
+
+                    _ctsConsume?.Dispose();
+                }
+
+                public struct TryProduceResult
+                {
+                    public bool Succsess;
+                    public KafkaExchengerTests.Response Response;
+                }
+
+                public async Task<TryProduceResult> TryProduce(
+
+                System.String value0,
+
+                int waitResponseTimeout = 0
+                )
+                {
+                    var messageGuid = Guid.NewGuid().ToString("D");
+
+                    var message0 = new Message<Confluent.Kafka.Null, System.String>()
+                    {
+
+                        Value = value0
+                    };
+
+                    var header = CreateOutcomeHeader();
+
+                    header.MessageGuid = messageGuid;
+                    message0.Headers = new Headers
+                {
+                    { "Info", header.ToByteArray() }
+                };
 
 
 
+                    var awaiter =
+                        new RequestAwaiterManyToOneSimple.TopicResponse(
 
+                            _incomeTopic0Name,
 
-            private CancellationTokenSource _ctsConsume;
-            private Task[] _consumeRoutines;
+                            _incomeTopic1Name,
+
+                            header.MessageGuid,
+                            RemoveAwaiter,
+                            waitResponseTimeout
+                            );
+
+                    _lock.EnterUpgradeableReadLock();
+                    try
+                    {
+                        if(_responseAwaiters.Count == _maxInFly)
+                        {
+                            return new TryProduceResult { Succsess = false };
+                        }
+                        else
+                        {
+                            _lock.EnterWriteLock();
+                            try
+                            {
+                                if (!_responseAwaiters.TryAdd(header.MessageGuid, awaiter))
+                                {
+                                    awaiter.Dispose();
+                                    throw new Exception();
+                                }
+                                else
+                                {
+                                    _addedCount++;
+                                }
+                            }
+                            finally
+                            {
+                                _lock.ExitWriteLock();
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _lock.ExitUpgradeableReadLock();
+                    }
+
+                    var producer = _producerPool0.Rent();
+                    try
+                    {
+                        var deliveryResult = await producer.ProduceAsync(_outcomeTopic0Name, message0);
+                    }
+                    catch (ProduceException<Confluent.Kafka.Null, System.String>)
+                    {
+                        _lock.EnterWriteLock();
+                        try
+                        {
+                            _responseAwaiters.Remove(header.MessageGuid, out _);
+                        }
+                        finally
+                        {
+                            _lock.ExitWriteLock();
+                        }
+                        awaiter.Dispose();
+
+                        throw;
+                    }
+                    finally
+                    {
+                        _producerPool0.Return(producer);
+                    }
+
+                    var response = await awaiter.GetResponse();
+                    return new TryProduceResult() { Succsess = true, Response = response };
+                }
+
+                private void RemoveAwaiter(string guid)
+                {
+                    _lock.EnterWriteLock();
+                    try
+                    {
+                        if(_responseAwaiters.Remove(guid, out var value))
+                        {
+                            value.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        _lock.ExitWriteLock();
+                    }
+                }
+
+                private KafkaExchengerTests.RequestHeader CreateOutcomeHeader()
+                {
+                    var headerInfo = new KafkaExchengerTests.RequestHeader();
+
+                    var topic = new KafkaExchengerTests.Topic()
+                    {
+                        Name = _incomeTopic0Name
+                    };
+                    topic.Partitions.Add(_incomeTopic0Partitions);
+                    topic.CanAnswerFrom.Add(_incomeTopic0CanAnswerService);
+                    headerInfo.TopicsForAnswer.Add(topic);
+
+                    topic = new KafkaExchengerTests.Topic()
+                    {
+                        Name = _incomeTopic1Name
+                    };
+                    topic.Partitions.Add(_incomeTopic1Partitions);
+                    topic.CanAnswerFrom.Add(_incomeTopic1CanAnswerService);
+                    headerInfo.TopicsForAnswer.Add(topic);
+
+                    return headerInfo;
+                }
+            }
+
+            private readonly Bucket[] _buckets;
 
             public PartitionItem(
 
@@ -391,273 +872,50 @@ namespace KafkaExchengerTests2
                 string[] incomeTopic1CanAnswerService,
 
                 string outcomeTopic0Name,
-                KafkaExchanger.Common.IProducerPoolNullString producerPool0
-
+                KafkaExchanger.Common.IProducerPoolNullString producerPool0,
+                int buckets
 
 
 
                 )
             {
+                _buckets = new Bucket[buckets];
+                for (int i = 0; i < buckets; i++)
+                {
+                    _buckets[i] = new Bucket(
+                        incomeTopic0Name,
+                        incomeTopic0Partitions,
+                        incomeTopic0CanAnswerService,
 
+                        incomeTopic1Name,
+                        incomeTopic1Partitions,
+                        incomeTopic1CanAnswerService, 
+                        
+                        outcomeTopic0Name,
+                        producerPool0,
 
-
-
-                _incomeTopic0Name = incomeTopic0Name;
-                _incomeTopic0Partitions = incomeTopic0Partitions;
-                _incomeTopic0CanAnswerService = incomeTopic0CanAnswerService;
-
-                _incomeTopic1Name = incomeTopic1Name;
-                _incomeTopic1Partitions = incomeTopic1Partitions;
-                _incomeTopic1CanAnswerService = incomeTopic1CanAnswerService;
-
-                _outcomeTopic0Name = outcomeTopic0Name;
-                _producerPool0 = producerPool0;
-
+                        i
+                        );
+                }
             }
-
-            private readonly string _incomeTopic0Name;
-            private readonly int[] _incomeTopic0Partitions;
-            private readonly string[] _incomeTopic0CanAnswerService;
-
-            private readonly string _incomeTopic1Name;
-            private readonly int[] _incomeTopic1Partitions;
-            private readonly string[] _incomeTopic1CanAnswerService;
-
-            private readonly string _outcomeTopic0Name;
-            private readonly KafkaExchanger.Common.IProducerPoolNullString _producerPool0;
 
             public void Start(
                 string bootstrapServers,
                 string groupId
                 )
             {
-                _consumeRoutines = new Task[2];
-                _ctsConsume = new CancellationTokenSource();
-
-                _consumeRoutines[0] = StartTopic0Consume(bootstrapServers, groupId);
-
-                _consumeRoutines[1] = StartTopic1Consume(bootstrapServers, groupId);
-
-            }
-
-            private Task StartTopic0Consume(
-                string bootstrapServers,
-                string groupId
-                )
-            {
-                return Task.Factory.StartNew(async () =>
+                for (int i = 0; i < _buckets.Length; i++)
                 {
-                    var conf = new Confluent.Kafka.ConsumerConfig
-                    {
-                        GroupId = groupId,
-                        BootstrapServers = bootstrapServers,
-                        AutoOffsetReset = AutoOffsetReset.Earliest,
-                        AllowAutoCreateTopics = false,
-                        EnableAutoCommit = false
-                    };
-
-                    var consumer =
-                        new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
-                        .Build()
-                        ;
-
-                    consumer.Assign(_incomeTopic0Partitions.Select(sel => new TopicPartition(_incomeTopic0Name, sel)));
-
-                    try
-                    {
-                        while (!_ctsConsume.Token.IsCancellationRequested)
-                        {
-                            try
-                            {
-                                var consumeResult = consumer.Consume(_ctsConsume.Token);
-
-                                var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic0Message()
-                                {
-                                    OriginalMessage = consumeResult.Message,
-
-                                    Value = consumeResult.Message.Value,
-                                    Partition = consumeResult.Partition
-                                };
-
-
-                                if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
-                                {
-
-                                    consumer.Commit(consumeResult);
-                                    continue;
-                                }
-
-                                incomeMessage.HeaderInfo = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
-
-                                if (!_responseAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
-                                {
-
-                                    consumer.Commit(consumeResult);
-                                    continue;
-                                }
-
-                                awaiter.TrySetResponse(0, incomeMessage);
-
-                                bool isProcessed = false;
-                                try
-                                {
-                                    isProcessed = await awaiter.GetProcessStatus();
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    isProcessed = true;
-                                    //ignore
-                                }
-                                finally
-                                {
-                                    awaiter.Dispose();
-                                }
-
-                                if (!isProcessed)
-                                {
-
-                                }
-
-                                consumer.Commit(consumeResult);
-                            }
-                            catch (ConsumeException)
-                            {
-                                //ignore
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Ensure the consumer leaves the group cleanly and final offsets are committed.
-                        consumer.Close();
-                    }
-                    finally
-                    {
-                        consumer.Dispose();
-                    }
-                },
-            _ctsConsume.Token,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default
-            );
-            }
-
-            private Task StartTopic1Consume(
-                string bootstrapServers,
-                string groupId
-                )
-            {
-                return Task.Factory.StartNew(async () =>
-                {
-                    var conf = new Confluent.Kafka.ConsumerConfig
-                    {
-                        GroupId = groupId,
-                        BootstrapServers = bootstrapServers,
-                        AutoOffsetReset = AutoOffsetReset.Earliest,
-                        AllowAutoCreateTopics = false,
-                        EnableAutoCommit = false
-                    };
-
-                    var consumer =
-                        new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
-                        .Build()
-                        ;
-
-                    consumer.Assign(_incomeTopic1Partitions.Select(sel => new TopicPartition(_incomeTopic1Name, sel)));
-
-                    try
-                    {
-                        while (!_ctsConsume.Token.IsCancellationRequested)
-                        {
-                            try
-                            {
-                                var consumeResult = consumer.Consume(_ctsConsume.Token);
-
-                                var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic1Message()
-                                {
-                                    OriginalMessage = consumeResult.Message,
-
-                                    Value = consumeResult.Message.Value,
-                                    Partition = consumeResult.Partition
-                                };
-
-
-                                if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
-                                {
-
-                                    consumer.Commit(consumeResult);
-                                    continue;
-                                }
-
-                                incomeMessage.HeaderInfo = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
-
-                                if (!_responseAwaiters.TryRemove(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var awaiter))
-                                {
-
-                                    consumer.Commit(consumeResult);
-                                    continue;
-                                }
-
-                                awaiter.TrySetResponse(1, incomeMessage);
-
-                                bool isProcessed = false;
-                                try
-                                {
-                                    isProcessed = await awaiter.GetProcessStatus();
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    isProcessed = true;
-                                    //ignore
-                                }
-                                finally
-                                {
-                                    awaiter.Dispose();
-                                }
-
-                                if (!isProcessed)
-                                {
-
-                                }
-
-                                consumer.Commit(consumeResult);
-                            }
-                            catch (ConsumeException)
-                            {
-                                //ignore
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Ensure the consumer leaves the group cleanly and final offsets are committed.
-                        consumer.Close();
-                    }
-                    finally
-                    {
-                        consumer.Dispose();
-                    }
-                },
-            _ctsConsume.Token,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default
-            );
-            }
-
-            private async Task StopConsume()
-            {
-                _ctsConsume?.Cancel();
-                foreach (var consumeRoutine in _consumeRoutines)
-                {
-                    await consumeRoutine;
+                    _buckets[i].Start(bootstrapServers, groupId);
                 }
-
-                _ctsConsume?.Dispose();
             }
 
             public async Task Stop()
             {
-                await StopConsume();
+                for (int i = 0; i < _buckets.Length; i++)
+                {
+                    await _buckets[i].StopConsume();
+                }
             }
 
             public async Task<KafkaExchengerTests.Response> Produce(
@@ -667,91 +925,8 @@ namespace KafkaExchengerTests2
                 int waitResponseTimeout = 0
                 )
             {
-                var messageGuid = Guid.NewGuid().ToString("D");
-
-                var message0 = new Message<Confluent.Kafka.Null, System.String>()
-                {
-
-                    Value = value0
-                };
-
-                var header = CreateOutcomeHeader();
-
-                header.MessageGuid = messageGuid;
-                message0.Headers = new Headers
-                {
-                    { "Info", header.ToByteArray() }
-                };
-
-
-
-                var awaiter =
-                    new RequestAwaiterManyToOneSimple.TopicResponse(
-
-                        _incomeTopic0Name,
-
-                        _incomeTopic1Name,
-
-                        header.MessageGuid,
-                        RemoveAwaiter,
-                        waitResponseTimeout
-                        );
-                if (!_responseAwaiters.TryAdd(header.MessageGuid, awaiter))
-                {
-                    awaiter.Dispose();
-                    throw new Exception();
-                }
-
-                var producer = _producerPool0.Rent();
-                try
-                {
-                    var deliveryResult = await producer.ProduceAsync(_outcomeTopic0Name, message0);
-                }
-                catch (ProduceException<Confluent.Kafka.Null, System.String>)
-                {
-
-                    _responseAwaiters.TryRemove(header.MessageGuid, out _);
-                    awaiter.Dispose();
-
-                    throw;
-                }
-                finally
-                {
-                    _producerPool0.Return(producer);
-                }
-
+                //choose bucket and bucket.Produce
                 return await awaiter.GetResponse();
-            }
-
-            private void RemoveAwaiter(string guid)
-            {
-                if (_responseAwaiters.TryRemove(guid, out var value))
-                {
-                    value.Dispose();
-                }
-            }
-
-            private KafkaExchengerTests.RequestHeader CreateOutcomeHeader()
-            {
-                var headerInfo = new KafkaExchengerTests.RequestHeader();
-
-                var topic = new KafkaExchengerTests.Topic()
-                {
-                    Name = _incomeTopic0Name
-                };
-                topic.Partitions.Add(_incomeTopic0Partitions);
-                topic.CanAnswerFrom.Add(_incomeTopic0CanAnswerService);
-                headerInfo.TopicsForAnswer.Add(topic);
-
-                topic = new KafkaExchengerTests.Topic()
-                {
-                    Name = _incomeTopic1Name
-                };
-                topic.Partitions.Add(_incomeTopic1Partitions);
-                topic.CanAnswerFrom.Add(_incomeTopic1CanAnswerService);
-                headerInfo.TopicsForAnswer.Add(topic);
-
-                return headerInfo;
             }
 
         }
