@@ -15,6 +15,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
             PrivateFilds(sb, requestAwaiter);
+            Dispose(sb);
             Start(sb, requestAwaiter);
 
             StartConsumePartitionItem(sb, assemblyName, requestAwaiter);
@@ -34,7 +35,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            private class Bucket
+            private class Bucket : IDisposable
             {{
                 private readonly int _bucketId;
                 private readonly int _maxInFly;
@@ -134,6 +135,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     private readonly {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} _producerPool{i};
 ");
             }
+        }
+
+        private static void Dispose(
+            StringBuilder builder
+            )
+        {
+            builder.Append($@"
+            public void Dispose()
+            {{
+                _lock.Dispose();
+            }}
+");
         }
 
         private static void Start(

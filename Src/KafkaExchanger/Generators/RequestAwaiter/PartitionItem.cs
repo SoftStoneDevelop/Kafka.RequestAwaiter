@@ -127,6 +127,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 for (int i = 0; i < _buckets.Length; i++)
                 {{
                     await _buckets[i].StopConsume();
+                    _buckets[i].Dispose();
                 }}
             }}
 ");
