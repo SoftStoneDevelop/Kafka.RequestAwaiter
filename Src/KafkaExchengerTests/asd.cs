@@ -92,9 +92,9 @@ namespace KafkaExchengerTests2
 ,
                         config.OutcomeTopicName
 ,
-                        producerPool0
+                        producerPool0,
 
-
+                        config.Consumers[i].Buckets
 
 
                         );
@@ -145,6 +145,8 @@ namespace KafkaExchengerTests2
                 ConsumerInfo income0
 ,
                 ConsumerInfo income1
+,
+                int buckets
 
                 )
             {
@@ -153,13 +155,15 @@ namespace KafkaExchengerTests2
                 Income0 = income0;
 
                 Income1 = income1;
-
+                Buckets = buckets;
             }
 
             /// <summary>
             /// To identify the logger
             /// </summary>
             public string GroupName { get; init; }
+
+            public int Buckets { get; init; }
 
             public ConsumerInfo Income0 { get; init; }
 
@@ -816,6 +820,7 @@ namespace KafkaExchengerTests2
             }
 
             private readonly Bucket[] _buckets;
+            private uint _current;
 
             public PartitionItem(
 
@@ -881,8 +886,20 @@ namespace KafkaExchengerTests2
                 int waitResponseTimeout = 0
                 )
             {
-                //choose bucket and bucket.Produce
-                return await awaiter.GetResponse();
+                while (true)
+                {
+                    for (int i = 0; i < _buckets.Length; i++)
+                    {
+                        var index = Interlocked.Increment(ref _current) % _buckets.Length;
+                        var tp = await _buckets[index].TryProduce(value0, waitResponseTimeout);
+                        if (tp.Succsess)
+                        {
+                            return tp.Response;
+                        }
+                    }
+
+                    await Task.Delay(100);
+                }
             }
 
         }
