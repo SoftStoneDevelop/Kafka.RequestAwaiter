@@ -117,7 +117,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         public void Start(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
                 _builder.Append($@",
             {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
@@ -434,7 +434,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 _builder.Append($@"
         public class ResponseTopic{i}Message : BaseResponseMessage
         {{
-            public ExampleClient.ResponseHeader HeaderInfo {{ get; set; }}
+            public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 
             public Message<{GetConsumerTType(incomeData)}> OriginalMessage {{ get; set; }}
 ");

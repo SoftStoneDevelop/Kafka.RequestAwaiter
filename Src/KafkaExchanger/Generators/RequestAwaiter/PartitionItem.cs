@@ -247,7 +247,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                                 consumer.Commit(consumeResult);
                             }}
-                            catch (ConsumeException e)
+                            catch (ConsumeException {(requestAwaiter.Data.UseLogger ? "e" : "")})
                             {{
                                 {(requestAwaiter.Data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
                             }}
@@ -441,9 +441,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     var deliveryResult = await producer.ProduceAsync(_outcomeTopic{i}Name, message{i});
                 }}
-                catch (ProduceException<{outcomeData.TypesPair}> e)
+                catch (ProduceException<{outcomeData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                 {{
-                    _logger.LogError($""Delivery failed: {{e.Error.Reason}}"");
+                    {(requestAwaiter.Data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
                     _responseAwaiters.TryRemove(header.MessageGuid, out _);
                     awaiter.Dispose();
 
