@@ -474,9 +474,7 @@ namespace KafkaExchengerTests2
 
                         try
                         {
-                            int? leaderEpoch = null;
-                            Offset offset = default;
-                            TopicPartition topicPartition = null;
+                            var offsets = new Dictionary<Partition, TopicPartitionOffset>();
                             while (!_ctsConsume.Token.IsCancellationRequested)
                             {
                                 try
@@ -484,28 +482,13 @@ namespace KafkaExchengerTests2
                                     _lock.EnterUpgradeableReadLock();
                                     try
                                     {
-                                        if(_addedCount == _maxInFly)
+                                        if(_addedCount == _maxInFly && _responseAwaiters.Count == 0)
                                         {
                                             _lock.EnterWriteLock();
                                             try
                                             {
-                                                var process = false;
-                                                foreach (var response in _responseAwaiters.Values)
-                                                {
-                                                    try
-                                                    {
-                                                        process = response.GetProcessStatus().Result;
-                                                    }
-                                                    catch { /*ignore*/ }
-
-                                                    if(!process)
-                                                    {
-                                                        //todo something??? Exception??
-                                                    }
-                                                }
-
                                                 _addedCount = 0;
-                                                consumer.Commit(new[] { new TopicPartitionOffset(topicPartition, offset + 1, leaderEpoch) });
+                                                consumer.Commit(offsets.Values);
                                             }
                                             finally
                                             {
@@ -518,9 +501,7 @@ namespace KafkaExchengerTests2
                                         _lock.ExitUpgradeableReadLock();
                                     }
                                     var consumeResult = consumer.Consume(_ctsConsume.Token);
-                                    leaderEpoch = consumeResult.LeaderEpoch;
-                                    offset = consumeResult.Offset;
-                                    topicPartition = consumeResult.TopicPartition;
+                                    offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
 
                                     var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic0Message()
                                     {
@@ -601,9 +582,7 @@ namespace KafkaExchengerTests2
 
                         try
                         {
-                            int? leaderEpoch = null;
-                            Offset offset = default;
-                            TopicPartition topicPartition = null;
+                            var offsets = new Dictionary<Partition, TopicPartitionOffset>();
                             while (!_ctsConsume.Token.IsCancellationRequested)
                             {
                                 try
@@ -616,23 +595,8 @@ namespace KafkaExchengerTests2
                                             _lock.EnterWriteLock();
                                             try
                                             {
-                                                var process = false;
-                                                foreach (var response in _responseAwaiters.Values)
-                                                {
-                                                    try
-                                                    {
-                                                        process = await response.GetProcessStatus();
-                                                    }
-                                                    catch { /*ignore*/ }
-
-                                                    if (!process)
-                                                    {
-                                                        //todo something??? Exception??
-                                                    }
-                                                }
-
                                                 _addedCount = 0;
-                                                consumer.Commit(new[] { new TopicPartitionOffset(topicPartition, offset + 1, leaderEpoch) });
+                                                consumer.Commit(offsets.Values);
                                             }
                                             finally
                                             {
@@ -645,9 +609,7 @@ namespace KafkaExchengerTests2
                                         _lock.ExitUpgradeableReadLock();
                                     }
                                     var consumeResult = consumer.Consume(_ctsConsume.Token);
-                                    leaderEpoch = consumeResult.LeaderEpoch;
-                                    offset = consumeResult.Offset;
-                                    topicPartition = consumeResult.TopicPartition;
+                                    offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
 
                                     var incomeMessage = new RequestAwaiterManyToOneSimple.ResponseTopic1Message()
                                     {
@@ -714,13 +676,7 @@ namespace KafkaExchengerTests2
                     _ctsConsume?.Dispose();
                 }
 
-                public struct TryProduceResult
-                {
-                    public bool Succsess;
-                    public KafkaExchengerTests.Response Response;
-                }
-
-                public async Task<TryProduceResult> TryProduce(
+                public async Task<KafkaExchengerTests.TryProduceResult> TryProduce(
 
                 System.String value0,
 
@@ -762,7 +718,7 @@ namespace KafkaExchengerTests2
                     {
                         if(_responseAwaiters.Count == _maxInFly)
                         {
-                            return new TryProduceResult { Succsess = false };
+                            return new KafkaExchengerTests.TryProduceResult { Succsess = false };
                         }
                         else
                         {
@@ -816,7 +772,7 @@ namespace KafkaExchengerTests2
                     }
 
                     var response = await awaiter.GetResponse();
-                    return new TryProduceResult() { Succsess = true, Response = response };
+                    return new KafkaExchengerTests.TryProduceResult() { Succsess = true, Response = response };
                 }
 
                 private void RemoveAwaiter(string guid)

@@ -15,8 +15,10 @@ namespace KafkaExchanger.Generators
             _builder.Clear();
 
             Start(assemblyName);
-
+            BaseResponse();
+            ResponseItem();
             Response();
+            TryProduceResult(assemblyName);
 
             End();
 
@@ -42,7 +44,7 @@ namespace {assemblyName}
 ");
         }
 
-        public void Response()
+        public void BaseResponse()
         {
             _builder.Append($@"
     public abstract class BaseResponse
@@ -59,7 +61,12 @@ namespace {assemblyName}
 
         public string TopicName {{ get; init; }}
     }}
+");
+        }
 
+        public void ResponseItem()
+        {
+            _builder.Append($@"
     public class ResponseItem<T> : BaseResponse
     {{
         private ResponseItem(string topicName) : base(topicName)
@@ -74,7 +81,12 @@ namespace {assemblyName}
 
         public T Result {{ get; init; }}
     }}
+");
+        }
 
+        public void Response()
+        {
+            _builder.Append($@"
     public class Response : IDisposable
     {{
 
@@ -131,6 +143,17 @@ namespace {assemblyName}
         {{
             Dispose(false);
         }}
+    }}
+");
+        }
+
+        public void TryProduceResult(string assemblyName)
+        {
+            _builder.Append($@"
+    public class TryProduceResult
+    {{
+        public bool Succsess;
+        public {assemblyName}.Response Response;
     }}
 ");
         }
