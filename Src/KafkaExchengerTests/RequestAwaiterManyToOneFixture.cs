@@ -119,7 +119,9 @@ namespace KafkaExchengerTests
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 0 }
-                                )
+                                ),
+                            buckets: 2,
+                            maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.Consumers(
                             groupName: "SimpleProduce",
@@ -132,7 +134,9 @@ namespace KafkaExchengerTests
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 1 }
-                                )
+                                ),
+                            buckets: 2,
+                            maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.Consumers(
                             groupName: "SimpleProduce",
@@ -145,7 +149,9 @@ namespace KafkaExchengerTests
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 2 }
-                                )
+                                ),
+                            buckets: 2,
+                            maxInFly: 10
                             )
                     }
                     );

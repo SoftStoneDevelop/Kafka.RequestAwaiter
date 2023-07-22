@@ -241,7 +241,9 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         producerPool{i}
 ");
             }
-            _builder.Append($@"
+            _builder.Append($@",
+                        config.Consumers[i].Buckets,
+                        config.Consumers[i].MaxInFly
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.Consumers[i].GroupName}"")" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Consumers[i].CreateOutcomeHeader" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Consumers[i].SetHeaders" : "")}
@@ -311,9 +313,13 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 ConsumerInfo income{i}
 ");
             }
-            _builder.Append($@"
+            _builder.Append($@",
+                int buckets,
+                int maxInFly
                 )
             {{
+                Buckets = buckets;
+                MaxInFly = maxInFly;
                 GroupName = groupName;
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
@@ -337,6 +343,9 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             }
             _builder.Append($@"
+            public int Buckets {{ get; init; }}
+            
+            public int MaxInFly {{ get; init; }}
         }}
 ");
         }
