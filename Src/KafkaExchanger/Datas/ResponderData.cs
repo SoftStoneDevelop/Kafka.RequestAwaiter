@@ -30,7 +30,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 8)
+            if (namedArguments.Length != 7)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -45,32 +45,27 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create ResponderData data: CommitAfter");
             }
 
-            if (!result.ConsumerData.SetOrderMatters(namedArguments[2]))
-            {
-                throw new Exception("Fail create ResponderData data: OrderMatters");
-            }
-
-            if (!result.ConsumerData.SetCheckCurrentState(namedArguments[3]))
+            if (!result.ConsumerData.SetCheckCurrentState(namedArguments[2]))
             {
                 throw new Exception("Fail create ResponderData data: SetCheckCurrentState");
             }
 
-            if (!result.ProducerData.SetAfterSendResponse(namedArguments[4]))
+            if (!result.ProducerData.SetAfterSendResponse(namedArguments[3]))
             {
                 throw new Exception("Fail create ResponderData data: AfterSendResponse");
             }
 
-            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[5]))
+            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[4]))
             {
                 throw new Exception("Fail create ResponderData data: UseAfterCommit");
             }
 
-            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[6]))
+            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[5]))
             {
                 throw new Exception("Fail create ResponderData data: CustomOutcomeHeader");
             }
 
-            if (!result.ProducerData.SetCustomHeaders(namedArguments[7]))
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[6]))
             {
                 throw new Exception("Fail create ResponderData data: CustomHeaders");
             }
