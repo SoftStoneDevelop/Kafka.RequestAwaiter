@@ -91,15 +91,19 @@ namespace {assemblyName}
     {{
 
         public Response(
+            KafkaExchanger.Attributes.Enums.CurrentState currentState,
             BaseResponse[] response,
             TaskCompletionSource<bool> responseProcess
             )
         {{
+            CurrentState = currentState;
             Result = response;
             _responseProcess = responseProcess;
         }}
 
         private TaskCompletionSource<bool> _responseProcess;
+
+        public KafkaExchanger.Attributes.Enums.CurrentState CurrentState {{ get; private set; }}
 
         public BaseResponse[] Result {{ get; private set; }}
 

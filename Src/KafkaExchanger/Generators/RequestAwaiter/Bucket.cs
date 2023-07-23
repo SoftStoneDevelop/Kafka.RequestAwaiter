@@ -332,6 +332,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var producerData = requestAwaiter.Data.ProducerData;
+            var consumerData = requestAwaiter.Data.ConsumerData;
+
             builder.Append($@"
             public async Task<{assemblyName}.TryProduceResult> TryProduce(
 ");
@@ -359,7 +362,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outcomeData = requestAwaiter.OutcomeDatas[i];
                 CreateOutcomeMessage(builder, requestAwaiter, outcomeData, i);
                 var headerVariable = i == 0 ? "var header" : "header";
-                if (requestAwaiter.Data.ProducerData.CustomOutcomeHeader)
+                if (producerData.CustomOutcomeHeader)
                 {
                     builder.Append($@"
                 {headerVariable} = await _createOutcomeHeader();
@@ -379,7 +382,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
-                {(requestAwaiter.Data.ProducerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
+                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
 ");
             }
             builder.Append($@"
@@ -390,6 +393,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 builder.Append($@"
                         _incomeTopic{i}Name,
+");
+            }
+            if(consumerData.CheckCurrentState)
+            {
+                builder.Append($@"
+                        _getCurrentState,
 ");
             }
             builder.Append($@"

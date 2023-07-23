@@ -59,6 +59,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var consumerData = requestAwaiter.Data.ConsumerData;
             builder.Append($@"
             public TopicResponse(
 ");
@@ -68,6 +69,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 string topic{i}Name,
 ");
             }
+            if (consumerData.CheckCurrentState)
+            {
+                builder.Append($@"
+                {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState,
+");
+            }
+
             builder.Append($@"
                 string guid,
                 Action<string> removeAction,
@@ -78,18 +86,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
-                builder.Append($@"
-                topic{i}Name");
-                if (i != requestAwaiter.IncomeDatas.Count - 1)
+                if (i != 0)
                 {
                     builder.Append(',');
                 }
-                else
-                {
-                    builder.Append(");");
-                }
+
+                builder.Append($@"
+                    topic{i}Name
+");
             }
+
+            if (consumerData.CheckCurrentState)
+            {
+                builder.Append($@",
+                getCurrentState
+");
+            }
+
             builder.Append($@"
+                    );
                 if (waitResponseTimeout != 0)
                 {{
                     _cts = new CancellationTokenSource(waitResponseTimeout);
@@ -127,26 +142,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var consumerData = requestAwaiter.Data.ConsumerData;
+
             builder.Append($@"
             private async Task<Response> CreateGetResponse(
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
-                builder.Append($@"
-                string topic{i}Name
-");
-                if (i != requestAwaiter.IncomeDatas.Count - 1)
+                if (i != 0)
                 {
                     builder.Append(',');
                 }
-                else
-                {
-                    builder.Append($@"
-                )
+
+                builder.Append($@"
+                string topic{i}Name
 ");
-                }
             }
+            if (consumerData.CheckCurrentState)
+            {
+                builder.Append($@",
+                {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState
+");
+            }
+
             builder.Append($@"
+                )
             {{
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
@@ -155,8 +175,38 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var topic{i} = await _responseTopic{i}.Task;
 ");
             }
+
+            if (consumerData.CheckCurrentState)
+            {
+                builder.Append($@"
+                var currentState = await getCurrentState(
+                    
+");
+                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+                {
+                    if(i != 0)
+                    {
+                        builder.Append(',');
+                    }
+
+                    builder.Append($@"
+                    topic{i}
+");
+                }
+                builder.Append($@"
+                    );
+");
+            }
+            else
+            {
+                builder.Append($@"
+                    var currentState = KafkaExchanger.Attributes.Enums.CurrentState.NewMessage;
+");
+            }
+
             builder.Append($@"
                 var response = new {assemblyName}.Response(
+                    currentState,
                     new {assemblyName}.BaseResponse[]
                     {{
 ");
