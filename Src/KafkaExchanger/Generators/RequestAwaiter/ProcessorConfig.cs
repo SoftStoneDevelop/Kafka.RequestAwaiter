@@ -10,7 +10,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
@@ -22,34 +22,51 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private ProcessorConfig() {{ }}
 
             public ProcessorConfig(
-                {(requestAwaiter.Data is ResponderData ? $"{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse," : "")}
-                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
-                {(consumerData.UseAfterCommit ? $"{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit," : "")}
-                {(producerData.AfterSendResponse ? $@"{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse," : "")}
-                {(producerData.CustomOutcomeHeader ? $@"{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader," : "")}
-                {(producerData.CustomHeaders ? $@"{producerData.CustomHeadersFunc()} setHeaders," : "")}
-                string groupName
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
-                builder.Append($@",
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                builder.Append($@"
                 ConsumerInfo income{i}
 ");
             }
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+
+            if(requestAwaiter.Data is RequestAwaiterData)
             {
-                builder.Append($@",
+                if (requestAwaiter.IncomeDatas.Count > 0)
+                {
+                    builder.Append(',');
+                }
+                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+                {
+                    if (i != 0)
+                    {
+                        builder.Append(',');
+                    }
+
+                    builder.Append($@"
                 ProducerInfo outcome{i}
 ");
+                }
             }
-            builder.Append($@",
+            
+            builder.Append($@"
+                {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
+                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
+                {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
+                {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")},
                 int buckets,
                 int maxInFly
                 )
             {{
                 Buckets = buckets;
                 MaxInFly = maxInFly;
-                GroupName = groupName;
 
                 {(requestAwaiter.Data is ResponderData ? $"CreateResponse = createResponse;" : "")}
                 {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
@@ -64,25 +81,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Income{i} = income{i};
 ");
             }
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+
+            if (requestAwaiter.Data is RequestAwaiterData)
             {
-                builder.Append($@"
+                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+                {
+                    builder.Append($@"
                 Outcome{i} = outcome{i};
 ");
+                }
             }
+            
             builder.Append($@"
             }}
-            
-            /// <summary>
-            /// To identify the logger
-            /// </summary>
-            public string GroupName {{ get; init; }}
 
             public int Buckets {{ get; init; }}
             
             public int MaxInFly {{ get; init; }}
 
-            {(requestAwaiter.Data is ResponderData ? $"{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} CreateResponse {{ get; init; }}" : "")}
+            {(requestAwaiter.Data is ResponderData ? $"public {consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} CreateResponse {{ get; init; }}" : "")}
             {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} GetCurrentState {{ get; init; }}" : "")}
             {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} AfterCommit {{ get; init; }}" : "")}
             {(producerData.AfterSendResponse ? $"public {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} AfterSendResponse {{ get; init; }}" : "")}
@@ -96,11 +113,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            if (requestAwaiter.Data is RequestAwaiterData)
             {
-                builder.Append($@"
+                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+                {
+                    builder.Append($@"
             public ProducerInfo Outcome{i} {{ get; init; }}
 ");
+                }
             }
 
             builder.Append($@"

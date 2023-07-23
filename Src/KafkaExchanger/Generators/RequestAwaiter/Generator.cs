@@ -12,9 +12,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
     {
         StringBuilder _builder = new StringBuilder(1200);
 
-        public void GenerateRequestAwaiter(
+        public void Generate(
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter,
+            AttributeDatas.GenerateData requestAwaiter,
             SourceProductionContext context
             )
         {
@@ -49,14 +49,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Produce(assemblyName, requestAwaiter);
             StopAsync();
 
-            EndClass(requestAwaiter);
+            EndClass();
 
             End();//end file
 
             context.AddSource($"{requestAwaiter.Data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
-        private void Start(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Start(AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
 using Confluent.Kafka;
@@ -74,30 +74,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string DataToPostfix(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            if(requestAwaiter.Data is RequestAwaiterData)
-            {
-                return "RequestAwaiter";
-            }
-
-            if (requestAwaiter.Data is ResponderData)
-            {
-                return "Responder";
-            }
-
-            if (requestAwaiter.Data is ListenerData)
-            {
-                return "Listener";
-            }
-
-            throw new System.NotImplementedException();
-        }
-
-        private void StartClass(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void StartClass(AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}{DataToPostfix(requestAwaiter)}
+    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}{GenerateData.DataToPostfix(requestAwaiter)}
     {{
         {(requestAwaiter.Data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
@@ -109,7 +89,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartMethod(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void StartMethod(AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
         public void Start(
@@ -147,14 +127,14 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
         }
 
-        private void EndClass(AttributeDatas.RequestAwaiter data)
+        private void EndClass()
         {
             _builder.Append($@"
     }}
 ");
         }
 
-        private void BuildPartitionItems(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void BuildPartitionItems(AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
         private void BuildPartitionItems(
@@ -190,15 +170,21 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
+                if(requestAwaiter.Data is RequestAwaiterData)
+                {
+                    _builder.Append($@",
+                        config.Processors[i].Outcome{i}.TopicName
+");
+                }
                 _builder.Append($@",
-                        config.Processors[i].Outcome{i}.TopicName,
                         producerPool{i}
 ");
             }
             _builder.Append($@",
                         config.Processors[i].Buckets,
                         config.Processors[i].MaxInFly
-                        {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.Processors[i].GroupName)" : "")}
+                        {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
+                        {(requestAwaiter.Data is ResponderData ? $",config.Processors[i].CreateResponse" : "")}
                         {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
                         {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
                         {(requestAwaiter.Data.ProducerData.AfterSendResponse ? @",config.Processors[i].AfterSendResponse" : "")}
@@ -225,7 +211,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Produce(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Produce(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
         public Task<{assemblyName}.Response> Produce(

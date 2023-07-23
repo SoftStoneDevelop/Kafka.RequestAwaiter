@@ -12,8 +12,8 @@ namespace KafkaExchanger.Generators
         HashSet<OutcomeData> _producers = new HashSet<OutcomeData>(ProducerPairComparer.Default);
 
         public void FillProducerTypes(
-            List<KafkaExchanger.AttributeDatas.RequestAwaiter> requestAwaiters,
-            List<Responder> responders
+            List<KafkaExchanger.AttributeDatas.GenerateData> requestAwaiters,
+            List<GenerateData> responders
             ) 
         {
             foreach (var requestAwaiter in requestAwaiters) 

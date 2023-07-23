@@ -108,7 +108,6 @@ namespace KafkaExchengerTests
                     {
                         //From _inputSimpleTopic1
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            groupName: "SimpleProduce", 
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
@@ -124,7 +123,6 @@ namespace KafkaExchengerTests
                             maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
@@ -140,7 +138,6 @@ namespace KafkaExchengerTests
                             maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
@@ -160,54 +157,56 @@ namespace KafkaExchengerTests
             reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
 
             var responder1 = new ResponderOneToOneSimple();
-            ResponderOneToOneSimple.OutcomeMessage expect1Answer = null;
-            var responder1Config = new ResponderOneToOneSimple.ConfigResponder(
+            ResponderOneToOneSimple.Outcome0Message expect1Answer = null;
+            var responder1Config = new ResponderOneToOneSimple.Config(
                 groupId: "SimpleProduce1", 
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                new ResponderOneToOneSimple.ConsumerResponderConfig[] 
+                new ResponderOneToOneSimple.ProcessorConfig[] 
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
-                        createAnswer: (input, s) => 
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        income0: new ResponderOneToOneSimple.ConsumerInfo(_outputSimpleTopic, null, new int[] { 0, 1, 2 }),
+                        createResponse: (state, input) => 
                         {
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            var result = new ResponderOneToOneSimple.Outcome0Message()
                             { 
                                 Value = $"1: Answer from {input.Partition.Value} {input.Value}" 
                             };
                             expect1Answer = result;
 
-                            return Task.FromResult(result); 
+                            return Task.FromResult(new ResponderOneToOneSimple.ResponseResult(result)); 
                         },
-                        incomeTopicName: _outputSimpleTopic, 
-                        partitions: new int[] { 0, 1, 2 }
+                        buckets: 2,
+                        maxInFly: 10
                         )
                 }
                 );
-            responder1.Start(config: responder1Config, producerPool: pool);
+            responder1.Start(config: responder1Config, producerPool0: pool);
 
             var responder2 = new ResponderOneToOneSimple();
-            ResponderOneToOneSimple.OutcomeMessage expect2Answer = null;
-            var responder2Config = new ResponderOneToOneSimple.ConfigResponder(
+            ResponderOneToOneSimple.Outcome0Message expect2Answer = null;
+            var responder2Config = new ResponderOneToOneSimple.Config(
                 groupId: "SimpleProduce2",
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+                new ResponderOneToOneSimple.ProcessorConfig[]
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
-                        createAnswer: (input, s) =>
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        income0: new ResponderOneToOneSimple.ConsumerInfo(_outputSimpleTopic, null, new int[] { 0, 1, 2 }),
+                        createResponse: (state, input) =>
                         {
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            var result = new ResponderOneToOneSimple.Outcome0Message()
                             {
                                 Value = $"2: Answer from {input.Partition.Value} {input.Value}"
                             };
-                            expect2Answer = result;
+                            expect1Answer = result;
 
-                            return Task.FromResult(result);
+                            return Task.FromResult(new ResponderOneToOneSimple.ResponseResult(result));
                         },
-                        incomeTopicName: _outputSimpleTopic,
-                        partitions: new int[] { 0, 1, 2 }
+                        buckets: 2,
+                        maxInFly: 10
                         )
                 }
                 );
-            responder2.Start(config: responder2Config, producerPool: pool);
+            responder2.Start(config: responder2Config, producerPool0: pool);
 
             var answer = await reqAwaiter.Produce("Hello");
             Assert.That(answer.Result, Has.Length.EqualTo(2));

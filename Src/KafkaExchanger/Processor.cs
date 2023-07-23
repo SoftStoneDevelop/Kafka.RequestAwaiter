@@ -13,8 +13,8 @@ namespace KafkaExchanger
     internal class Processor
     {
         private readonly List<Listener> _listeners = new List<Listener>();
-        private readonly List<Responder> _responders = new List<Responder>();
-        private readonly List<RequestAwaiter> _requestAwaiters = new List<RequestAwaiter>();
+        private readonly List<GenerateData> _responders = new List<GenerateData>();
+        private readonly List<GenerateData> _requestAwaiters = new List<GenerateData>();
 
         List<IncomeData> _incomesTemp = new List<IncomeData>();
         List<OutcomeData> _outcomesTemp = new List<OutcomeData>();
@@ -114,7 +114,7 @@ namespace KafkaExchanger
                 return;
             }
 
-            var newRA = new RequestAwaiter();
+            var newRA = new GenerateData();
             newRA.Data = requestAwaiterData;
             newRA.IncomeDatas.AddRange(_incomesTemp);
             newRA.OutcomeDatas.AddRange(_outcomesTemp);
@@ -133,7 +133,7 @@ namespace KafkaExchanger
                 return;
             }
 
-            var newRes = new Responder();
+            var newRes = new GenerateData();
             newRes.Data = responderData;
             newRes.IncomeDatas.AddRange(_incomesTemp);
             newRes.OutcomeDatas.AddRange(_outcomesTemp);
@@ -172,14 +172,13 @@ namespace KafkaExchanger
             var requestAwaiterGenerator = new KafkaExchanger.Generators.RequestAwaiter.Generator();
             foreach (var requestAwaiter in _requestAwaiters)
             {
-                requestAwaiterGenerator.GenerateRequestAwaiter(assemblyName, requestAwaiter, context);
+                requestAwaiterGenerator.Generate(assemblyName, requestAwaiter, context);
             }
             _requestAwaiters.Clear();
 
-            var responderGenerator = new ResponderGenerator();
             foreach (var responder in _responders)
             {
-                responderGenerator.GenerateResponder(assemblyName, responder, context);
+                requestAwaiterGenerator.Generate(assemblyName, responder, context);
             }
             _responders.Clear();
 

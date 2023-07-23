@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;

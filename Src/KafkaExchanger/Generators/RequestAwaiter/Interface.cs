@@ -13,7 +13,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             StartInterface(builder, requestAwaiter);
@@ -29,11 +29,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartInterface(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
+    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}{GenerateData.DataToPostfix(requestAwaiter)}
     {{
 ");
         }
@@ -41,7 +41,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceProduceMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
@@ -71,7 +71,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceStartMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"

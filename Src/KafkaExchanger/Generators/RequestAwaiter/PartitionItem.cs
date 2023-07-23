@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder sb,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
@@ -19,28 +19,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
             StopPartitionItem(sb);
-            Produce(sb, assemblyName, requestAwaiter);
+            if (requestAwaiter.Data is RequestAwaiterData)
+                Produce(sb, assemblyName, requestAwaiter);
             End(sb);
         }
 
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
         private class PartitionItem
         {{
             private readonly Bucket[] _buckets;
-            private uint _current;
+            {(requestAwaiter.Data is RequestAwaiterData ? "private uint _current;" : "")}
 ");
         }
 
         private static void Constructor(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
@@ -48,17 +49,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 builder.Append($@"
                 string incomeTopic{i}Name,
                 int[] incomeTopic{i}Partitions,
-                string[] incomeTopic{i}CanAnswerService,
+                string[] incomeTopic{i}CanAnswerService
 ");
             }
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                builder.Append($@"
-                string outcomeTopic{i}Name,
+                if(requestAwaiter.Data is RequestAwaiterData)
+                {
+                    builder.Append($@",
+                string outcomeTopic{i}Name
+");
+                }
+                builder.Append($@",
                 {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
@@ -92,8 +103,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                builder.Append($@"
+                if (requestAwaiter.Data is RequestAwaiterData)
+                {
+                    builder.Append($@"
                         outcomeTopic{i}Name,
+");
+                }
+
+                builder.Append($@"
                         producerPool{i},
 ");
             }
@@ -149,7 +166,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Produce(
             StringBuilder builder, 
             string assemblyName, 
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"

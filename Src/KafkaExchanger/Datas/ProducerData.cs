@@ -80,9 +80,17 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
-        public string SendResponseFunc(INamedTypeSymbol typeSymbol)
+        public string SendResponseFunc(List<IncomeData> incomeDatas, INamedTypeSymbol typeSymbol)
         {
-            return $"Func<{typeSymbol.Name}.ResponseResult, {typeSymbol.Name}.RequestHeaders, Task>";
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<");
+            for (int i = 0; i < incomeDatas.Count; i++)
+            {
+                tempSb.Append($" Income{i}Message,");
+            }
+            tempSb.Append($"{typeSymbol.Name}.ResponseResult, Task<int>>");
+
+            return tempSb.ToString();
         }
     }
 }

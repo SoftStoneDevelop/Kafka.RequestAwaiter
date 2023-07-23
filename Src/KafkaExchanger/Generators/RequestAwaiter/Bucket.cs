@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder sb,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
@@ -21,7 +21,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartConsumePartitionItem(sb, assemblyName, requestAwaiter);
             StopConsume(sb, requestAwaiter);
 
-            ProducePartitionItem(sb, assemblyName, requestAwaiter);
+            if(requestAwaiter.Data is RequestAwaiterData)
+            {
+                TryProduce(sb, assemblyName, requestAwaiter);
+            }
+            else
+            {
+
+            }
             RemoveAwaiter(sb);
             CreateOutcomeHeader(sb, assemblyName, requestAwaiter);
 
@@ -31,7 +38,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
@@ -68,7 +75,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Constructor(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
@@ -76,23 +83,35 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 builder.Append($@"
                     string incomeTopic{i}Name,
                     int[] incomeTopic{i}Partitions,
-                    string[] incomeTopic{i}CanAnswerService,
+                    string[] incomeTopic{i}CanAnswerService
 ");
             }
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                builder.Append($@"
-                    string outcomeTopic{i}Name,
+                if(requestAwaiter.Data is RequestAwaiterData)
+                {
+                    builder.Append($@",
+                    string outcomeTopic{i}Name
+");
+                }
+
+                builder.Append($@",
                     {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             var consumerData = requestAwaiter.Data.ConsumerData;
             var producerData = requestAwaiter.Data.ProducerData;
-            builder.Append($@",int bucketId,
+            builder.Append($@",
+                    int bucketId,
                     int maxInFly
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                     {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
@@ -108,7 +127,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     _responseAwaiters = new(_maxInFly);
 
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
-                    {(requestAwaiter.Data is ResponderData ? $"_createResponse = _createResponse;" : "")}
+                    {(requestAwaiter.Data is ResponderData ? $"_createResponse = createResponse;" : "")}
                     {(consumerData.CheckCurrentState ? $"_getCurrentState = getCurrentState;" : "")}
                     {(consumerData.UseAfterCommit ? $"_afterCommit = afterCommit;" : "")}
                     {(producerData.AfterSendResponse ? $@"_afterSendResponse = afterSendResponse;" : "")}
@@ -126,8 +145,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                builder.Append($@"
+                if (requestAwaiter.Data is RequestAwaiterData)
+                {
+                    builder.Append($@"
                     _outcomeTopic{i}Name = outcomeTopic{i}Name;
+");
+                }
+
+                builder.Append($@"
                     _producerPool{i} = producerPool{i};
 ");
             }
@@ -139,7 +164,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void PrivateFilds(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
@@ -153,8 +178,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                builder.Append($@"
+                if (requestAwaiter.Data is RequestAwaiterData)
+                {
+                    builder.Append($@"
                     private readonly string _outcomeTopic{i}Name;
+");
+                }
+
+                builder.Append($@"
                     private readonly {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} _producerPool{i};
 ");
             }
@@ -174,7 +205,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Start(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
@@ -202,7 +233,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StartConsumePartitionItem(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
@@ -364,7 +395,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     _lock.EnterReadLock();
                                     try
                                     {{
-                                        if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse))
+                                        if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.{(requestAwaiter.Data is RequestAwaiterData ? "AnswerToMessageGuid" : "MessageGuid")}, out topicResponse))
                                         {{
                                             {LogIncomeMessage(requestAwaiter, incomeData, "LogError", ": no one wait results")}
                                             continue;
@@ -404,7 +435,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StopConsume(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
@@ -456,10 +487,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void ProducePartitionItem(
+        private static void TryProduce(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             var producerData = requestAwaiter.Data.ProducerData;
@@ -525,13 +556,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         _incomeTopic{i}Name,
 ");
             }
-            if(consumerData.CheckCurrentState)
-            {
-                builder.Append($@"
-                        _getCurrentState,
-");
-            }
             builder.Append($@"
+                        {(requestAwaiter.Data is ResponderData ? $"_createResponse," : "")}
+                        {(requestAwaiter.Data is ResponderData ? $"_sendResponse," : "")}
+                        {(requestAwaiter.Data is ResponderData ? $"_afterSendResponse," : "")}
+                        {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
                         header.MessageGuid,
                         RemoveAwaiter, 
                         waitResponseTimeout
@@ -609,9 +638,93 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
+        private static void SendResponse(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            )
+        {
+            var producerData = requestAwaiter.Data.ProducerData;
+            var consumerData = requestAwaiter.Data.ConsumerData;
+
+            builder.Append($@"
+            public async Task<int> SendResponse(
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message income{i}Message,
+");
+            }
+            builder.Append($@"
+                int waitResponseTimeout = 0
+                )
+            {{
+");
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            {
+                var outcomeData = requestAwaiter.OutcomeDatas[i];
+                CreateOutcomeMessage(builder, requestAwaiter, outcomeData, i);
+                var headerVariable = i == 0 ? "var header" : "header";
+                if (producerData.CustomOutcomeHeader)
+                {
+                    builder.Append($@"
+                {headerVariable} = await _createOutcomeHeader(_bucketId);
+");
+                }
+                else
+                {
+                    builder.Append($@"
+                {headerVariable} = CreateOutcomeHeader();
+");
+                }
+
+                builder.Append($@"
+                message{i}.Headers = new Headers
+                {{
+                    {{ ""Info"", header.ToByteArray() }}
+                }};
+
+                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
+");
+            }
+            
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            {
+                var outcomeData = requestAwaiter.OutcomeDatas[i];
+                var variable = i == 0 ? "var producer" : "producer";
+                builder.Append($@"
+                {variable} = _producerPool{i}.Rent();
+                if(message{i}.Headers.TopicsForAnswer.Any())
+                {{
+                    foreach(var topic = headerInfo.TopicsForAnswer)
+                    {{
+                        var topicPartition = new TopicPartition(topic.Name, topic.Partitions.First());
+                        try
+                        {{
+                            var deliveryResult = await producer.ProduceAsync(topicPartition, message{i});
+                        }}
+                        catch (ProduceException<{outcomeData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
+                        {{
+                            {(requestAwaiter.Data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
+                            throw;
+                        }}
+                        finally
+                        {{
+                            _producerPool{i}.Return(producer);
+                        }}
+                    }}
+                }}
+");
+            }
+            builder.Append($@"
+            }}
+");
+        }
+
         private static void CreateOutcomeMessage(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter,
             OutcomeData outcomeData,
             int messageNum
             )
@@ -658,24 +771,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void CreateOutcomeHeader(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
-            if (requestAwaiter.Data.ProducerData.CustomOutcomeHeader)
+            if(requestAwaiter.Data is RequestAwaiterData)
             {
-                //nothing
-            }
-            else
-            {
-                builder.Append($@"
+                if (requestAwaiter.Data.ProducerData.CustomOutcomeHeader)
+                {
+                    //nothing
+                }
+                else
+                {
+                    builder.Append($@"
             private {assemblyName}.RequestHeader CreateOutcomeHeader()
             {{
                 var headerInfo = new {assemblyName}.RequestHeader();
 ");
-                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-                {
-                    var variable = i == 0 ? $"var topic" : $"topic";
-                    builder.Append($@"
+                    for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+                    {
+                        var variable = i == 0 ? $"var topic" : $"topic";
+                        builder.Append($@"
                 {variable} = new {assemblyName}.Topic()
                 {{
                     Name = _incomeTopic{i}Name
@@ -685,16 +800,43 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 headerInfo.TopicsForAnswer.Add(topic);
 ");
 
-                }
-                builder.Append($@"
+                    }
+                    builder.Append($@"
                 return headerInfo;
             }}
 ");
+                }
+
+                return;
+            }
+
+            if (requestAwaiter.Data is ResponderData)
+            {
+                if (requestAwaiter.Data.ProducerData.CustomOutcomeHeader)
+                {
+                    //nothing
+                }
+                else
+                {
+                    builder.Append($@"
+            private {assemblyName}.ResponseHeader CreateOutcomeHeader({assemblyName}.RequestHeader requestHeaderInfo)
+            {{
+                var headerInfo = new {assemblyName}.ResponseHeader()
+                {{
+                    AnswerToMessageGuid = requestHeaderInfo.MessageGuid
+                }};
+                
+                return headerInfo;
+            }}
+");
+                }
+
+                return;
             }
         }
 
         private static string LogIncomeMessage(
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter,
             IncomeData incomeData,
             string logMethod,
             string afterMessageInfo = ""
