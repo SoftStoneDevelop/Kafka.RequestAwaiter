@@ -5,7 +5,7 @@ using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
-    internal static class ResponseMessages
+    internal static class IncomeMessages
     {
         public static void Append(
             StringBuilder builder,
@@ -37,7 +37,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var incomeData = requestAwaiter.IncomeDatas[i];
                 builder.Append($@"
-        public class ResponseTopic{i}Message : BaseResponseMessage
+        public class Income{i}Message : BaseResponseMessage
         {{
             public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 

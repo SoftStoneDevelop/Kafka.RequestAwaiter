@@ -98,36 +98,38 @@ namespace KafkaExchengerTests
                 new RequestAwaiterOneToOneSimple.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                    outcomeTopicName: _outputSimpleTopic,
-                    consumers: new RequestAwaiterOneToOneSimple.Consumer[] 
+                    processors: new RequestAwaiterOneToOneSimple.ProcessorConfig[] 
                     {
-                        new RequestAwaiterOneToOneSimple.Consumer(
+                        new RequestAwaiterOneToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce", 
                             income0: new RequestAwaiterOneToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic, 
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 0 }
                                 ),
+                            new RequestAwaiterOneToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterOneToOneSimple.Consumer(
+                        new RequestAwaiterOneToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterOneToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 1 }
                                 ),
+                            new RequestAwaiterOneToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterOneToOneSimple.Consumer(
+                        new RequestAwaiterOneToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterOneToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic,
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 2 }
                                 ),
+                            new RequestAwaiterOneToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             )
@@ -163,7 +165,7 @@ namespace KafkaExchengerTests
             var answer = await reqAwaiter.Produce("Hello");
             Assert.That(answer.Result, Has.Length.EqualTo(1));
             Assert.That(answer.Result[0].TopicName, Is.EqualTo(_inputSimpleTopic));
-            var result = answer.Result[0] as ResponseItem<RequestAwaiterOneToOneSimple.ResponseTopic0Message>;
+            var result = answer.Result[0] as ResponseItem<RequestAwaiterOneToOneSimple.Income0Message>;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Result, Is.Not.Null);
             Assert.That(result.Result.Value, Is.EqualTo(expectAnswer.Value));
@@ -171,7 +173,7 @@ namespace KafkaExchengerTests
             answer = await reqAwaiter.Produce("Hello again");
             Assert.That(answer.Result, Has.Length.EqualTo(1));
             Assert.That(answer.Result[0].TopicName, Is.EqualTo(_inputSimpleTopic));
-            result = answer.Result[0] as ResponseItem<RequestAwaiterOneToOneSimple.ResponseTopic0Message>;
+            result = answer.Result[0] as ResponseItem<RequestAwaiterOneToOneSimple.Income0Message>;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Result, Is.Not.Null);
             Assert.That(result.Result.Value, Is.EqualTo(expectAnswer.Value));

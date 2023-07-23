@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KafkaExchanger.AttributeDatas;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -7,9 +8,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
     internal static class ConsumerInfo
     {
         public static void Append(
-            StringBuilder builder,
-            string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            StringBuilder builder
             )
         {
             builder.Append($@"

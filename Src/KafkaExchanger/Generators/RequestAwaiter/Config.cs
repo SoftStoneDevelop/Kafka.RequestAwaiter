@@ -14,23 +14,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public Config(
                 string groupId,
                 string bootstrapServers,
-                string outcomeTopicName,
-                Consumer[] consumers
+                ProcessorConfig[] processors
                 )
             {{
                 GroupId = groupId;
                 BootstrapServers = bootstrapServers;
-                OutcomeTopicName = outcomeTopicName;
-                Consumers = consumers;
+                Processors = processors;
             }}
 
             public string GroupId {{ get; init; }}
 
             public string BootstrapServers {{ get; init; }}
 
-            public string OutcomeTopicName {{ get; init; }}
-
-            public Consumer[] Consumers {{ get; init; }}
+            public ProcessorConfig[] Processors {{ get; init; }}
         }}
 ");
         }

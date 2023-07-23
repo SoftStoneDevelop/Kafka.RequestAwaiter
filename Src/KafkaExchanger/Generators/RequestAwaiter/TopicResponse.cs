@@ -49,7 +49,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-            private TaskCompletionSource<ResponseTopic{i}Message> _responseTopic{i} = new();
+            private TaskCompletionSource<Income{i}Message> _responseTopic{i} = new();
 ");
             }
         }
@@ -163,7 +163,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                        new ResponseItem<ResponseTopic{i}Message>(topic{i}Name, topic{i})
+                        new ResponseItem<Income{i}Message>(topic{i}Name, topic{i})
 ");
                 if (i != requestAwaiter.IncomeDatas.Count - 1)
                 {
@@ -221,7 +221,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                     case {i}:
                     {{
-                        return _responseTopic{i}.TrySetResult((ResponseTopic{i}Message)response);
+                        return _responseTopic{i}.TrySetResult((Income{i}Message)response);
                     }}
 ");
             }

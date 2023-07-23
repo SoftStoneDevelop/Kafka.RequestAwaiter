@@ -20,6 +20,8 @@ namespace KafkaExchanger.AttributeDatas
 
     internal class RequestAwaiterData : BaseServiceData
     {
+        public ConsumerData ConsumerData { get; } = new ConsumerData();
+
         public ProducerData ProducerData { get; } = new ProducerData();
 
         public static RequestAwaiterData Create(INamedTypeSymbol type, AttributeData attribute)

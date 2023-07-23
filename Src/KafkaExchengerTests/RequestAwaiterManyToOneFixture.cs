@@ -104,11 +104,10 @@ namespace KafkaExchengerTests
                 new RequestAwaiterManyToOneSimple.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                    outcomeTopicName: _outputSimpleTopic,
-                    consumers: new RequestAwaiterManyToOneSimple.Consumer[] 
+                    processors: new RequestAwaiterManyToOneSimple.ProcessorConfig[] 
                     {
                         //From _inputSimpleTopic1
-                        new RequestAwaiterManyToOneSimple.Consumer(
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce", 
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
@@ -120,10 +119,11 @@ namespace KafkaExchengerTests
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 0 }
                                 ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterManyToOneSimple.Consumer(
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
@@ -135,10 +135,11 @@ namespace KafkaExchengerTests
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 1 }
                                 ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterManyToOneSimple.Consumer(
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
@@ -150,6 +151,7 @@ namespace KafkaExchengerTests
                                 canAnswerService: new string[] { "ResponderOneToOne" },
                                 partitions: new int[] { 2 }
                                 ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
                             maxInFly: 10
                             )
@@ -210,18 +212,18 @@ namespace KafkaExchengerTests
             var answer = await reqAwaiter.Produce("Hello");
             Assert.That(answer.Result, Has.Length.EqualTo(2));
 
-            ResponseItem<RequestAwaiterManyToOneSimple.ResponseTopic0Message> answerFrom1 = null;
-            ResponseItem<RequestAwaiterManyToOneSimple.ResponseTopic1Message> answerFrom2 = null;
+            ResponseItem<RequestAwaiterManyToOneSimple.Income0Message> answerFrom1 = null;
+            ResponseItem<RequestAwaiterManyToOneSimple.Income1Message> answerFrom2 = null;
             for (int i = 0; i < answer.Result.Length; i++)
             {
                 Assert.That(answerFrom1 == null || answerFrom2 == null, Is.True);
                 var result = answer.Result[i];
-                if(result is ResponseItem<RequestAwaiterManyToOneSimple.ResponseTopic0Message> resultFrom1)
+                if(result is ResponseItem<RequestAwaiterManyToOneSimple.Income0Message> resultFrom1)
                 {
                     answerFrom1 = resultFrom1;
                 }
 
-                if (result is ResponseItem<RequestAwaiterManyToOneSimple.ResponseTopic1Message> resultFrom2)
+                if (result is ResponseItem<RequestAwaiterManyToOneSimple.Income1Message> resultFrom2)
                 {
                     answerFrom2 = resultFrom2;
                 }

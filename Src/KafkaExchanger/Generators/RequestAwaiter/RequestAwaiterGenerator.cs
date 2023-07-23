@@ -27,9 +27,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             //inner classes
             Config.Append(_builder);
-            Consumer.Append(_builder, assemblyName, requestAwaiter);
-            ConsumerInfo.Append(_builder, assemblyName, requestAwaiter);
-            ResponseMessages.Append(_builder, assemblyName, requestAwaiter);
+            ProcessorConfig.Append(_builder, assemblyName, requestAwaiter);
+            ConsumerInfo.Append(_builder);
+            ProducerInfo.Append(_builder, assemblyName, requestAwaiter);
+            IncomeMessages.Append(_builder, assemblyName, requestAwaiter);
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
             PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
@@ -133,14 +134,14 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
                 _builder.Append($@",
-            {requestAwaiter.OutcomeDatas[0].FullPoolInterfaceName} producerPool{i}
+            {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             _builder.Append($@"
             )
         {{
-            _items = new PartitionItem[config.Consumers.Length];
-            for (int i = 0; i < config.Consumers.Length; i++)
+            _items = new PartitionItem[config.Processors.Length];
+            for (int i = 0; i < config.Processors.Length; i++)
             {{
                 _items[i] =
                     new PartitionItem(
@@ -153,26 +154,27 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 }
 
                 _builder.Append($@"
-                        config.Consumers[i].Income{i}.TopicName,
-                        config.Consumers[i].Income{i}.Partitions,
-                        config.Consumers[i].Income{i}.CanAnswerService
+                        config.Processors[i].Income{i}.TopicName,
+                        config.Processors[i].Income{i}.Partitions,
+                        config.Processors[i].Income{i}.CanAnswerService
 ");
             }
-            _builder.Append($@",
-                        config.OutcomeTopicName
-");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
                 _builder.Append($@",
+                        config.Processors[i].Outcome{i}.TopicName,
                         producerPool{i}
 ");
             }
             _builder.Append($@",
-                        config.Consumers[i].Buckets,
-                        config.Consumers[i].MaxInFly
-                        {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.Consumers[i].GroupName}"")" : "")}
-                        {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Consumers[i].CreateOutcomeHeader" : "")}
-                        {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Consumers[i].SetHeaders" : "")}
+                        config.Processors[i].Buckets,
+                        config.Processors[i].MaxInFly
+                        {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.Processors[i].GroupName}"")" : "")}
+                        {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
+                        {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
+                        {(requestAwaiter.Data.ProducerData.AfterSendResponse ? @",config.Processors[i].AfterSendResponse" : "")}
+                        {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Processors[i].CreateOutcomeHeader" : "")}
+                        {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Processors[i].SetHeaders" : "")}
                         );
             }}
         }}
@@ -201,7 +203,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                if (!requestAwaiter.OutcomeDatas[0].KeyType.IsKafkaNull())
+                if (!requestAwaiter.OutcomeDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
             {requestAwaiter.OutcomeDatas[i].KeyType.GetFullTypeName(true)} key{i},
@@ -223,7 +225,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                if (!requestAwaiter.OutcomeDatas[0].KeyType.IsKafkaNull())
+                if (!requestAwaiter.OutcomeDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
                     key{i},

@@ -61,13 +61,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
-
-            builder.Append($@"
-                {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? $@",Func<Task<{assemblyName}.ResponseHeader>> createOutcomeHeader" : "")}
-                {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
-                ,int buckets,
+            var consumerData = requestAwaiter.Data.ConsumerData;
+            var producerData = requestAwaiter.Data.ProducerData;
+            builder.Append($@",
+                int buckets,
                 int maxInFly
+                {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc()} afterCommit" : "")}
+                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
+                {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
+                {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                 )
             {{
                 _buckets = new Bucket[buckets];
@@ -95,6 +99,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                         i,
                         maxInFly
+                        {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
+                        {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
+                        {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
+                        {(producerData.AfterSendResponse ? $@",afterSendResponse" : "")}
+                        {(producerData.CustomOutcomeHeader ? $@",createOutcomeHeader" : "")}
+                        {(producerData.CustomHeaders ? $@",setHeaders" : "")}
                         );
                 }}
             }}

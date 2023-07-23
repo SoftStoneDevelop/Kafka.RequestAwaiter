@@ -34,6 +34,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var consumerData = requestAwaiter.Data.ConsumerData;
+            var producerData = requestAwaiter.Data.ProducerData;
+
             builder.Append($@"
             private class Bucket : IDisposable
             {{
@@ -43,9 +46,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private int _addedCount;
                 public readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
                 {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
-
-                {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? $@"private readonly Func<Task<{assemblyName}.ResponseHeader>> _createOutcomeHeader;" : "")}
-                {(requestAwaiter.Data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
+                {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState" : "")}
+                {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc()} _afterCommit" : "")}
+                {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} _afterSendResponse" : "")}
+                {(producerData.CustomOutcomeHeader ? $@"private readonly {producerData.CustomOutcomeHeaderFunc(assemblyName)} _createOutcomeHeader;" : "")}
+                {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders" : "")}
 
                 private CancellationTokenSource _ctsConsume;
                 private Task[] _consumeRoutines;
@@ -74,20 +79,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 builder.Append($@"
                     string outcomeTopic{i}Name,
-                {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
+                    {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
-
+            var consumerData = requestAwaiter.Data.ConsumerData;
+            var producerData = requestAwaiter.Data.ProducerData;
             builder.Append($@",int bucketId,
                     int maxInFly
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                    {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? $@",Func<Task<{assemblyName}.ResponseHeader>> createOutcomeHeader" : "")}
-                    {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
+                    {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
+                    {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc()} afterCommit" : "")}
+                    {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
+                    {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
+                    {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                     )
                 {{
+                    _bucketId = bucketId;
+                    _maxInFly = maxInFly;
+                    _responseAwaiters = new(_maxInFly);
+
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
-                    {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @"_createOutcomeHeader = createOutcomeHeader;" : "")}
-                    {(requestAwaiter.Data.ProducerData.CustomHeaders ? @"_setHeaders = setHeaders;" : "")}
+                    {(consumerData.CheckCurrentState ? $"_getCurrentState = getCurrentState;" : "")}
+                    {(consumerData.UseAfterCommit ? $"_afterCommit = afterCommit;" : "")}
+                    {(producerData.AfterSendResponse ? $@"_afterSendResponse = afterSendResponse;" : "")}
+                    {(producerData.CustomOutcomeHeader ? $@"_createOutcomeHeader = createOutcomeHeader;" : "")}
+                    {(producerData.CustomHeaders ? $@"_setHeaders = setHeaders;" : "")}
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
@@ -107,9 +123,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@"
-                    _bucketId = bucketId;
-                    _maxInFly = maxInFly;
-                    _responseAwaiters = new(_maxInFly);
                 }}
 ");
         }
@@ -238,11 +251,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     var consumeResult = consumer.Consume(_ctsConsume.Token);
                                     offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
                                 
-                                    var incomeMessage = new {requestAwaiter.Data.TypeSymbol.Name}.ResponseTopic{i}Message()
+                                    var incomeMessage = new {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message()
                                     {{
                                         OriginalMessage = consumeResult.Message,
                                         {(incomeData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(incomeData)},")}
-                                        Value = {GetResponseValue(requestAwaiter)},
+                                        Value = {GetResponseValue(incomeData)},
                                         Partition = consumeResult.Partition
                                     }};
 
@@ -587,11 +600,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "consumeResult.Message.Key";
         }
 
-        private static string GetResponseValue(KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter)
+        private static string GetResponseValue(IncomeData incomeData)
         {
-            if (requestAwaiter.IncomeDatas[0].ValueType.IsProtobuffType())
+            if (incomeData.ValueType.IsProtobuffType())
             {
-                return $"{requestAwaiter.IncomeDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
+                return $"{incomeData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
             }
 
             return "consumeResult.Message.Value";
