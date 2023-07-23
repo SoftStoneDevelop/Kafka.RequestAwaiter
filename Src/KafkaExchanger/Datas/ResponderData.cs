@@ -20,10 +20,6 @@ namespace KafkaExchanger.AttributeDatas
 
     internal class ResponderData : BaseServiceData
     {
-        public ConsumerData ConsumerData { get; } = new ConsumerData();
-
-        public ProducerData ProducerData { get; } = new ProducerData();
-
         public static ResponderData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new ResponderData();

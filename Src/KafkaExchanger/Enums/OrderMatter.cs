@@ -11,4 +11,11 @@ namespace KafkaExchanger.Enums
         ForProcess = 2,
         ForResponse = 4,
     }
+
+    internal enum ExchangeType
+    {
+        RequestAwaiter = 0,
+        Responder = 1,
+        Listener = 2,
+    }
 }

@@ -1,4 +1,5 @@
-﻿using KafkaExchanger.Helpers;
+﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Helpers;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -67,9 +68,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int buckets,
                 int maxInFly
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
+                {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                 {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
+                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
                 {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                 )
@@ -100,6 +102,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         i,
                         maxInFly
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
+                        {(requestAwaiter.Data is ResponderData ? $",createResponse" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
                         {(producerData.AfterSendResponse ? $@",afterSendResponse" : "")}

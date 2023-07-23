@@ -1,4 +1,6 @@
-﻿using KafkaExchanger.Extensions;
+﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Enums;
+using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
 using System;
 using System.Collections.Generic;
@@ -16,7 +18,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             StartInterface(builder, requestAwaiter);
 
-            InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
+            if (requestAwaiter.Data is RequestAwaiterData)
+                InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
+
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
             InterfaceStopMethod(builder);
 

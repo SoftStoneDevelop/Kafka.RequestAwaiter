@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KafkaExchanger.AttributeDatas;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -21,9 +22,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private ProcessorConfig() {{ }}
 
             public ProcessorConfig(
+                {(requestAwaiter.Data is ResponderData ? $"{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse," : "")}
                 {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
                 {(consumerData.UseAfterCommit ? $"{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit," : "")}
-                {(producerData.AfterSendResponse ? $@"{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse," : "")}
+                {(producerData.AfterSendResponse ? $@"{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse," : "")}
                 {(producerData.CustomOutcomeHeader ? $@"{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader," : "")}
                 {(producerData.CustomHeaders ? $@"{producerData.CustomHeadersFunc()} setHeaders," : "")}
                 string groupName
@@ -49,6 +51,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 MaxInFly = maxInFly;
                 GroupName = groupName;
 
+                {(requestAwaiter.Data is ResponderData ? $"CreateResponse = createResponse;" : "")}
                 {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
                 {(producerData.AfterSendResponse ? @"AfterSendResponse = afterSendResponse;" : "")}
@@ -79,9 +82,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             
             public int MaxInFly {{ get; init; }}
 
+            {(requestAwaiter.Data is ResponderData ? $"{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} CreateResponse {{ get; init; }}" : "")}
             {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} GetCurrentState {{ get; init; }}" : "")}
             {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} AfterCommit {{ get; init; }}" : "")}
-            {(producerData.AfterSendResponse ? $"public {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} AfterSendResponse {{ get; init; }}" : "")}
+            {(producerData.AfterSendResponse ? $"public {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} AfterSendResponse {{ get; init; }}" : "")}
             {(producerData.CustomOutcomeHeader ? $"public {producerData.CustomOutcomeHeaderFunc(assemblyName)} CreateOutcomeHeader {{ get; init; }}" : "")}
             {(producerData.CustomHeaders ? $"public {producerData.CustomHeadersFunc()} SetHeaders {{ get; init; }}" : "")}
 ");

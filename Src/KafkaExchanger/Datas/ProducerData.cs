@@ -11,22 +11,16 @@ namespace KafkaExchanger.AttributeDatas
 
         public string AfterSendResponseFunc(
             List<IncomeData> incomeDatas,
-            List<OutcomeData> outcomeDatas
+            INamedTypeSymbol typeSymbol
             )
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<");
+            tempSb.Append("Func<int,");
             for (int i = 0; i < incomeDatas.Count; i++)
             {
-                tempSb.Append($"Income{i}Message,");
+                tempSb.Append($" Income{i}Message,");
             }
-            tempSb.Append("KafkaExchanger.Attributes.Enums.CurrentState,");
-            for (int i = 0; i < outcomeDatas.Count; i++)
-            {
-                tempSb.Append($"Outcome{i}Message,");
-            }
-
-            tempSb.Append(" Task>");
+            tempSb.Append($"{typeSymbol.Name}.ResponseResult, Task>");
 
             return tempSb.ToString();
         }
@@ -50,7 +44,7 @@ namespace KafkaExchanger.AttributeDatas
             string assemblyName
             )
         {
-            return $"Func<Task<{assemblyName}.RequestHeader>>";
+            return $"Func<int, Task<{assemblyName}.RequestHeader>>";
         }
 
         internal bool SetCustomOutcomeHeader(TypedConstant argument)
@@ -84,6 +78,11 @@ namespace KafkaExchanger.AttributeDatas
 
             CustomHeaders = (bool)argument.Value;
             return true;
+        }
+
+        public string SendResponseFunc(INamedTypeSymbol typeSymbol)
+        {
+            return $"Func<{typeSymbol.Name}.ResponseResult, {typeSymbol.Name}.RequestHeaders, Task>";
         }
     }
 }

@@ -46,9 +46,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private int _addedCount;
                 private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
                 {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
+                {(requestAwaiter.Data is ResponderData ? $"private readonly {consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} _createResponse;" : "")}
                 {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} _afterCommit;" : "")}
-                {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} _afterSendResponse;" : "")}
+                {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} _afterSendResponse;" : "")}
                 {(producerData.CustomOutcomeHeader ? $@"private readonly {producerData.CustomOutcomeHeaderFunc(assemblyName)} _createOutcomeHeader;" : "")}
                 {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders;" : "")}
 
@@ -94,9 +95,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@",int bucketId,
                     int maxInFly
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
+                    {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
                     {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                     {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                    {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
+                    {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
                     {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                     {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                     )
@@ -106,6 +108,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     _responseAwaiters = new(_maxInFly);
 
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
+                    {(requestAwaiter.Data is ResponderData ? $"_createResponse = _createResponse;" : "")}
                     {(consumerData.CheckCurrentState ? $"_getCurrentState = getCurrentState;" : "")}
                     {(consumerData.UseAfterCommit ? $"_afterCommit = afterCommit;" : "")}
                     {(producerData.AfterSendResponse ? $@"_afterSendResponse = afterSendResponse;" : "")}
@@ -312,7 +315,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         }}
                                         catch (OperationCanceledException)
                                         {{
-                                            _ctsConsume.Token.ThrowIfCancellationRequested();
+                                            try
+                                            {{
+                                                _ctsConsume.Token.ThrowIfCancellationRequested();
+                                            }}
+                                            catch(OperationCanceledException oce)
+                                            {{
+                                                _lock.EnterReadLock();
+                                                try
+                                                {{
+                                                    foreach (var topicResponseItem in _responseAwaiters.Values)
+                                                    {{
+                                                        topicResponseItem.TrySetException({i}, oce);
+                                                    }}
+                                                }}
+                                                finally
+                                                {{
+                                                    _lock.ExitReadLock();
+                                                }}
+
+                                                throw;
+                                            }}
                                             _ctsConsume{i}.Dispose();
                                             _ctsConsume{i} = new CancellationTokenSource();
                                             Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Keys.ToHashSet());
@@ -335,7 +358,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         continue;
                                     }}
 
-                                    incomeMessage.HeaderInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                    incomeMessage.HeaderInfo = {assemblyName}.{(requestAwaiter.Data is RequestAwaiterData ? "ResponseHeader" : "RequestHeader")}.Parser.ParseFrom(infoBytes);
 
                                     TopicResponse topicResponse;
                                     _lock.EnterReadLock();
@@ -472,7 +495,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (producerData.CustomOutcomeHeader)
                 {
                     builder.Append($@"
-                {headerVariable} = await _createOutcomeHeader();
+                {headerVariable} = await _createOutcomeHeader(_bucketId);
 ");
                 }
                 else

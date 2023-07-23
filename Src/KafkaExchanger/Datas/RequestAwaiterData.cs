@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using KafkaExchanger.Enums;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +8,12 @@ namespace KafkaExchanger.AttributeDatas
 {
     internal class RequestAwaiter
     {
-        public RequestAwaiterData Data { get; set; }
+        public BaseServiceData Data { get; set; }
+
+        public ConsumerData ConsumerData => Data.ConsumerData;
+
+        public ProducerData ProducerData => Data.ProducerData;
+
         public List<IncomeData> IncomeDatas { get; } = new List<IncomeData>();
 
         public List<OutcomeData> OutcomeDatas { get; } = new List<OutcomeData>();
@@ -20,10 +26,6 @@ namespace KafkaExchanger.AttributeDatas
 
     internal class RequestAwaiterData : BaseServiceData
     {
-        public ConsumerData ConsumerData { get; } = new ConsumerData();
-
-        public ProducerData ProducerData { get; } = new ProducerData();
-
         public static RequestAwaiterData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new RequestAwaiterData();

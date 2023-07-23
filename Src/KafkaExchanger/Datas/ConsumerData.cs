@@ -94,5 +94,19 @@ namespace KafkaExchanger.AttributeDatas
             OrderMatters = (OrderMatters)argument.Value;
             return true;
         }
+
+        public string CreateResponseFunc(List<IncomeData> incomeDatas, INamedTypeSymbol typeSymbol)
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<KafkaExchanger.Attributes.Enums.CurrentState,");
+            for (int i = 0; i < incomeDatas.Count; i++)
+            {
+                tempSb.Append($" Income{i}Message,");
+            }
+
+            tempSb.Append($" Task<{typeSymbol.Name}.ResponseResult>>");
+
+            return tempSb.ToString();
+        }
     }
 }
