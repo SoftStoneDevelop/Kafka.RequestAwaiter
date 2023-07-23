@@ -44,7 +44,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private readonly int _maxInFly;
                 private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
                 private int _addedCount;
-                public readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
+                private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
                 {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
                 {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc()} _afterCommit;" : "")}
