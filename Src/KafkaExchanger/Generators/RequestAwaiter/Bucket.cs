@@ -193,6 +193,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var consumerData = requestAwaiter.Data.ConsumerData;
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 var incomeData = requestAwaiter.IncomeDatas[i];
@@ -237,6 +238,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             {{
                                                 _addedCount = 0;
                                                 consumer.Commit(offsets.Values);
+");
+                if (consumerData.UseAfterCommit)
+                {
+                    builder.Append(@"
+                                                _afterCommit(_bucketId, offsets.Keys.ToHashSet()).Wait();
+");
+                }
+                builder.Append($@"
                                             }}
                                             finally
                                             {{

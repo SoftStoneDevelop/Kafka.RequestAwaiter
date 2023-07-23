@@ -31,7 +31,7 @@ namespace KafkaExchanger.AttributeDatas
 
         public string AfterCommitFunc()
         {
-            return "Func<int, HashSet<int>,Task>";
+            return "Func<int, HashSet<Confluent.Kafka.Partition>, Task>";
         }
 
         internal bool SetCommitAfter(TypedConstant argument)
