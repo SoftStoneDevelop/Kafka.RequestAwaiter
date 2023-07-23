@@ -105,10 +105,10 @@ namespace KafkaExchengerTests
                     groupId: "SimpleProduce",
                     bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
                     outcomeTopicName: _outputSimpleTopic,
-                    consumers: new RequestAwaiterManyToOneSimple.Consumers[] 
+                    consumers: new RequestAwaiterManyToOneSimple.Consumer[] 
                     {
                         //From _inputSimpleTopic1
-                        new RequestAwaiterManyToOneSimple.Consumers(
+                        new RequestAwaiterManyToOneSimple.Consumer(
                             groupName: "SimpleProduce", 
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
@@ -123,7 +123,7 @@ namespace KafkaExchengerTests
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterManyToOneSimple.Consumers(
+                        new RequestAwaiterManyToOneSimple.Consumer(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
@@ -138,7 +138,7 @@ namespace KafkaExchengerTests
                             buckets: 2,
                             maxInFly: 10
                             ),
-                        new RequestAwaiterManyToOneSimple.Consumers(
+                        new RequestAwaiterManyToOneSimple.Consumer(
                             groupName: "SimpleProduce",
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,

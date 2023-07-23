@@ -201,7 +201,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }};
 
                         var consumer =
-                            new ConsumerBuilder<{GetConsumerTType(incomeData)}>(conf)
+                            new ConsumerBuilder<{incomeData.TypesPair}>(conf)
                             .Build()
                             ;
 
@@ -539,11 +539,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }}
 ");
             }
-        }
-
-        private static string GetConsumerTType(IncomeData incomeData)
-        {
-            return $@"{(incomeData.KeyType.IsProtobuffType() ? "byte[]" : incomeData.KeyType.GetFullTypeName(true))}, {(incomeData.ValueType.IsProtobuffType() ? "byte[]" : incomeData.ValueType.GetFullTypeName(true))}";
         }
 
         private static string LogIncomeMessage(

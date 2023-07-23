@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 {
     internal class Generator
     {
-        StringBuilder _builder = new StringBuilder();
+        StringBuilder _builder = new StringBuilder(1200);
 
         public void GenerateRequestAwaiter(
             string assemblyName,
@@ -19,29 +19,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             _builder.Clear();
 
-            Start(requestAwaiter);
+            Start(requestAwaiter);//start file
 
-            Interface(assemblyName, requestAwaiter);
+            Interface.Append(_builder, assemblyName, requestAwaiter);
 
             StartClass(requestAwaiter);
-            StartMethod(requestAwaiter);
-            BuildPartitionItems(requestAwaiter);
-            StopAsync();
 
-            Config();
-            Consumers(assemblyName, requestAwaiter);
-            ConsumerInfo(assemblyName, requestAwaiter);
-
-            Produce(assemblyName, requestAwaiter);
-            BaseResponseMessage();
-            ResponseMessages(assemblyName, requestAwaiter);
-
+            //inner classes
+            Config.Append(_builder);
+            Consumer.Append(_builder, assemblyName, requestAwaiter);
+            ConsumerInfo.Append(_builder, assemblyName, requestAwaiter);
+            ResponseMessages.Append(_builder, assemblyName, requestAwaiter);
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
             PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
-            EndInterfaceOrClass(requestAwaiter);
+            //methods
+            StartMethod(requestAwaiter);
+            BuildPartitionItems(requestAwaiter);
+            Produce(assemblyName, requestAwaiter);
+            StopAsync();
 
-            End();
+            EndClass(requestAwaiter);
+
+            End();//end file
 
             context.AddSource($"{requestAwaiter.Data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
@@ -63,87 +63,6 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 {{
 ");
         }
-
-        #region Interface
-
-        private void Interface(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            StartInterface(requestAwaiter);
-
-            InterfaceProduceMethod(assemblyName, requestAwaiter);
-            InterfaceStartMethod(assemblyName, requestAwaiter);
-            InterfaceStopMethod(assemblyName, requestAwaiter);
-
-            EndInterfaceOrClass(requestAwaiter);
-        }
-
-        private void StartInterface(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
-    {{
-");
-        }
-
-        private void InterfaceProduceMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public Task<{assemblyName}.Response> Produce(
-");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
-            {
-                var outcomeData = requestAwaiter.OutcomeDatas[i];
-                if(!outcomeData.KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-            {outcomeData.KeyType.GetFullTypeName(true, true)} key{i},
-");
-                }
-
-                _builder.Append($@"
-            {outcomeData.ValueType.GetFullTypeName(true, true)} value{i},
-");
-            }
-
-            _builder.Append($@"
-            int waitResponseTimeout = 0
-            );
-");
-        }
-
-        private void InterfaceStartMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public void Start(
-            {requestAwaiter.Data.TypeSymbol.Name}.Config config
-");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
-            {
-                _builder.Append($@",
-            {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
-");
-            }
-            _builder.Append($@"
-            )
-            ;
-");
-        }
-
-        private void InterfaceStopMethod(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public Task StopAsync();
-");
-        }
-
-        private void EndInterfaceOrClass(AttributeDatas.RequestAwaiter data)
-        {
-            _builder.Append($@"
-    }}
-");
-        }
-
-        #endregion
 
         private void StartClass(AttributeDatas.RequestAwaiter requestAwaiter)
         {
@@ -196,6 +115,13 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         }}
 ");
             }
+        }
+
+        private void EndClass(AttributeDatas.RequestAwaiter data)
+        {
+            _builder.Append($@"
+    }}
+");
         }
 
         private void BuildPartitionItems(AttributeDatas.RequestAwaiter requestAwaiter)
@@ -268,115 +194,6 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Config()
-        {
-            _builder.Append($@"
-        public class Config
-        {{
-            public Config(
-                string groupId,
-                string bootstrapServers,
-                string outcomeTopicName,
-                Consumers[] consumers
-                )
-            {{
-                GroupId = groupId;
-                BootstrapServers = bootstrapServers;
-                OutcomeTopicName = outcomeTopicName;
-                Consumers = consumers;
-            }}
-
-            public string GroupId {{ get; init; }}
-
-            public string BootstrapServers {{ get; init; }}
-
-            public string OutcomeTopicName {{ get; init; }}
-
-            public Consumers[] Consumers {{ get; init; }}
-        }}
-");
-        }
-
-        private void Consumers(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public class Consumers
-        {{
-            private Consumers() {{ }}
-
-            public Consumers(
-                string groupName
-");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                _builder.Append($@",
-                ConsumerInfo income{i}
-");
-            }
-            _builder.Append($@",
-                int buckets,
-                int maxInFly
-                )
-            {{
-                Buckets = buckets;
-                MaxInFly = maxInFly;
-                GroupName = groupName;
-");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                _builder.Append($@"
-                Income{i} = income{i};
-");
-            }
-            _builder.Append($@"
-            }}
-            
-            /// <summary>
-            /// To identify the logger
-            /// </summary>
-            public string GroupName {{ get; init; }}
-");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                _builder.Append($@"
-            public ConsumerInfo Income{i} {{ get; init; }}
-");
-            }
-            _builder.Append($@"
-            public int Buckets {{ get; init; }}
-            
-            public int MaxInFly {{ get; init; }}
-        }}
-");
-        }
-
-        private void ConsumerInfo(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public class ConsumerInfo
-        {{
-            private ConsumerInfo() {{ }}
-
-            public ConsumerInfo(
-                string topicName,
-                string[] canAnswerService,
-                int[] partitions
-                )
-            {{
-                CanAnswerService = canAnswerService;
-                TopicName = topicName;
-                Partitions = partitions;
-            }}
-
-            public string TopicName {{ get; init; }}
-
-            public string[] CanAnswerService {{ get; init; }}
-
-            public int[] Partitions {{ get; init; }}
-        }}
-");
-        }
-
         private void Produce(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
@@ -423,47 +240,6 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         }}
         private uint _currentItemIndex = 0;
 ");
-        }
-
-        private void BaseResponseMessage()
-        {
-            _builder.Append($@"
-        public abstract class BaseResponseMessage
-        {{
-            public Confluent.Kafka.Partition Partition {{ get; set; }}
-        }}
-");
-        }
-
-        private void ResponseMessages(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                var incomeData = requestAwaiter.IncomeDatas[i];
-                _builder.Append($@"
-        public class ResponseTopic{i}Message : BaseResponseMessage
-        {{
-            public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
-
-            public Message<{GetConsumerTType(incomeData)}> OriginalMessage {{ get; set; }}
-");
-                if (!incomeData.KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-            public {incomeData.KeyType.GetFullTypeName(true)} Key {{ get; set; }}
-");
-                }
-
-                _builder.Append($@"
-            public {incomeData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
-        }}
-");
-            }
-        }
-
-        private string GetConsumerTType(IncomeData incomeData)
-        {
-            return $@"{(incomeData.KeyType.IsProtobuffType() ? "byte[]" : incomeData.KeyType.GetFullTypeName(true))}, {(incomeData.ValueType.IsProtobuffType() ? "byte[]" : incomeData.ValueType.GetFullTypeName(true))}";
         }
 
         private void End()

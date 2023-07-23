@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using KafkaExchanger.Helpers;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,6 +11,12 @@ namespace KafkaExchanger.AttributeDatas
         public ITypeSymbol KeyType { get; set; }
 
         public ITypeSymbol ValueType { get; set; }
+
+        public string FullKeyTypeName => KeyType.IsProtobuffType() ? "byte[]" : KeyType.GetFullTypeName(true);
+
+        public string FullValueTypeName => ValueType.IsProtobuffType() ? "byte[]" : ValueType.GetFullTypeName(true);
+
+        public string TypesPair => $"{FullKeyTypeName}, {FullValueTypeName}";
 
         public static IncomeData Create(INamedTypeSymbol type, AttributeData attribute)
         {
