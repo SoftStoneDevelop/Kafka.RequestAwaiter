@@ -22,7 +22,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public ProcessorConfig(
                 {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
-                {(consumerData.UseAfterCommit ? $"{consumerData.AfterCommitFunc()} afterCommit," : "")}
+                {(consumerData.UseAfterCommit ? $"{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit," : "")}
                 {(producerData.AfterSendResponse ? $@"{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse," : "")}
                 {(producerData.CustomOutcomeHeader ? $@"{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader," : "")}
                 {(producerData.CustomHeaders ? $@"{producerData.CustomHeadersFunc()} setHeaders," : "")}
@@ -80,7 +80,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public int MaxInFly {{ get; init; }}
 
             {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} GetCurrentState {{ get; init; }}" : "")}
-            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc()} AfterCommit {{ get; init; }}" : "")}
+            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} AfterCommit {{ get; init; }}" : "")}
             {(producerData.AfterSendResponse ? $"public {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} AfterSendResponse {{ get; init; }}" : "")}
             {(producerData.CustomOutcomeHeader ? $"public {producerData.CustomOutcomeHeaderFunc(assemblyName)} CreateOutcomeHeader {{ get; init; }}" : "")}
             {(producerData.CustomHeaders ? $"public {producerData.CustomHeadersFunc()} SetHeaders {{ get; init; }}" : "")}

@@ -29,9 +29,17 @@ namespace KafkaExchanger.AttributeDatas
 
         public bool UseAfterCommit { get; private set; }
 
-        public string AfterCommitFunc()
+        public string AfterCommitFunc(List<IncomeData> incomeDatas)
         {
-            return "Func<int, HashSet<Confluent.Kafka.Partition>, Task>";
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<int, ");
+            for (int i = 0; i < incomeDatas.Count; i++)
+            {
+                tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
+            }
+            tempSb.Append(" Task>");
+
+            return tempSb.ToString();
         }
 
         internal bool SetCommitAfter(TypedConstant argument)

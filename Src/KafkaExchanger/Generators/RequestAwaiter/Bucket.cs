@@ -19,7 +19,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Start(sb, requestAwaiter);
 
             StartConsumePartitionItem(sb, assemblyName, requestAwaiter);
-            StopConsume(sb);
+            StopConsume(sb, requestAwaiter);
 
             ProducePartitionItem(sb, assemblyName, requestAwaiter);
             RemoveAwaiter(sb);
@@ -47,7 +47,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
                 {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
                 {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState;" : "")}
-                {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc()} _afterCommit;" : "")}
+                {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} _afterCommit;" : "")}
                 {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} _afterSendResponse;" : "")}
                 {(producerData.CustomOutcomeHeader ? $@"private readonly {producerData.CustomOutcomeHeaderFunc(assemblyName)} _createOutcomeHeader;" : "")}
                 {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders;" : "")}
@@ -55,6 +55,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private CancellationTokenSource _ctsConsume;
                 private Task[] _consumeRoutines;
 ");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                private CancellationTokenSource _ctsConsume{i};
+                private TaskCompletionSource<HashSet<Confluent.Kafka.Partition>> _tcsPartitions{i};
+");
+            }
         }
 
         private static void Constructor(
@@ -88,7 +95,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     int maxInFly
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                     {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
-                    {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc()} afterCommit" : "")}
+                    {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
                     {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
                     {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                     {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
@@ -180,6 +187,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 builder.Append($@"
                 _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId);
+                _ctsConsume{i} = new();
+                _tcsPartitions{i} = new();
 ");
             }
             builder.Append($@"
@@ -241,8 +250,43 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                 if (consumerData.UseAfterCommit)
                 {
+                    for (int j = 0; j < requestAwaiter.IncomeDatas.Count; j++)
+                    {
+                        if(j == i)
+                        {
+                            continue;
+                        }
+
+                        builder.Append($@"
+                                                Volatile.Read(ref _ctsConsume{j}).Cancel();
+                                                var tcsPartitions{j} = new TaskCompletionSource<HashSet<Confluent.Kafka.Partition>>();
+                                                Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
+                                                var partitions{j} = tcsPartitions{j}.Task.Result;
+");
+                    }
                     builder.Append(@"
-                                                _afterCommit(_bucketId, offsets.Keys.ToHashSet()).Wait();
+                                                _afterCommit(
+                                                    _bucketId
+");
+                    for (int j = 0; j < requestAwaiter.IncomeDatas.Count; j++)
+                    {
+                        builder.Append(',');
+                        if (j == i)
+                        {
+                            builder.Append(@"
+                                                    offsets.Keys.ToHashSet()
+");
+                        }
+                        else
+                        {
+                            builder.Append($@"
+                                                    partitions{j}
+");
+                        }
+                    }
+                    builder.Append(@"
+                                                )
+                                                .Wait();
 ");
                 }
                 builder.Append($@"
@@ -257,7 +301,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     {{
                                         _lock.ExitUpgradeableReadLock();
                                     }}
-                                    var consumeResult = consumer.Consume(_ctsConsume.Token);
+
+                                    ConsumeResult<{incomeData.TypesPair}> consumeResult;
+                                    while (true)
+                                    {{
+                                        try
+                                        {{
+                                            consumeResult = consumer.Consume(_ctsConsume{i}.Token);
+                                            break;
+                                        }}
+                                        catch (OperationCanceledException)
+                                        {{
+                                            _ctsConsume.Token.ThrowIfCancellationRequested();
+                                            _ctsConsume{i}.Dispose();
+                                            _ctsConsume{i} = new CancellationTokenSource();
+                                            Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Keys.ToHashSet());
+                                        }}
+                                    }}
                                     offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
                                 
                                     var incomeMessage = new {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message()
@@ -319,18 +379,56 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
         }
 
-        private static void StopConsume(StringBuilder builder)
+        private static void StopConsume(
+            StringBuilder builder,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            )
         {
             builder.Append($@"
                 public async Task StopConsume()
                 {{
                     _ctsConsume?.Cancel();
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                CancellationTokenSource ctsConsume{i};
+");
+            }
+            builder.Append($@"
+                _lock.EnterWriteLock();
+                try
+                {{
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                    ctsConsume{i} = Volatile.Read(ref _ctsConsume{i});
+                    ctsConsume{i}?.Cancel();
+");
+            }
+            builder.Append($@"
+                }}
+                finally
+                {{ 
+                    _lock.ExitWriteLock(); 
+                }}
+");
+            builder.Append($@"
                     foreach (var consumeRoutine in _consumeRoutines)
                     {{
                         await consumeRoutine;
                     }}
 
                     _ctsConsume?.Dispose();
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                    ctsConsume{i}?.Dispose();
+");
+            }
+            builder.Append($@"
                 }}
 ");
         }

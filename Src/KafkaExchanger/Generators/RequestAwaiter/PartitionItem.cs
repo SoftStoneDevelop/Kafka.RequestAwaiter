@@ -68,7 +68,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int maxInFly
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc()} afterCommit" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
                 {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} afterSendResponse" : "")}
                 {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
