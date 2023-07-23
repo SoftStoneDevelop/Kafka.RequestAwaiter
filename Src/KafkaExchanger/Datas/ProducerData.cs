@@ -50,7 +50,7 @@ namespace KafkaExchanger.AttributeDatas
             string assemblyName
             )
         {
-            return $"Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>>";
+            return $"Func<Task<{assemblyName}.RequestHeader>>";
         }
 
         internal bool SetCustomOutcomeHeader(TypedConstant argument)

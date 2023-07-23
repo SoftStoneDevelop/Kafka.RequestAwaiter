@@ -46,11 +46,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private int _addedCount;
                 public readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
                 {(requestAwaiter.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
-                {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc()} _afterCommit" : "")}
-                {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} _afterSendResponse" : "")}
+                {(consumerData.CheckCurrentState ? $"private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} _getCurrentState;" : "")}
+                {(consumerData.UseAfterCommit ? $"private readonly {consumerData.AfterCommitFunc()} _afterCommit;" : "")}
+                {(producerData.AfterSendResponse ? $@"private readonly {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.OutcomeDatas)} _afterSendResponse;" : "")}
                 {(producerData.CustomOutcomeHeader ? $@"private readonly {producerData.CustomOutcomeHeaderFunc(assemblyName)} _createOutcomeHeader;" : "")}
-                {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders" : "")}
+                {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders;" : "")}
 
                 private CancellationTokenSource _ctsConsume;
                 private Task[] _consumeRoutines;
