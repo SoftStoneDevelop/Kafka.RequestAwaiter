@@ -13,7 +13,7 @@ namespace KafkaExchanger.Generators
 
         public void FillProducerTypes(
             List<KafkaExchanger.AttributeDatas.GenerateData> requestAwaiters,
-            List<GenerateData> responders
+            List<Responder> responders
             ) 
         {
             foreach (var requestAwaiter in requestAwaiters) 

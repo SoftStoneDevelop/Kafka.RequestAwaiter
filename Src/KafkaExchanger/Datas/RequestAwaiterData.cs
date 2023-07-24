@@ -22,26 +22,6 @@ namespace KafkaExchanger.AttributeDatas
         {
             return Data == null && OutcomeDatas.Count == 0 && IncomeDatas.Count == 0;
         }
-
-        public static string DataToPostfix(AttributeDatas.GenerateData requestAwaiter)
-        {
-            if (requestAwaiter.Data is RequestAwaiterData)
-            {
-                return "RequestAwaiter";
-            }
-
-            if (requestAwaiter.Data is ResponderData)
-            {
-                return "Responder";
-            }
-
-            if (requestAwaiter.Data is ListenerData)
-            {
-                return "Listener";
-            }
-
-            throw new System.NotImplementedException();
-        }
     }
 
     internal class RequestAwaiterData : BaseServiceData

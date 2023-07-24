@@ -33,20 +33,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             ProducerInfo.Append(_builder, assemblyName, requestAwaiter);
 
             IncomeMessages.Append(_builder, assemblyName, requestAwaiter);
-            if (requestAwaiter.Data is ResponderData)
-            { 
-                OutcomeMessages.Append(_builder, assemblyName, requestAwaiter);
-                ResponseResult.Append(_builder, assemblyName, requestAwaiter);
-            }
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
             PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
             //methods
             StartMethod(requestAwaiter);
             BuildPartitionItems(requestAwaiter);
-
-            if(requestAwaiter.Data is RequestAwaiterData)
-                Produce(assemblyName, requestAwaiter);
+            Produce(assemblyName, requestAwaiter);
             StopAsync();
 
             EndClass();
@@ -77,7 +70,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void StartClass(AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}{GenerateData.DataToPostfix(requestAwaiter)}
+    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
     {{
         {(requestAwaiter.Data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
@@ -170,13 +163,8 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                if(requestAwaiter.Data is RequestAwaiterData)
-                {
-                    _builder.Append($@",
-                        config.Processors[i].Outcome{i}.TopicName
-");
-                }
                 _builder.Append($@",
+                        config.Processors[i].Outcome{i}.TopicName,
                         producerPool{i}
 ");
             }
@@ -184,10 +172,8 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         config.Processors[i].Buckets,
                         config.Processors[i].MaxInFly
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
-                        {(requestAwaiter.Data is ResponderData ? $",config.Processors[i].CreateResponse" : "")}
                         {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
                         {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
-                        {(requestAwaiter.Data.ProducerData.AfterSendResponse ? @",config.Processors[i].AfterSendResponse" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Processors[i].CreateOutcomeHeader" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Processors[i].SetHeaders" : "")}
                         );

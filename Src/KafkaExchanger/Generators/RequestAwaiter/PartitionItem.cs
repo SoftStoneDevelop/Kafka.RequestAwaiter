@@ -19,8 +19,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
             StopPartitionItem(sb);
-            if (requestAwaiter.Data is RequestAwaiterData)
-                Produce(sb, assemblyName, requestAwaiter);
+            Produce(sb, assemblyName, requestAwaiter);
             End(sb);
         }
 
@@ -34,7 +33,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private class PartitionItem
         {{
             private readonly Bucket[] _buckets;
-            {(requestAwaiter.Data is RequestAwaiterData ? "private uint _current;" : "")}
+            private uint _current;
 ");
         }
 
@@ -63,13 +62,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                if(requestAwaiter.Data is RequestAwaiterData)
-                {
-                    builder.Append($@",
-                string outcomeTopic{i}Name
-");
-                }
                 builder.Append($@",
+                string outcomeTopic{i}Name,
                 {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
@@ -79,10 +73,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int buckets,
                 int maxInFly
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                 {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
                 {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                 )
@@ -103,14 +95,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                if (requestAwaiter.Data is RequestAwaiterData)
-                {
-                    builder.Append($@"
-                        outcomeTopic{i}Name,
-");
-                }
-
                 builder.Append($@"
+                        outcomeTopic{i}Name,
                         producerPool{i},
 ");
             }
@@ -119,10 +105,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         i,
                         maxInFly
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
-                        {(requestAwaiter.Data is ResponderData ? $",createResponse" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
-                        {(producerData.AfterSendResponse ? $@",afterSendResponse" : "")}
                         {(producerData.CustomOutcomeHeader ? $@",createOutcomeHeader" : "")}
                         {(producerData.CustomHeaders ? $@",setHeaders" : "")}
                         );

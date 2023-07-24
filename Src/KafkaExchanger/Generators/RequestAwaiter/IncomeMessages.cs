@@ -14,21 +14,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             AttributeDatas.GenerateData requestAwaiter
             )
         {
-            BaseResponseMessage(builder);
-            AppendResponseMessages(builder, assemblyName, requestAwaiter);
+            BaseIncomeMessage(builder);
+            AppendIncomeMessages(builder, assemblyName, requestAwaiter);
         }
 
-        private static void BaseResponseMessage(StringBuilder builder)
+        private static void BaseIncomeMessage(StringBuilder builder)
         {
             builder.Append($@"
-        public abstract class BaseResponseMessage
+        public abstract class BaseIncomeMessage
         {{
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
 
-        private static void AppendResponseMessages(
+        private static void AppendIncomeMessages(
             StringBuilder builder,
             string assemblyName,
             AttributeDatas.GenerateData requestAwaiter
@@ -38,9 +38,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var incomeData = requestAwaiter.IncomeDatas[i];
                 builder.Append($@"
-        public class Income{i}Message : BaseResponseMessage
+        public class Income{i}Message : BaseIncomeMessage
         {{
-            public {assemblyName}.{(requestAwaiter.Data is RequestAwaiterData ? "ResponseHeader" : "RequestHeader")} HeaderInfo {{ get; set; }}
+            public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 
             public Message<{incomeData.TypesPair}> OriginalMessage {{ get; set; }}
 ");

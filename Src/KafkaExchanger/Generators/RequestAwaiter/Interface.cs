@@ -17,10 +17,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             StartInterface(builder, requestAwaiter);
-
-            if (requestAwaiter.Data is RequestAwaiterData)
-                InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
-
+            InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
             InterfaceStopMethod(builder);
 
@@ -33,7 +30,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}{GenerateData.DataToPostfix(requestAwaiter)}
+    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
     {{
 ");
         }

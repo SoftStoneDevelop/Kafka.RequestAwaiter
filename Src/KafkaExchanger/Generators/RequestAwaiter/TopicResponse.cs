@@ -25,7 +25,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 GetProcessStatus(builder);
                 GetResponse(builder, assemblyName);
             }
-            
+
+            IsCompleted(builder, requestAwaiter);
             TrySetResponse(builder, requestAwaiter);
             TrySetException(builder, requestAwaiter);
             Dispose(builder);
@@ -41,21 +42,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class TopicResponse : IDisposable
         {{
-");
-            if(requestAwaiter.Data is RequestAwaiterData)
-            {
-                builder.Append($@"
             private TaskCompletionSource<bool> _responseProcess = new();
             public Task<{assemblyName}.Response> _response;
-");
-            }
-            else
-            {
-                builder.Append($@"
-            public Task _response;
-");
-            }
-            builder.Append($@"
             private CancellationTokenSource _cts;
 ");
         }
@@ -90,14 +78,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 string topic{i}Name,
 ");
             }
-            builder.Append($@"
-                {(requestAwaiter.Data is ResponderData ? $"{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse," : "")}
-                {(requestAwaiter.Data is ResponderData ? $"{producerData.SendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} sendResponse," : "")}
-                {(producerData.AfterSendResponse ? $"{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse," : "")}
-                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
-");
 
             builder.Append($@"
+                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
                 string guid,
                 Action<string> removeAction,
                 int waitResponseTimeout = 0
@@ -116,17 +99,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     topic{i}Name
 ");
             }
-
             builder.Append($@"
-                {(requestAwaiter.Data is ResponderData ? $",createResponse" : "")}
-                {(requestAwaiter.Data is ResponderData ? $",sendResponse" : "")}
-                {(producerData.AfterSendResponse ? $",afterSendResponse" : "")}
                 {(consumerData.CheckCurrentState ? ",getCurrentState" : "")}
                 );
-");
-            if(requestAwaiter.Data is RequestAwaiterData)
-            {
-                builder.Append($@"
+
                 _response.ContinueWith(task => 
                 {{
                     if (task.IsFaulted)
@@ -134,19 +110,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         removeAction(guid);
                     }}
                 }});
-");
-            }
-            else
-            {
-                builder.Append($@"
-                _response.ContinueWith(task => 
-                {{
-                    removeAction(guid);
-                }});
-");
-            }
 
-            builder.Append($@"
                 if (waitResponseTimeout != 0)
                 {{
                     _cts = new CancellationTokenSource(waitResponseTimeout);
@@ -179,7 +143,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var producerData = requestAwaiter.ProducerData;
 
             builder.Append($@"
-            private async {(requestAwaiter.Data is RequestAwaiterData ? "Task<Response>" : "Task")} CreateGetResponse(
+            private async Task<{assemblyName}.Response> CreateGetResponse(
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
@@ -193,13 +157,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
-                {(requestAwaiter.Data is ResponderData ? $",{producerData.SendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} sendResponse" : "")}
-                {(producerData.AfterSendResponse ? $",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
-");
-
-            builder.Append($@"
                 )
             {{
 ");
@@ -238,25 +196,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
-            if(requestAwaiter.Data is RequestAwaiterData)
-            {
-                builder.Append($@"
+            builder.Append($@"
                 var response = new {assemblyName}.Response(
                     currentState,
                     new {assemblyName}.BaseResponse[]
                     {{
 ");
-                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-                {
-                    builder.Append($@"
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
                         new ResponseItem<Income{i}Message>(topic{i}Name, topic{i})
 ");
-                    if (i != requestAwaiter.IncomeDatas.Count - 1)
-                    {
-                        builder.Append(',');
-                    }
+                if (i != requestAwaiter.IncomeDatas.Count - 1)
+                {
+                    builder.Append(',');
                 }
-                builder.Append($@"    
+            }
+            builder.Append($@"    
                     }},
                     _responseProcess
                     );
@@ -264,67 +220,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 return response;
             }}
 ");
-            }
-            else
-            {
-                builder.Append($@"
-                if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
-                {{
-                    var answer = await createResponse(
-                        currentState,
-");
-                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-                {
-                    if (i != 0)
-                    {
-                        builder.Append(',');
-                    }
-
-                    builder.Append($@"
-                        topic{i}
-");
-                }
-                builder.Append($@"
-                        );
-                    var bucketId = await sendResponse(
-");
-                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-                {
-                    builder.Append($@"
-                        topic{i},
-");
-                }
-                builder.Append($@"
-                        answer
-                        );
-");
-                if (producerData.AfterSendResponse)
-                {
-                    builder.Append($@"
-                    await afterSendResponse(
-                        bucketId,
-");
-                    for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-                    {
-                        if (i != 0)
-                        {
-                            builder.Append(',');
-                        }
-
-                        builder.Append($@"
-                        topic{i}
-");
-                    }
-                    builder.Append($@",
-                        answer
-                        );
-");
-                }
-                builder.Append($@"
-                }}
-            }}
-");
-            }
         }
 
         private static void GetProcessStatus(
@@ -352,13 +247,42 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
+        private static void IsCompleted(
+            StringBuilder builder,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            )
+        {
+            TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
+            var ss = taskCompletionSource.Task.IsCompleted;
+            builder.Append($@"
+            public bool IsCompleted()
+            {{
+                return
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                if(i != 0)
+                {
+                    builder.Append($@" &&");
+                }
+
+                builder.Append($@"
+                _responseTopic{i}.Task.IsCompleted
+");
+            }
+            builder.Append($@"
+                ;
+            }}
+");
+        }
+
         private static void TrySetResponse(
             StringBuilder builder,
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
-            public bool TrySetResponse(int topicNumber, BaseResponseMessage response)
+            public bool TrySetResponse(int topicNumber, BaseIncomeMessage response)
             {{
                 switch (topicNumber)
                 {{

@@ -13,7 +13,7 @@ namespace KafkaExchanger
     internal class Processor
     {
         private readonly List<Listener> _listeners = new List<Listener>();
-        private readonly List<GenerateData> _responders = new List<GenerateData>();
+        private readonly List<Responder> _responders = new List<Responder>();
         private readonly List<GenerateData> _requestAwaiters = new List<GenerateData>();
 
         List<IncomeData> _incomesTemp = new List<IncomeData>();
@@ -133,7 +133,7 @@ namespace KafkaExchanger
                 return;
             }
 
-            var newRes = new GenerateData();
+            var newRes = new Responder();
             newRes.Data = responderData;
             newRes.IncomeDatas.AddRange(_incomesTemp);
             newRes.OutcomeDatas.AddRange(_outcomesTemp);
@@ -176,9 +176,10 @@ namespace KafkaExchanger
             }
             _requestAwaiters.Clear();
 
+            var responderGenerator = new ResponderGenerator();
             foreach (var responder in _responders)
             {
-                requestAwaiterGenerator.Generate(assemblyName, responder, context);
+                responderGenerator.GenerateResponder(assemblyName, responder, context);
             }
             _responders.Clear();
 

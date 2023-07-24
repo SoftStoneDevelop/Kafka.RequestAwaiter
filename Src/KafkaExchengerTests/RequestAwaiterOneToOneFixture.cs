@@ -135,30 +135,29 @@ namespace KafkaExchengerTests
             reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
 
             var responder = new ResponderOneToOneSimple();
-            ResponderOneToOneSimple.Outcome0Message expectAnswer = null;
-            var responderConfig = new ResponderOneToOneSimple.Config(
-                groupId: "SimpleProduce", 
-                bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                new ResponderOneToOneSimple.ProcessorConfig[] 
+            ResponderOneToOneSimple.OutcomeMessage expectAnswer = null;
+            var responderConfig = new ResponderOneToOneSimple.ConfigResponder(
+                groupId: "SimpleProduce",
+                bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                new ResponderOneToOneSimple.ConsumerResponderConfig[]
                 {
-                    new ResponderOneToOneSimple.ProcessorConfig(
-                        income0: new ResponderOneToOneSimple.ConsumerInfo(_outputSimpleTopic, null, new int[] { 0, 1, 2 }),
-                        createResponse: (state, input) => 
+                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                        createAnswer: (input, s) =>
                         {
-                            var result = new ResponderOneToOneSimple.Outcome0Message()
-                            { 
-                                Value = $"Answer from {input.Partition.Value} {input.Value}" 
+                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            {
+                                Value = $"Answer from {input.Partition.Value} {input.Value}"
                             };
                             expectAnswer = result;
 
-                            return Task.FromResult(new ResponderOneToOneSimple.ResponseResult(result)); 
+                            return Task.FromResult(result);
                         },
-                        buckets: 2,
-                        maxInFly: 10
+                        incomeTopicName: _outputSimpleTopic,
+                        partitions: new int[] { 0, 1, 2 }
                         )
                 }
                 );
-            responder.Start(config: responderConfig, producerPool0: pool);
+            responder.Start(config: responderConfig, producerPool: pool);
 
             var answer = await reqAwaiter.Produce("Hello");
             Assert.That(answer.Result, Has.Length.EqualTo(1));

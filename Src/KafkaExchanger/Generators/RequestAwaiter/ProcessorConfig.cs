@@ -35,30 +35,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
-            if(requestAwaiter.Data is RequestAwaiterData)
+            if (requestAwaiter.IncomeDatas.Count > 0)
             {
-                if (requestAwaiter.IncomeDatas.Count > 0)
+                builder.Append(',');
+            }
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            {
+                if (i != 0)
                 {
                     builder.Append(',');
                 }
-                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
-                {
-                    if (i != 0)
-                    {
-                        builder.Append(',');
-                    }
 
-                    builder.Append($@"
+                builder.Append($@"
                 ProducerInfo outcome{i}
 ");
-                }
             }
-            
+
             builder.Append($@"
-                {(requestAwaiter.Data is ResponderData ? $",{consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} createResponse" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                 {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                {(producerData.AfterSendResponse ? $@",{producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} afterSendResponse" : "")}
                 {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")},
                 int buckets,
@@ -68,10 +63,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Buckets = buckets;
                 MaxInFly = maxInFly;
 
-                {(requestAwaiter.Data is ResponderData ? $"CreateResponse = createResponse;" : "")}
                 {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
-                {(producerData.AfterSendResponse ? @"AfterSendResponse = afterSendResponse;" : "")}
                 {(producerData.CustomOutcomeHeader ? @"CreateOutcomeHeader = createOutcomeHeader;" : "")}
                 {(producerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
 ");
@@ -82,16 +75,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
-            if (requestAwaiter.Data is RequestAwaiterData)
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
-                {
-                    builder.Append($@"
+                builder.Append($@"
                 Outcome{i} = outcome{i};
 ");
-                }
             }
-            
+
             builder.Append($@"
             }}
 
@@ -99,10 +89,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             
             public int MaxInFly {{ get; init; }}
 
-            {(requestAwaiter.Data is ResponderData ? $"public {consumerData.CreateResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} CreateResponse {{ get; init; }}" : "")}
             {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} GetCurrentState {{ get; init; }}" : "")}
             {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} AfterCommit {{ get; init; }}" : "")}
-            {(producerData.AfterSendResponse ? $"public {producerData.AfterSendResponseFunc(requestAwaiter.IncomeDatas, requestAwaiter.Data.TypeSymbol)} AfterSendResponse {{ get; init; }}" : "")}
             {(producerData.CustomOutcomeHeader ? $"public {producerData.CustomOutcomeHeaderFunc(assemblyName)} CreateOutcomeHeader {{ get; init; }}" : "")}
             {(producerData.CustomHeaders ? $"public {producerData.CustomHeadersFunc()} SetHeaders {{ get; init; }}" : "")}
 ");
@@ -113,14 +101,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
-            if (requestAwaiter.Data is RequestAwaiterData)
+            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
-                for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
-                {
-                    builder.Append($@"
+                builder.Append($@"
             public ProducerInfo Outcome{i} {{ get; init; }}
 ");
-                }
             }
 
             builder.Append($@"
