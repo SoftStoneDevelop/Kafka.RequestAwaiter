@@ -18,7 +18,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Dispose(sb);
             Start(sb, requestAwaiter);
 
-            StartConsumePartitionItem(sb, assemblyName, requestAwaiter);
+            StartTopicConsume(sb, assemblyName, requestAwaiter);
             StopConsume(sb, requestAwaiter);
             TryProduce(sb, assemblyName, requestAwaiter);
             RemoveAwaiter(sb);
@@ -56,7 +56,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                private CancellationTokenSource _ctsConsume{i};
+                private bool _consume{i}Canceled;
                 private TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>> _tcsPartitions{i};
 ");
             }
@@ -189,7 +189,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 builder.Append($@"
                 _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId);
-                _ctsConsume{i} = new();
+                _consume{i}Canceled = false;
                 _tcsPartitions{i} = new();
 ");
             }
@@ -198,7 +198,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void StartConsumePartitionItem(
+        private static void StartTopicConsume(
             StringBuilder builder,
             string assemblyName,
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
@@ -242,37 +242,40 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     ConsumeResult<{incomeData.TypesPair}> consumeResult;
                                     while (true)
                                     {{
+                                        consumeResult = consumer.Consume(100);
                                         try
                                         {{
-                                            consumeResult = consumer.Consume(_ctsConsume{i}.Token);
-                                            break;
+                                            _ctsConsume.Token.ThrowIfCancellationRequested();
                                         }}
-                                        catch (OperationCanceledException)
+                                        catch (OperationCanceledException oce)
                                         {{
+                                            Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
+                                            _lock.EnterReadLock();
                                             try
                                             {{
-                                                _ctsConsume.Token.ThrowIfCancellationRequested();
+                                                foreach (var topicResponseItem in _responseAwaiters.Values)
+                                                {{
+                                                    topicResponseItem.TrySetException({i}, oce);
+                                                }}
                                             }}
-                                            catch(OperationCanceledException oce)
+                                            finally
                                             {{
-                                                _lock.EnterReadLock();
-                                                try
-                                                {{
-                                                    foreach (var topicResponseItem in _responseAwaiters.Values)
-                                                    {{
-                                                        topicResponseItem.TrySetException({i}, oce);
-                                                    }}
-                                                }}
-                                                finally
-                                                {{
-                                                    _lock.ExitReadLock();
-                                                }}
-
-                                                throw;
+                                                _lock.ExitReadLock();
                                             }}
-                                            _ctsConsume{i}.Dispose();
-                                            _ctsConsume{i} = new CancellationTokenSource();
-                                            Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
+");
+
+                builder.Append($@"
+                                            throw;
+                                        }}
+
+                                        if(consumeResult != null)
+                                        {{
+                                            break;
+                                        }}
+
+                                        if (!Volatile.Read(ref _consume{i}Canceled))
+                                        {{
+                                            continue;
                                         }}
                                     }}
                                     offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
@@ -327,7 +330,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     builder.Append($@"
                                                             var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
                                                             Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
-                                                            Volatile.Read(ref _ctsConsume{j}).Cancel();
+                                                            Volatile.Write(ref _consume{j}Canceled, true);
                                                             var partitions{j} = tcsPartitions{j}.Task.Result;
                                                             allPartitions.AddRange(partitions{j});
 ");
@@ -376,10 +379,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         }}
                                         else
                                         {{
-                                            if(_ctsConsume{i}.IsCancellationRequested)
+                                            if(Volatile.Read(ref _consume{i}Canceled))
                                             {{
-                                                _ctsConsume{i}.Dispose();
-                                                _ctsConsume{i} = new CancellationTokenSource();
+                                                Volatile.Write(ref _consume{i}Canceled, false);
                                                 Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
                                             }}
                                         }}
@@ -420,12 +422,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     _ctsConsume?.Cancel();
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                builder.Append($@"
-                CancellationTokenSource ctsConsume{i};
-");
-            }
             builder.Append($@"
                 _lock.EnterWriteLock();
                 try
@@ -434,8 +430,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                    ctsConsume{i} = Volatile.Read(ref _ctsConsume{i});
-                    ctsConsume{i}?.Cancel();
+                    Volatile.Write(ref _consume{i}Canceled, true);
 ");
             }
             builder.Append($@"
@@ -453,12 +448,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                     _ctsConsume?.Dispose();
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                builder.Append($@"
-                    ctsConsume{i}?.Dispose();
-");
-            }
             builder.Append($@"
                 }}
 ");
