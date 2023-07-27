@@ -10,7 +10,7 @@ namespace KafkaExchengerTests
 {
     [TestFixture]
     [Parallelizable(ParallelScope.Self)]
-    internal class RequestAwaiterManyToOneFixture
+    internal class RequestAwaiterFixture
     {
         private static string _inputSimpleTopic1 = "RAManyToOneInputSimple1";
         private static string _inputSimpleTopic2 = "RAManyToOneInputSimple2";
