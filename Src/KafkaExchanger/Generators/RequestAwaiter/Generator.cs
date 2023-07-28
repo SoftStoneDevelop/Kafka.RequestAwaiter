@@ -10,7 +10,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 {
     internal class Generator
     {
-        StringBuilder _builder = new StringBuilder(1200);
+        StringBuilder _builder = new StringBuilder(1300);
 
         public void Generate(
             string assemblyName,
@@ -41,6 +41,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             BuildPartitionItems(requestAwaiter);
             Produce(assemblyName, requestAwaiter);
             StopAsync();
+            Dispose();
 
             EndClass();
 
@@ -61,6 +62,7 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 {{
@@ -242,6 +244,21 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 );
         }}
         private uint _currentItemIndex = 0;
+");
+        }
+
+        private void Dispose()
+        {
+            _builder.Append($@"
+        public void Dispose()
+        {{
+            StopAsync().Wait();
+        }}
+
+        public async ValueTask DisposeAsync()
+        {{
+            await StopAsync();
+        }}
 ");
         }
 

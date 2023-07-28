@@ -17,15 +17,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartClass(builder, requestAwaiter, assemblyName);
             TCS(builder, requestAwaiter);
             Constructor(builder, requestAwaiter);
-
             CreateGetResponse(builder, assemblyName, requestAwaiter);
-
-            if(requestAwaiter.Data is RequestAwaiterData)
-            {
-                GetProcessStatus(builder);
-                GetResponse(builder, assemblyName);
-            }
-
+            GetResponse(builder, assemblyName);
             IsCompleted(builder, requestAwaiter);
             TrySetResponse(builder, requestAwaiter);
             TrySetException(builder, requestAwaiter);
@@ -107,7 +100,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     if (task.IsFaulted)
                     {{
+                        _responseProcess.TrySetException(task.Exception);
                         removeAction(guid);
+                        return;
+                    }}
+
+                    if (task.IsFaulted || task.IsCanceled)
+                    {{
+                        _responseProcess.TrySetCanceled();
+                        removeAction(guid);
+                        return;
                     }}
                 }});
 
@@ -222,18 +224,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void GetProcessStatus(
-            StringBuilder builder
-            )
-        {
-            builder.Append($@"
-            public Task<bool> GetProcessStatus()
-            {{
-                return _responseProcess.Task;
-            }}
-");
-        }
-
         private static void GetResponse(
             StringBuilder builder,
             string assemblyName
@@ -257,21 +247,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public bool IsCompleted()
             {{
-                return
-");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                if(i != 0)
-                {
-                    builder.Append($@" &&");
-                }
-
-                builder.Append($@"
-                _responseTopic{i}.Task.IsCompleted
-");
-            }
-            builder.Append($@"
-                ;
+                return _responseProcess.Task.IsCompleted;
             }}
 ");
         }

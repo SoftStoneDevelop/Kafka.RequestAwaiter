@@ -34,6 +34,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{
             private readonly Bucket[] _buckets;
             private uint _current;
+            private readonly {assemblyName}.AsyncManualResetEvent _mre = new();
 ");
         }
 
@@ -103,7 +104,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         i,
-                        maxInFly
+                        maxInFly,
+                        _mre
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
@@ -203,6 +205,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             return tp.Response;
                         }}
                     }}
+
+                    await _mre.WaitAsync();
                 }}
             }}
 ");

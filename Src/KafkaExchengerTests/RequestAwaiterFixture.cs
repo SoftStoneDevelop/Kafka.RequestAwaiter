@@ -3,6 +3,7 @@ using Confluent.Kafka.Admin;
 using KafkaExchanger.Common;
 using NUnit.Framework;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -95,6 +96,100 @@ namespace KafkaExchengerTests
             }
         }
 
+        private ResponderOneToOneSimple.ConfigResponder CreateResponder1Config(
+            string groupId,
+            Func<ResponderOneToOneSimple.IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutcomeMessage>> createAnswer
+            )
+        {
+            return
+                new ResponderOneToOneSimple.ConfigResponder(
+                groupId: groupId,
+                bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+                {
+                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                        createAnswer: createAnswer,
+                        incomeTopicName: _outputSimpleTopic,
+                        partitions: new int[] { 0, 1, 2 }
+                        )
+                }
+                );
+        }
+
+        [Test]
+        public async Task CancelByTimeout()
+        {
+            var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"]);
+            await using var reqAwaiter = new RequestAwaiterManyToOneSimple();
+            var reqAwaiterConfitg =
+                new RequestAwaiterManyToOneSimple.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                    processors: new RequestAwaiterManyToOneSimple.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
+                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 0 }
+                                ),
+                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 0 }
+                                ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10
+                            ),
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
+                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 1 }
+                                ),
+                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 1 }
+                                ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10
+                            ),
+                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
+                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 2 }
+                                ),
+                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                partitions: new int[] { 2 }
+                                ),
+                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10
+                            )
+                    }
+                    );
+            reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
+            
+            var sw = Stopwatch.StartNew();
+            var tasks = new Task[120];
+            for (int i = 0; i < 120; i++)
+            {
+                tasks[i] = reqAwaiter.Produce("Hello", 1_000);
+            }
+
+            foreach (var task in tasks)
+            {
+                Assert.ThrowsAsync<TaskCanceledException>(async () => { await task; });
+            }
+        }
+
         [Test]
         public async Task SimpleProduce()
         {
@@ -158,52 +253,34 @@ namespace KafkaExchengerTests
 
             var responder1 = new ResponderOneToOneSimple();
             ResponderOneToOneSimple.OutcomeMessage expect1Answer = null;
-            var responder1Config = new ResponderOneToOneSimple.ConfigResponder(
-                groupId: "SimpleProduce1",
-                bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+            var responder1Config = CreateResponder1Config(
+                "SimpleProduce1",
+                (input, s) =>
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
-                        createAnswer: (input, s) =>
-                        {
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
-                            {
-                                Value = $"1: Answer from {input.Partition.Value} {input.Value}"
-                            };
-                            expect1Answer = result;
+                    var result = new ResponderOneToOneSimple.OutcomeMessage()
+                    {
+                        Value = $"1: Answer from {input.Partition.Value} {input.Value}"
+                    };
+                    expect1Answer = result;
 
-                            return Task.FromResult(result);
-                        },
-                        incomeTopicName: _outputSimpleTopic,
-                        partitions: new int[] { 0, 1, 2 }
-                        )
-                }
-                );
+                    return Task.FromResult(result);
+                });
             responder1.Start(config: responder1Config, producerPool: pool);
 
             var responder2 = new ResponderOneToOneSimple();
             ResponderOneToOneSimple.OutcomeMessage expect2Answer = null;
-            var responder2Config = new ResponderOneToOneSimple.ConfigResponder(
-                groupId: "SimpleProduce2",
-                bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+            var responder2Config = CreateResponder1Config(
+                "SimpleProduce1",
+                (input, s) =>
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
-                        createAnswer: (input, s) =>
-                        {
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
-                            {
-                                Value = $"1: Answer from {input.Partition.Value} {input.Value}"
-                            };
-                            expect1Answer = result;
+                    var result = new ResponderOneToOneSimple.OutcomeMessage()
+                    {
+                        Value = $"2: Answer from {input.Partition.Value} {input.Value}"
+                    };
+                    expect2Answer = result;
 
-                            return Task.FromResult(result);
-                        },
-                        incomeTopicName: _outputSimpleTopic,
-                        partitions: new int[] { 0, 1, 2 }
-                        )
-                }
-                );
+                    return Task.FromResult(result);
+                });
             responder2.Start(config: responder2Config, producerPool: pool);
 
             var answer = await reqAwaiter.Produce("Hello");

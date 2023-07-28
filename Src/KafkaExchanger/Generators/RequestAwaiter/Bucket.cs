@@ -41,6 +41,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 private readonly int _bucketId;
                 private readonly int _maxInFly;
+                private readonly {assemblyName}.AsyncManualResetEvent _mre;
                 private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
                 private int _addedCount;
                 private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
@@ -96,7 +97,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var producerData = requestAwaiter.Data.ProducerData;
             builder.Append($@",
                     int bucketId,
-                    int maxInFly
+                    int maxInFly,
+                    {assemblyName}.AsyncManualResetEvent mre
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                     {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                     {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
@@ -106,6 +108,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     _bucketId = bucketId;
                     _maxInFly = maxInFly;
+                    _mre = mre;
                     _responseAwaiters = new(_maxInFly);
 
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
@@ -239,83 +242,81 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             {{
                                 try
                                 {{
-                                    ConsumeResult<{incomeData.TypesPair}> consumeResult;
-                                    while (true)
+                                    ConsumeResult<{incomeData.TypesPair}> consumeResult = consumer.Consume(100);
+                                    try
                                     {{
-                                        consumeResult = consumer.Consume(100);
+                                        _ctsConsume.Token.ThrowIfCancellationRequested();
+                                    }}
+                                    catch (OperationCanceledException oce)
+                                    {{
+                                        Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
+                                        _lock.EnterReadLock();
                                         try
                                         {{
-                                            _ctsConsume.Token.ThrowIfCancellationRequested();
-                                        }}
-                                        catch (OperationCanceledException oce)
-                                        {{
-                                            Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
-                                            _lock.EnterReadLock();
-                                            try
+                                            foreach (var topicResponseItem in _responseAwaiters.Values)
                                             {{
-                                                foreach (var topicResponseItem in _responseAwaiters.Values)
-                                                {{
-                                                    topicResponseItem.TrySetException({i}, oce);
-                                                }}
+                                                topicResponseItem.TrySetException({i}, oce);
                                             }}
-                                            finally
-                                            {{
-                                                _lock.ExitReadLock();
-                                            }}
-");
-
-                builder.Append($@"
-                                            throw;
                                         }}
-
-                                        if(consumeResult != null)
+                                        finally
                                         {{
-                                            break;
+                                            _lock.ExitReadLock();
                                         }}
-
-                                        if (!Volatile.Read(ref _consume{i}Canceled))
+                                        throw;
+                                    }}
+                                    {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message incomeMessage = null;
+                                    if(consumeResult != null)
+                                    {{
+                                        offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                
+                                        incomeMessage = new ()
                                         {{
+                                            OriginalMessage = consumeResult.Message,
+                                            {(incomeData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(incomeData)},")}
+                                            Value = {GetResponseValue(incomeData)},
+                                            Partition = consumeResult.Partition
+                                        }};
+
+                                        {LogIncomeMessage(requestAwaiter, incomeData, "LogInformation")}
+                                        if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
+                                        {{
+                                            {LogIncomeMessage(requestAwaiter, incomeData, "LogError")}
                                             continue;
                                         }}
-                                    }}
-                                    offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
-                                
-                                    var incomeMessage = new {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message()
-                                    {{
-                                        OriginalMessage = consumeResult.Message,
-                                        {(incomeData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(incomeData)},")}
-                                        Value = {GetResponseValue(incomeData)},
-                                        Partition = consumeResult.Partition
-                                    }};
 
-                                    {LogIncomeMessage(requestAwaiter, incomeData, "LogInformation")}
-                                    if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
-                                    {{
-                                        {LogIncomeMessage(requestAwaiter, incomeData, "LogError")}
-                                        continue;
+                                        incomeMessage.HeaderInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
                                     }}
-
-                                    incomeMessage.HeaderInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
                                     while (true) 
                                     {{
                                         var locked = _lock.TryEnterUpgradeableReadLock(50);
                                         if(locked)
                                         {{
+                                            var needFreeMre = false;
                                             try
                                             {{
-                                                if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var topicResponse))
+                                                var checkCommit = incomeMessage == null;
+                                                var isCompleted = false;
+                                                if (incomeMessage != null)
                                                 {{
-                                                    {LogIncomeMessage(requestAwaiter, incomeData, "LogError", " no one wait results")}
-                                                    break;
+                                                    if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var topicResponse))
+                                                    {{
+                                                        {LogIncomeMessage(requestAwaiter, incomeData, "LogError", " no one wait results")}
+                                                        break;
+                                                    }}
+                                                    topicResponse.TrySetResponse({i}, incomeMessage);
+                                                    isCompleted = topicResponse.IsCompleted();
                                                 }}
 
-                                                topicResponse.TrySetResponse(0, incomeMessage);
-                                                if (topicResponse.IsCompleted())
+                                                if (checkCommit || isCompleted)
                                                 {{
                                                     _lock.EnterWriteLock();
                                                     try
                                                     {{
-                                                        _responseAwaiters.Remove(incomeMessage.HeaderInfo.AnswerToMessageGuid);
+                                                        if(isCompleted)
+                                                        {{
+                                                            _responseAwaiters.Remove(incomeMessage.HeaderInfo.AnswerToMessageGuid);
+                                                        }}
+
                                                         if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
                                                         {{
                                                             var allPartitions = offsets.Values.ToList();
@@ -336,8 +337,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                 }
                 builder.Append($@"
-                                                            consumer.Commit(allPartitions);
+                                                            if(allPartitions.Count != 0)
+                                                                consumer.Commit(allPartitions);
                                                             _addedCount = 0;
+                                                            needFreeMre = true;
 ");
                 if(consumerData.UseAfterCommit)
                 {
@@ -375,15 +378,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             finally
                                             {{
                                                 _lock.ExitUpgradeableReadLock();
+                                                if(needFreeMre)
+                                                    _mre.SetAndReset();
                                             }}
+                                            
+                                            break;
                                         }}
-                                        else
+                                        else if(Volatile.Read(ref _consume{i}Canceled))
                                         {{
-                                            if(Volatile.Read(ref _consume{i}Canceled))
-                                            {{
-                                                Volatile.Write(ref _consume{i}Canceled, false);
-                                                Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
-                                            }}
+                                            Volatile.Write(ref _consume{i}Canceled, false);
+                                            Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
                                         }}
                                     }}
                                 }}
@@ -531,7 +535,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     _lock.EnterUpgradeableReadLock();
                     try
                     {{
-                        if(_responseAwaiters.Count == _maxInFly)
+                        if(_addedCount == _maxInFly)
                         {{
                             awaiter.Dispose();
                             return new KafkaExchengerTests.TryProduceResult {{ Succsess = false }};
