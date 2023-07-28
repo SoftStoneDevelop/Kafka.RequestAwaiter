@@ -379,7 +379,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             {{
                                                 _lock.ExitUpgradeableReadLock();
                                                 if(needFreeMre)
-                                                    _mre.SetAndReset();
+                                                {{
+                                                    _mre.Set();
+                                                    _mre.Reset();
+                                                }}
                                             }}
                                             
                                             break;

@@ -183,17 +183,6 @@ namespace {assemblyName}
                     return;
             }}
         }}
-
-        public void SetAndReset()
-        {{
-            m_tcs.TrySetResult(true);
-            while (true)
-            {{
-                var tcs = m_tcs;
-                if (!tcs.Task.IsCompleted || Interlocked.CompareExchange(ref m_tcs, new TaskCompletionSource<bool>(), tcs) == tcs)
-                    return;
-            }}
-        }}
     }}
 ");
         }
