@@ -19,10 +19,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(builder, requestAwaiter);
             CreateGetResponse(builder, assemblyName, requestAwaiter);
             GetResponse(builder, assemblyName);
-            IsCompleted(builder, requestAwaiter);
             TrySetResponse(builder, requestAwaiter);
             TrySetException(builder, requestAwaiter);
-            Dispose(builder);
+            Dispose(builder, requestAwaiter);
             End(builder);
         }
 
@@ -169,7 +168,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                var topic{i} = await _responseTopic{i}.Task;
+                var topic{i} = await _responseTopic{i}.Task.ConfigureAwait(false);
 ");
             }
 
@@ -240,21 +239,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void IsCompleted(
-            StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
-            )
-        {
-            TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
-            var ss = taskCompletionSource.Task.IsCompleted;
-            builder.Append($@"
-            public bool IsCompleted()
-            {{
-                return _responseProcess.Task.IsCompleted;
-            }}
-");
-        }
-
         private static void TrySetResponse(
             StringBuilder builder,
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
@@ -318,13 +302,28 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         }
 
         private static void Dispose(
-            StringBuilder builder
+            StringBuilder builder,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
             public void Dispose()
             {{
+                _cts?.Cancel();
                 _cts?.Dispose();
+"); 
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                        _responseTopic{i}.TrySetCanceled();
+");
+            }
+            builder.Append($@"
+                try
+                {{
+                    _response.Wait();
+                }}
+                catch{{ /* ignore */}}
             }}
 ");
         }

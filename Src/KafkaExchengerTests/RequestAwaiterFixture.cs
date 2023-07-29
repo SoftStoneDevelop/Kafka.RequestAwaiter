@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace KafkaExchengerTests
@@ -52,7 +51,7 @@ namespace KafkaExchengerTests
             var metadata = adminClient.GetMetadata(TimeSpan.FromSeconds(30));
             if(metadata.Topics.Any(an => an.Topic == topicName))
             {
-                throw new Exception("Duplicate, test result corrupted");
+                return;
             }
 
             try
@@ -75,30 +74,6 @@ namespace KafkaExchengerTests
             catch (CreateTopicsException e)
             {
                 Console.WriteLine($"An error occured creating topic {e.Results[0].Topic}: {e.Results[0].Error.Reason}");
-            }
-        }
-
-        [TearDown]
-        public async Task TearDown()
-        {
-            var config = new AdminClientConfig
-            {
-                BootstrapServers = GlobalSetUp.Configuration["BootstrapServers"]
-            };
-
-            using (var adminClient = new AdminClientBuilder(config).Build())
-            {
-                await adminClient.DeleteTopicsAsync(
-                    new string[] 
-                    { 
-                        _inputSimpleTopic1,
-                        _inputSimpleTopic2,
-                        _outputSimpleTopic,
-
-                        _inputProtobuffTopic1,
-                        _inputProtobuffTopic2,
-                        _outputProtobuffTopic,
-                    });
             }
         }
 
@@ -201,7 +176,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task SimpleProduce()
         {
-            var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"]);
+            var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"]);
             using var reqAwaiter = new RequestAwaiterManyToOneSimple();
             var reqAwaiterConfitg = 
                 new RequestAwaiterManyToOneSimple.Config(
@@ -223,7 +198,7 @@ namespace KafkaExchengerTests
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 50
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
@@ -238,7 +213,7 @@ namespace KafkaExchengerTests
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 50
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
@@ -253,13 +228,12 @@ namespace KafkaExchengerTests
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 50
                             )
                     }
                     );
             reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
 
-            var counter1 = 0;
             var responder1 = new ResponderOneToOneSimple();
             var responder1Config = CreateResponderConfig(
                 "RAResponder1",
@@ -271,12 +245,10 @@ namespace KafkaExchengerTests
                         Value = $"1: Answer {input.Value}"
                     };
 
-                    counter1++;
                     return Task.FromResult(result);
                 });
             responder1.Start(config: responder1Config, producerPool: pool);
 
-            var counter2 = 0;
             var responder2 = new ResponderOneToOneSimple();
             var responder2Config = CreateResponderConfig(
                 "RAResponder2",
@@ -288,20 +260,20 @@ namespace KafkaExchengerTests
                         Value = $"2: Answer {input.Value}"
                     };
 
-                    counter2++;
                     return Task.FromResult(result);
                 });
             responder2.Start(config: responder2Config, producerPool: pool);
 
-            var answers = new Task<(BaseResponse[], CurrentState)>[70];
-            for (int i = 0; i < 70; i++)
+            var requestsCount = 1000;
+            var answers = new Task<(BaseResponse[], CurrentState)>[requestsCount];
+            for (int i = 0; i < requestsCount; i++)
             {
                 var message = $"Hello{i}";
                 answers[i] = produce(message);
 
                 async Task<(BaseResponse[], CurrentState)> produce(string message)
                 {
-                    using var result = await reqAwaiter.Produce(message);
+                    using var result = await reqAwaiter.Produce(message).ConfigureAwait(false);
                     var state = result.CurrentState;
                     var response = result.Result;
 
@@ -309,13 +281,11 @@ namespace KafkaExchengerTests
                 }
             }
 
-            var unique1 = new HashSet<string>(70);
-            var unique2 = new HashSet<string>(70);
+            var unique1 = new HashSet<string>(requestsCount);
+            var unique2 = new HashSet<string>(requestsCount);
 
-            await Task.WhenAll(answers);
-            Thread.Sleep(5000);
-
-            for (int i = 0; i < 70; i++)
+            Task.WaitAll(answers);
+            for (int i = 0; i < requestsCount; i++)
             {
                 (BaseResponse[] result, CurrentState state) result = await answers[i];
                 Assert.Multiple(() =>
@@ -345,8 +315,8 @@ namespace KafkaExchengerTests
                 });
             }
 
-            Assert.That(unique1.Count, Is.EqualTo(70));
-            Assert.That(unique2.Count, Is.EqualTo(70));
+            Assert.That(unique1.Count, Is.EqualTo(requestsCount));
+            Assert.That(unique2.Count, Is.EqualTo(requestsCount));
 
             await responder1.StopAsync();
             await responder2.StopAsync();

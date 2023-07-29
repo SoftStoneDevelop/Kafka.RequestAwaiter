@@ -475,7 +475,60 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                var messageGuid = Guid.NewGuid().ToString(""D"");
+                string messageGuid = null;
+                {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse awaiter = null;
+
+                _lock.EnterUpgradeableReadLock();
+                try
+                {{
+                    if(_addedCount == _maxInFly)
+                    {{
+                        return new KafkaExchengerTests.TryProduceResult {{ Succsess = false }};
+                    }}
+                    else
+                    {{
+                        messageGuid = Guid.NewGuid().ToString(""D"");
+                        awaiter = 
+                            new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
+");
+            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            {
+                builder.Append($@"
+                        _incomeTopic{i}Name,
+");
+            }
+            builder.Append($@"
+                        {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                        messageGuid,
+                        RemoveAwaiter, 
+                        waitResponseTimeout
+                        );
+");
+
+            builder.Append($@"
+                        _lock.EnterWriteLock();
+                        try
+                        {{
+                            if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                            {{
+                                awaiter.Dispose();
+                                throw new Exception();
+                            }}
+                            else
+                            {{
+                                _addedCount++;
+                            }}
+                        }}
+                        finally
+                        {{
+                            _lock.ExitWriteLock();
+                        }}
+                    }}
+                }}
+                finally
+                {{
+                    _lock.ExitUpgradeableReadLock();
+                }}
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -505,56 +558,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
 ");
             }
-            builder.Append($@"
-                var awaiter = 
-                    new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
-            {
-                builder.Append($@"
-                        _incomeTopic{i}Name,
-");
-            }
-            builder.Append($@"
-                        {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
-                        header.MessageGuid,
-                        RemoveAwaiter, 
-                        waitResponseTimeout
-                        );
-                    _lock.EnterUpgradeableReadLock();
-                    try
-                    {{
-                        if(_addedCount == _maxInFly)
-                        {{
-                            awaiter.Dispose();
-                            return new KafkaExchengerTests.TryProduceResult {{ Succsess = false }};
-                        }}
-                        else
-                        {{
-                            _lock.EnterWriteLock();
-                            try
-                            {{
-                                if (!_responseAwaiters.TryAdd(header.MessageGuid, awaiter))
-                                {{
-                                    awaiter.Dispose();
-                                    throw new Exception();
-                                }}
-                                else
-                                {{
-                                    _addedCount++;
-                                }}
-                            }}
-                            finally
-                            {{
-                                _lock.ExitWriteLock();
-                            }}
-                        }}
-                    }}
-                    finally
-                    {{
-                        _lock.ExitUpgradeableReadLock();
-                    }}
-");
+            
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
                 var outcomeData = requestAwaiter.OutcomeDatas[i];
@@ -588,7 +592,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                var response = await awaiter.GetResponse();
+                var response = await awaiter.GetResponse().ConfigureAwait(false);
                 return new KafkaExchengerTests.TryProduceResult() {{Succsess = true, Response = response}};
             }}
 ");
