@@ -52,7 +52,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {(producerData.CustomHeaders ? $@"private readonly {producerData.CustomHeadersFunc()} _setHeaders;" : "")}
 
                 private CancellationTokenSource _ctsConsume;
-                private Task[] _consumeRoutines;
+                private Thread[] _consumeRoutines;
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
@@ -185,13 +185,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 string groupId
                 )
             {{
-                _consumeRoutines = new Task[{requestAwaiter.IncomeDatas.Count}];
+                _consumeRoutines = new Thread[{requestAwaiter.IncomeDatas.Count}];
                 _ctsConsume = new CancellationTokenSource();
 ");
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
                 _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId);
+                _consumeRoutines[{i}].Start();
                 _consume{i}Canceled = false;
                 _tcsPartitions{i} = new();
 ");
@@ -212,12 +213,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var incomeData = requestAwaiter.IncomeDatas[i];
                 builder.Append($@"
-                private Task StartTopic{i}Consume(
+                private Thread StartTopic{i}Consume(
                     string bootstrapServers,
                     string groupId
                     )
                 {{
-                    return Task.Factory.StartNew(() =>
+                    return new Thread((param) =>
                     {{
                         var conf = new Confluent.Kafka.ConsumerConfig
                         {{
@@ -409,11 +410,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         {{
                             consumer.Dispose();
                         }}
-                    }},
-                _ctsConsume.Token,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Default
-                );
+                    }}
+                )
+                    {{
+                        IsBackground = true,
+                        Name = $""{{groupId}}Bucket{{_bucketId}}""
+                    }};
                 }}
 ");
             }
@@ -425,7 +427,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-                public async Task StopConsume()
+                public void StopConsume()
                 {{
                     _ctsConsume?.Cancel();
 ");
@@ -450,7 +452,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                     foreach (var consumeRoutine in _consumeRoutines)
                     {{
-                        await consumeRoutine;
+                        consumeRoutine.Join();
                     }}
 
                     _ctsConsume?.Dispose();

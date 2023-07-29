@@ -154,6 +154,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             {{
                 items[i] =
                     new PartitionItem(
+                        config.ServiceName,
                         config.ConsumerConfigs[i].IncomeTopicName,
                         config.ConsumerConfigs[i].CreateAnswer,
                         config.ConsumerConfigs[i].Partitions,
@@ -192,16 +193,20 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         {{
             public ConfigResponder(
                 string groupId,
+                string serviceName,
                 string bootstrapServers,
                 ConsumerResponderConfig[] consumerConfigs
                 )
             {{
                 GroupId = groupId;
+                ServiceName = serviceName;
                 BootstrapServers = bootstrapServers;
                 ConsumerConfigs = consumerConfigs;
             }}
 
             public string GroupId {{ get; init; }}
+
+            public string ServiceName {{ get; init; }}
 
             public string BootstrapServers {{ get; init; }}
 
@@ -282,6 +287,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         private class PartitionItem
         {{
             public PartitionItem(
+                string serviceName,
                 string incomeTopicName,
                 Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswer,
                 int[] partitions,
@@ -296,6 +302,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             {{
                 Partitions = partitions;
                 {(responder.Data.UseLogger ? @"_logger = logger;" : "")}
+                _serviceName = serviceName;
                 _incomeTopicName = incomeTopicName;
                 _createAnswer = createAnswer;
                 _producerPool = producerPool;
@@ -308,6 +315,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
 
             {(responder.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
             private readonly string _incomeTopicName;
+            private readonly string _serviceName;
             private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> _createAnswer;
             {(responder.Data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
             {(responder.Data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
@@ -426,11 +434,15 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
                                     {(responder.Data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
-                                    consumer.Commit(consumeResult);
+                                    continue;
+                                }}
+                                
+                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                if(!incomeMessage.HeaderInfo.TopicsForAnswer.Any(wh => wh.CanAnswerFrom.Contains(_serviceName)))
+                                {{
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
                                 var currentState = {(responder.Data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
@@ -640,17 +652,18 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                         return;
                     }}
 
-                    var topicsForAnswer = headerInfo.TopicsForAnswer.First();
-                    var topicPartition = new TopicPartition(topicsForAnswer.Name, topicsForAnswer.Partitions.First());
-                    
-                    var producer = _producerPool.Rent();
-                    try
+                    foreach (var topicForAnswer in headerInfo.TopicsForAnswer.Where(wh => wh.CanAnswerFrom.Contains(_serviceName)))
                     {{
-                        var deliveryResult = await producer.ProduceAsync(topicPartition, message);
-                    }}
-                    finally
-                    {{
-                        _producerPool.Return(producer);
+                        var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions.First());
+                        var producer = _producerPool.Rent();
+                        try
+                        {{
+                            var deliveryResult = await producer.ProduceAsync(topicPartition, message);
+                        }}
+                        finally
+                        {{
+                            _producerPool.Return(producer);
+                        }}
                     }}
                 }}
                 catch (ProduceException<{responder.OutcomeDatas[0].TypesPair}> e)

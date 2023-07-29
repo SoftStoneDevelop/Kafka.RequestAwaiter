@@ -187,11 +187,11 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void StopAsync()
         {
             _builder.Append($@"
-        public async Task StopAsync()
+        public void StopAsync()
         {{
             foreach (var item in _items)
             {{
-                await item.Stop();
+                item.Stop();
             }}
             
             _items = null;
@@ -252,12 +252,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
         public void Dispose()
         {{
-            StopAsync().Wait();
-        }}
-
-        public async ValueTask DisposeAsync()
-        {{
-            await StopAsync();
+            StopAsync();
         }}
 ");
         }

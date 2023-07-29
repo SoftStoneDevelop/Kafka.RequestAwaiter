@@ -1,10 +1,13 @@
 ﻿using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using KafkaExchanger.Attributes.Enums;
 using KafkaExchanger.Common;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace KafkaExchengerTests
@@ -13,13 +16,16 @@ namespace KafkaExchengerTests
     [Parallelizable(ParallelScope.Self)]
     internal class RequestAwaiterFixture
     {
-        private static string _inputSimpleTopic1 = "RAManyToOneInputSimple1";
-        private static string _inputSimpleTopic2 = "RAManyToOneInputSimple2";
-        private static string _outputSimpleTopic = "RAManyToOneOutputSimple";
+        private static string _inputSimpleTopic1 = "RAInputSimple1";
+        private static string _inputSimpleTopic2 = "RAInputSimple2";
+        private static string _outputSimpleTopic = "RAOutputSimple";
 
-        private static string _inputProtobuffTopic1 = "RAManyToOneInputProtobuff1";
-        private static string _inputProtobuffTopic2 = "RAManyToOneInputProtobuff2";
-        private static string _outputProtobuffTopic = "RAManyToOneOutputProtobuff";
+        private static string _inputProtobuffTopic1 = "RAInputProtobuff1";
+        private static string _inputProtobuffTopic2 = "RAInputProtobuff2";
+        private static string _outputProtobuffTopic = "RAOutputProtobuff";
+
+        private static string _responderService1 = "RAResponder1";
+        private static string _responderService2 = "RAResponder2";
 
         [SetUp]
         public async Task Setup()
@@ -96,14 +102,16 @@ namespace KafkaExchengerTests
             }
         }
 
-        private ResponderOneToOneSimple.ConfigResponder CreateResponder1Config(
+        private ResponderOneToOneSimple.ConfigResponder CreateResponderConfig(
             string groupId,
+            string serviceName,
             Func<ResponderOneToOneSimple.IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutcomeMessage>> createAnswer
             )
         {
             return
                 new ResponderOneToOneSimple.ConfigResponder(
                 groupId: groupId,
+                serviceName: serviceName,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
                 new ResponderOneToOneSimple.ConsumerResponderConfig[]
                 {
@@ -117,10 +125,10 @@ namespace KafkaExchengerTests
         }
 
         [Test]
-        public async Task CancelByTimeout()
+        public void CancelByTimeout()
         {
             var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"]);
-            await using var reqAwaiter = new RequestAwaiterManyToOneSimple();
+            using var reqAwaiter = new RequestAwaiterManyToOneSimple();
             var reqAwaiterConfitg =
                 new RequestAwaiterManyToOneSimple.Config(
                     groupId: "SimpleProduce",
@@ -131,12 +139,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -146,12 +154,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new[] { _responderService2 },
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -161,12 +169,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -194,7 +202,7 @@ namespace KafkaExchengerTests
         public async Task SimpleProduce()
         {
             var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"]);
-            var reqAwaiter = new RequestAwaiterManyToOneSimple();
+            using var reqAwaiter = new RequestAwaiterManyToOneSimple();
             var reqAwaiterConfitg = 
                 new RequestAwaiterManyToOneSimple.Config(
                     groupId: "SimpleProduce",
@@ -205,12 +213,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -220,12 +228,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -235,12 +243,12 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
                             income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new string[] { "ResponderOneToOne" },
+                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -251,69 +259,95 @@ namespace KafkaExchengerTests
                     );
             reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
 
+            var counter1 = 0;
             var responder1 = new ResponderOneToOneSimple();
-            ResponderOneToOneSimple.OutcomeMessage expect1Answer = null;
-            var responder1Config = CreateResponder1Config(
-                "SimpleProduce1",
+            var responder1Config = CreateResponderConfig(
+                "RAResponder1",
+                "RAResponder1",
                 (input, s) =>
                 {
                     var result = new ResponderOneToOneSimple.OutcomeMessage()
                     {
-                        Value = $"1: Answer from {input.Partition.Value} {input.Value}"
+                        Value = $"1: Answer {input.Value}"
                     };
-                    expect1Answer = result;
 
+                    counter1++;
                     return Task.FromResult(result);
                 });
             responder1.Start(config: responder1Config, producerPool: pool);
 
+            var counter2 = 0;
             var responder2 = new ResponderOneToOneSimple();
-            ResponderOneToOneSimple.OutcomeMessage expect2Answer = null;
-            var responder2Config = CreateResponder1Config(
-                "SimpleProduce1",
+            var responder2Config = CreateResponderConfig(
+                "RAResponder2",
+                "RAResponder2",
                 (input, s) =>
                 {
                     var result = new ResponderOneToOneSimple.OutcomeMessage()
                     {
-                        Value = $"2: Answer from {input.Partition.Value} {input.Value}"
+                        Value = $"2: Answer {input.Value}"
                     };
-                    expect2Answer = result;
 
+                    counter2++;
                     return Task.FromResult(result);
                 });
             responder2.Start(config: responder2Config, producerPool: pool);
 
-            var answer = await reqAwaiter.Produce("Hello");
-            Assert.That(answer.Result, Has.Length.EqualTo(2));
-
-            ResponseItem<RequestAwaiterManyToOneSimple.Income0Message> answerFrom1 = null;
-            ResponseItem<RequestAwaiterManyToOneSimple.Income1Message> answerFrom2 = null;
-            for (int i = 0; i < answer.Result.Length; i++)
+            var answers = new Task<(BaseResponse[], CurrentState)>[70];
+            for (int i = 0; i < 70; i++)
             {
-                Assert.That(answerFrom1 == null || answerFrom2 == null, Is.True);
-                var result = answer.Result[i];
-                if(result is ResponseItem<RequestAwaiterManyToOneSimple.Income0Message> resultFrom1)
-                {
-                    answerFrom1 = resultFrom1;
-                }
+                var message = $"Hello{i}";
+                answers[i] = produce(message);
 
-                if (result is ResponseItem<RequestAwaiterManyToOneSimple.Income1Message> resultFrom2)
+                async Task<(BaseResponse[], CurrentState)> produce(string message)
                 {
-                    answerFrom2 = resultFrom2;
+                    using var result = await reqAwaiter.Produce(message);
+                    var state = result.CurrentState;
+                    var response = result.Result;
+
+                    return (response, state);
                 }
             }
 
-            Assert.That(answerFrom1, Is.Not.Null);
-            Assert.That(answerFrom1.Result, Is.Not.Null);
-            Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
-            Assert.That(answerFrom1.Result.Value, Is.EqualTo(expect1Answer.Value));
+            var unique1 = new HashSet<string>(70);
+            var unique2 = new HashSet<string>(70);
 
-            Assert.That(answerFrom2, Is.Not.Null);
-            Assert.That(answerFrom2.Result, Is.Not.Null);
-            Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
-            Assert.That(answerFrom2.Result.Value, Is.EqualTo(expect2Answer.Value));
+            await Task.WhenAll(answers);
+            Thread.Sleep(5000);
 
-            await reqAwaiter.StopAsync();
+            for (int i = 0; i < 70; i++)
+            {
+                (BaseResponse[] result, CurrentState state) result = await answers[i];
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.result.Count, Is.EqualTo(2));
+                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                });
+
+                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterManyToOneSimple.Income0Message>;
+                Assert.That(answerFrom1 != null, Is.True);
+                Assert.That(answerFrom1.Result != null, Is.True);
+                Assert.Multiple(() => 
+                {
+                    Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
+                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"1: Answer Hello{i}"));
+                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                });
+
+                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterManyToOneSimple.Income1Message>;
+                Assert.That(answerFrom2 != null, Is.True);
+                Assert.That(answerFrom2.Result != null, Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
+                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"2: Answer Hello{i}"));
+                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                });
+            }
+
+            Assert.That(unique1.Count, Is.EqualTo(70));
+            Assert.That(unique2.Count, Is.EqualTo(70));
+
             await responder1.StopAsync();
             await responder2.StopAsync();
         }

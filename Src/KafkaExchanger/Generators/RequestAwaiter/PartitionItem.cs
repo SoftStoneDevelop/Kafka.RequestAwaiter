@@ -138,11 +138,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StopPartitionItem(StringBuilder builder)
         {
             builder.Append($@"
-            public async Task Stop()
+            public void Stop()
             {{
                 for (int i = 0; i < _buckets.Length; i++)
                 {{
-                    await _buckets[i].StopConsume();
+                    _buckets[i].StopConsume();
                     _buckets[i].Dispose();
                 }}
             }}
