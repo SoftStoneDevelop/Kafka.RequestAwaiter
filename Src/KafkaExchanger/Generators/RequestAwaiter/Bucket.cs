@@ -295,32 +295,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             var needFreeMre = false;
                                             try
                                             {{
-                                                var checkCommit = incomeMessage == null;
-                                                var isCompleted = false;
-                                                if (incomeMessage != null)
+                                                if (incomeMessage != null && _responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var topicResponse))
                                                 {{
-                                                    if (!_responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var topicResponse))
-                                                    {{
-                                                        {LogIncomeMessage(requestAwaiter, incomeData, "LogError", " no one wait results")}
-                                                        break;
-                                                    }}
                                                     topicResponse.TrySetResponse({i}, incomeMessage);
-                                                    isCompleted = topicResponse.IsCompleted();
                                                 }}
 
-                                                if (checkCommit || isCompleted)
+                                                if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
                                                 {{
                                                     _lock.EnterWriteLock();
                                                     try
                                                     {{
-                                                        if(isCompleted)
-                                                        {{
-                                                            _responseAwaiters.Remove(incomeMessage.HeaderInfo.AnswerToMessageGuid);
-                                                        }}
-
-                                                        if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
-                                                        {{
-                                                            var allPartitions = offsets.Values.ToList();
+                                                        var allPartitions = offsets.Values.ToList();
 ");
                 for (int j = 0; j < requestAwaiter.IncomeDatas.Count; j++)
                 {
@@ -330,25 +315,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }
 
                     builder.Append($@"
-                                                            var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
-                                                            Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
-                                                            Volatile.Write(ref _consume{j}Canceled, true);
-                                                            var partitions{j} = tcsPartitions{j}.Task.Result;
-                                                            allPartitions.AddRange(partitions{j});
+                                                        var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
+                                                        Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
+                                                        Volatile.Write(ref _consume{j}Canceled, true);
+                                                        var partitions{j} = tcsPartitions{j}.Task.Result;
+                                                        allPartitions.AddRange(partitions{j});
 ");
                 }
                 builder.Append($@"
-                                                            if(allPartitions.Count != 0)
-                                                                consumer.Commit(allPartitions);
-                                                            _addedCount = 0;
-                                                            needFreeMre = true;
+                                                        if(allPartitions.Count != 0)
+                                                            consumer.Commit(allPartitions);
+                                                        _addedCount = 0;
+                                                        needFreeMre = true;
 ");
                 if(consumerData.UseAfterCommit)
                 {
                     builder.Append($@"
-                                                            _afterCommit(
-                                                                _bucketId,
-                                                                offsets.Keys.ToHashSet()
+                                                        _afterCommit(
+                                                            _bucketId,
+                                                            offsets.Keys.ToHashSet()
 ");
                     for (int j = 0; j < requestAwaiter.IncomeDatas.Count; j++)
                     {
@@ -358,17 +343,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }
 
                         builder.Append($@",
-                                                                partitions{j}.Select(sel => sel.Partition).ToHashSet()
+                                                            partitions{j}.Select(sel => sel.Partition).ToHashSet()
 ");
                     }
                     builder.Append($@"
-                                                                )
-                                                                .Wait();
+                                                            )
+                                                            .Wait();
 ");
                 }
 
                 builder.Append($@"
-                                                        }}
                                                     }}
                                                     finally
                                                     {{

@@ -101,16 +101,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     if (task.IsFaulted)
                     {{
                         _responseProcess.TrySetException(task.Exception);
-                        removeAction(guid);
                         return;
                     }}
 
-                    if (task.IsFaulted || task.IsCanceled)
+                    if (task.IsCanceled)
                     {{
                         _responseProcess.TrySetCanceled();
-                        removeAction(guid);
                         return;
                     }}
+                }});
+
+                _responseProcess.Task.ContinueWith(task => 
+                {{
+                    removeAction(guid);
                 }});
 
                 if (waitResponseTimeout != 0)
