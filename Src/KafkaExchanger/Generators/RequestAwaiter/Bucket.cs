@@ -483,7 +483,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     if(_addedCount == _maxInFly)
                     {{
-                        return new KafkaExchengerTests.TryProduceResult {{ Succsess = false }};
+                        return new {assemblyName}.TryProduceResult {{ Succsess = false }};
                     }}
                     else
                     {{
@@ -593,7 +593,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@"
                 var response = await awaiter.GetResponse().ConfigureAwait(false);
-                return new KafkaExchengerTests.TryProduceResult() {{Succsess = true, Response = response}};
+                return new {assemblyName}.TryProduceResult() {{Succsess = true, Response = response}};
             }}
 ");
         }
