@@ -2,7 +2,7 @@ Constructors:
 
 ```C#
 
-public OutcomeAttribute(
+public OutputAttribute(
     Type keyType,
     Type valueType
 )
