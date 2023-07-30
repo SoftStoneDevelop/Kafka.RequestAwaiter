@@ -34,7 +34,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class TopicResponse : IDisposable
         {{
-            private TaskCompletionSource<bool> _responseProcess = new();
+            private TaskCompletionSource<bool> _responseProcess = new(TaskCreationOptions.RunContinuationsAsynchronously);
             public Task<{assemblyName}.Response> _response;
             private CancellationTokenSource _cts;
 ");
@@ -48,7 +48,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-            private TaskCompletionSource<Income{i}Message> _responseTopic{i} = new();
+            private TaskCompletionSource<Income{i}Message> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
 ");
             }
         }

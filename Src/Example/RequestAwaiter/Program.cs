@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace RequestAwaiterConsole
@@ -63,8 +62,8 @@ namespace RequestAwaiterConsole
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 5,
-                            maxInFly: 1000
+                            buckets: 2,
+                            maxInFly: 100
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             income0: new RequestAwaiter.ConsumerInfo(
@@ -78,8 +77,8 @@ namespace RequestAwaiterConsole
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 5,
-                            maxInFly: 1000
+                            buckets: 2,
+                            maxInFly: 100
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             income0: new RequestAwaiter.ConsumerInfo(
@@ -93,8 +92,8 @@ namespace RequestAwaiterConsole
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 5,
-                            maxInFly: 1000
+                            buckets: 2,
+                            maxInFly: 100
                             )
                     }
                     );

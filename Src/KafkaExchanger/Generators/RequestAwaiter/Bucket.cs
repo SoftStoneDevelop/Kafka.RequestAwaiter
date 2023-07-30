@@ -237,7 +237,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             ;
 
                         consumer.Assign(_incomeTopic{i}Partitions.Select(sel => new TopicPartition(_incomeTopic{i}Name, sel)));
-
                         try
                         {{
                             var offsets = new Dictionary<Partition, TopicPartitionOffset>();
@@ -245,7 +244,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             {{
                                 try
                                 {{
-                                    ConsumeResult<{incomeData.TypesPair}> consumeResult = consumer.Consume(20);
+                                    ConsumeResult<{incomeData.TypesPair}> consumeResult = consumer.Consume(50);
                                     try
                                     {{
                                         _ctsConsume.Token.ThrowIfCancellationRequested();
@@ -270,24 +269,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     {requestAwaiter.Data.TypeSymbol.Name}.Income{i}Message incomeMessage = null;
                                     if(consumeResult != null)
                                     {{
-                                        offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
-                                
-                                        incomeMessage = new ()
+                                        if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
+                                        {{
+                                            {LogIncomeMessage(requestAwaiter, incomeData, "LogError")}
+                                            offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                            continue;
+                                        }}
+
+                                        var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+
+                                        incomeMessage = new()
                                         {{
                                             OriginalMessage = consumeResult.Message,
                                             {(incomeData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(incomeData)},")}
                                             Value = {GetResponseValue(incomeData)},
-                                            Partition = consumeResult.Partition
+                                            Partition = consumeResult.Partition,
+                                            HeaderInfo = headerInfo
                                         }};
 
                                         {LogIncomeMessage(requestAwaiter, incomeData, "LogInformation")}
-                                        if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
-                                        {{
-                                            {LogIncomeMessage(requestAwaiter, incomeData, "LogError")}
-                                            continue;
-                                        }}
-
-                                        incomeMessage.HeaderInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
                                     }}
                                     while (true) 
                                     {{
@@ -379,6 +379,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
                                         }}
                                     }}
+
+                                    if(consumeResult != null)
+                                    {{
+                                        offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                    }}
                                 }}
                                 catch (ConsumeException {(requestAwaiter.Data.UseLogger ? "e" : "")})
                                 {{
@@ -399,7 +404,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 )
                     {{
                         IsBackground = true,
-                        Name = $""{{groupId}}Bucket{{_bucketId}}""
+                        Priority = ThreadPriority.AboveNormal,
+                        Name = $""{{groupId}}Bucket{{_bucketId}}Topic{i}""
                     }};
                 }}
 ");
