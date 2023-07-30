@@ -61,7 +61,7 @@ namespace RequestAwaiterConsole
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 0 }
                                 ),
-                            new RequestAwaiter.ProducerInfo(outputName),
+                            outcome0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             ),
@@ -76,7 +76,7 @@ namespace RequestAwaiterConsole
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 1 }
                                 ),
-                            new RequestAwaiter.ProducerInfo(outputName),
+                            outcome0:new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             ),
@@ -91,7 +91,7 @@ namespace RequestAwaiterConsole
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 2 }
                                 ),
-                            new RequestAwaiter.ProducerInfo(outputName),
+                            outcome0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             )

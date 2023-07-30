@@ -108,7 +108,8 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 _builder.Append($@",
                 producerPool{i}
 ");
-                _builder.Append($@"
+            }
+            _builder.Append($@"
                 );
 
             foreach (var item in _items)
@@ -121,7 +122,6 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }}
         }}
 ");
-            }
         }
 
         private void EndClass()
