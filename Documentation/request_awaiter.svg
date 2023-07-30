@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1"
-     inkscape:cx="697"
-     inkscape:cy="423.5"
+     inkscape:cx="861"
+     inkscape:cy="406.5"
      inkscape:window-width="2560"
      inkscape:window-height="1361"
      inkscape:window-x="2551"
@@ -255,6 +255,13 @@
      inkscape:groupmode="layer"
      id="layer1">
     <rect
+       style="fill:#ffffff;stroke:#000000;stroke-width:0.642007;stroke-dasharray:none;fill-opacity:1"
+       id="rect23"
+       width="292.16025"
+       height="178.60405"
+       x="75.741837"
+       y="5.8487225" />
+    <rect
        style="fill:none;stroke:#000000;stroke-width:0.361541"
        id="rect1"
        width="38.353947"
@@ -482,6 +489,13 @@
          style="stroke-width:0.3738"
          x="332.27454"
          y="106.64168">Responder1</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264999"
+       id="rect2"
+       width="74.347916"
+       height="14.022917"
+       x="0.26458332"
+       y="83.60833" />
     <text
        xml:space="preserve"
        style="font-size:3.175px;line-height:1.25;font-family:sans-serif;stroke-width:0.264583"
@@ -511,13 +525,6 @@
          x="1.3229165"
          y="94.985413"
          id="tspan27">//response.Result[1] is response from Input1</tspan></text>
-    <rect
-       style="fill:none;stroke:#000000;stroke-width:0.642007;stroke-dasharray:none"
-       id="rect23"
-       width="292.16025"
-       height="178.60405"
-       x="75.741837"
-       y="5.8487225" />
     <text
        xml:space="preserve"
        style="font-size:5.68733px;line-height:1.25;font-family:sans-serif;stroke-width:0.473944"
