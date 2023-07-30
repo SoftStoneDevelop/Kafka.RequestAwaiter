@@ -100,7 +100,8 @@ public partial class TestProtobuffAwaiter
 {
 
 }
-
+```
+```C#
 using var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
 using var awaitService = new TestProtobuffAwaiter();
 awaitService.Start(configKafka, producerPool, producerPool);
