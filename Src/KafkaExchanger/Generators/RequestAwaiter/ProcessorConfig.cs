@@ -23,7 +23,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public ProcessorConfig(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 if(i != 0)
                 {
@@ -31,15 +31,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-                ConsumerInfo income{i}
+                ConsumerInfo input{i}
 ");
             }
 
-            if (requestAwaiter.IncomeDatas.Count > 0)
+            if (requestAwaiter.InputDatas.Count > 0)
             {
                 builder.Append(',');
             }
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 if (i != 0)
                 {
@@ -47,14 +47,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-                ProducerInfo outcome{i}
+                ProducerInfo output{i}
 ");
             }
 
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
+                {(producerData.CustomOutputHeader ? $@",{producerData.CustomOutputHeaderFunc(assemblyName)} createOutputHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")},
                 int buckets,
                 int maxInFly
@@ -65,20 +65,20 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
-                {(producerData.CustomOutcomeHeader ? @"CreateOutcomeHeader = createOutcomeHeader;" : "")}
+                {(producerData.CustomOutputHeader ? @"CreateOutputHeader = createOutputHeader;" : "")}
                 {(producerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-                Income{i} = income{i};
+                Input{i} = input{i};
 ");
             }
 
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@"
-                Outcome{i} = outcome{i};
+                Output{i} = output{i};
 ");
             }
 
@@ -89,22 +89,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             
             public int MaxInFly {{ get; init; }}
 
-            {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} GetCurrentState {{ get; init; }}" : "")}
-            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} AfterCommit {{ get; init; }}" : "")}
-            {(producerData.CustomOutcomeHeader ? $"public {producerData.CustomOutcomeHeaderFunc(assemblyName)} CreateOutcomeHeader {{ get; init; }}" : "")}
+            {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} GetCurrentState {{ get; init; }}" : "")}
+            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} AfterCommit {{ get; init; }}" : "")}
+            {(producerData.CustomOutputHeader ? $"public {producerData.CustomOutputHeaderFunc(assemblyName)} CreateOutputHeader {{ get; init; }}" : "")}
             {(producerData.CustomHeaders ? $"public {producerData.CustomHeadersFunc()} SetHeaders {{ get; init; }}" : "")}
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-            public ConsumerInfo Income{i} {{ get; init; }}
+            public ConsumerInfo Input{i} {{ get; init; }}
 ");
             }
 
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@"
-            public ProducerInfo Outcome{i} {{ get; init; }}
+            public ProducerInfo Output{i} {{ get; init; }}
 ");
             }
 

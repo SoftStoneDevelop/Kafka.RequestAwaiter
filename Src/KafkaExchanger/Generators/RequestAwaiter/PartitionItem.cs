@@ -46,7 +46,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public PartitionItem(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 if(i != 0)
                 {
@@ -54,17 +54,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-                string incomeTopic{i}Name,
-                int[] incomeTopic{i}Partitions,
-                string[] incomeTopic{i}CanAnswerService
+                string inputTopic{i}Name,
+                int[] inputTopic{i}Partitions,
+                string[] inputTopic{i}CanAnswerService
 ");
             }
 
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-                string outcomeTopic{i}Name,
-                {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
+                string outputTopic{i}Name,
+                {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             var consumerData = requestAwaiter.Data.ConsumerData;
@@ -73,9 +73,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int buckets,
                 int maxInFly
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
-                {(producerData.CustomOutcomeHeader ? $@",{producerData.CustomOutcomeHeaderFunc(assemblyName)} createOutcomeHeader" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
+                {(producerData.CustomOutputHeader ? $@",{producerData.CustomOutputHeaderFunc(assemblyName)} createOutputHeader" : "")}
                 {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
                 )
             {{
@@ -84,19 +84,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     _buckets[i] = new Bucket(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-                        incomeTopic{i}Name,
-                        incomeTopic{i}Partitions,
-                        incomeTopic{i}CanAnswerService,
+                        inputTopic{i}Name,
+                        inputTopic{i}Partitions,
+                        inputTopic{i}CanAnswerService,
 ");
             }
 
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@"
-                        outcomeTopic{i}Name,
+                        outputTopic{i}Name,
                         producerPool{i},
 ");
             }
@@ -107,7 +107,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
-                        {(producerData.CustomOutcomeHeader ? $@",createOutcomeHeader" : "")}
+                        {(producerData.CustomOutputHeader ? $@",createOutputHeader" : "")}
                         {(producerData.CustomHeaders ? $@",setHeaders" : "")}
                         );
                 }}
@@ -157,18 +157,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public async ValueTask<{assemblyName}.TryProduceResult> TryProduce(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeData = requestAwaiter.OutcomeDatas[i];
-                if (!outcomeData.KeyType.IsKafkaNull())
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                {outcomeData.KeyType.GetFullTypeName(true)} key{i},
+                {outputData.KeyType.GetFullTypeName(true)} key{i},
 ");
                 }
 
                 builder.Append($@"
-                {outcomeData.ValueType.GetFullTypeName(true)} value{i},
+                {outputData.ValueType.GetFullTypeName(true)} value{i},
 ");
             }
             builder.Append($@"
@@ -180,10 +180,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     var index = _current;
                     var tp = await _buckets[index].TryProduce(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeData = requestAwaiter.OutcomeDatas[i];
-                if (!outcomeData.KeyType.IsKafkaNull())
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
                     key{i},

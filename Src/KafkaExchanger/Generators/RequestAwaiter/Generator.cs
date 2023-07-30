@@ -32,7 +32,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             ConsumerInfo.Append(_builder);
             ProducerInfo.Append(_builder, assemblyName, requestAwaiter);
 
-            IncomeMessages.Append(_builder, assemblyName, requestAwaiter);
+            InputMessages.Append(_builder, assemblyName, requestAwaiter);
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
             PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
@@ -90,10 +90,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         public void Start(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 _builder.Append($@",
-            {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             _builder.Append($@",
@@ -103,7 +103,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             BuildPartitionItems(
                 config
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 _builder.Append($@",
                 producerPool{i}
@@ -137,10 +137,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void BuildPartitionItems(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 _builder.Append($@",
-            {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             _builder.Append($@"
@@ -152,7 +152,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 _items[i] =
                     new PartitionItem(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 if (i != 0)
                 {
@@ -160,15 +160,15 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 }
 
                 _builder.Append($@"
-                        config.Processors[i].Income{i}.TopicName,
-                        config.Processors[i].Income{i}.Partitions,
-                        config.Processors[i].Income{i}.CanAnswerService
+                        config.Processors[i].Input{i}.TopicName,
+                        config.Processors[i].Input{i}.Partitions,
+                        config.Processors[i].Input{i}.CanAnswerService
 ");
             }
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 _builder.Append($@",
-                        config.Processors[i].Outcome{i}.TopicName,
+                        config.Processors[i].Output{i}.TopicName,
                         producerPool{i}
 ");
             }
@@ -178,7 +178,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
                         {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
                         {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
-                        {(requestAwaiter.Data.ProducerData.CustomOutcomeHeader ? @",config.Processors[i].CreateOutcomeHeader" : "")}
+                        {(requestAwaiter.Data.ProducerData.CustomOutputHeader ? @",config.Processors[i].CreateOutputHeader" : "")}
                         {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Processors[i].SetHeaders" : "")}
                         );
             }}
@@ -206,17 +206,17 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
         public async Task<{assemblyName}.Response> Produce(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                if (!requestAwaiter.OutcomeDatas[i].KeyType.IsKafkaNull())
+                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
-            {requestAwaiter.OutcomeDatas[i].KeyType.GetFullTypeName(true)} key{i},
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
 ");
                 }
 
                 _builder.Append($@"
-            {requestAwaiter.OutcomeDatas[i].ValueType.GetFullTypeName(true)} value{i},
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
 ");
             }
             _builder.Append($@"
@@ -231,9 +231,9 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 var tp =
                     await item.TryProduce(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                if (!requestAwaiter.OutcomeDatas[i].KeyType.IsKafkaNull())
+                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
                     key{i},

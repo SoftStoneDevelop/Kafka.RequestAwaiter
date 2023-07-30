@@ -6,7 +6,7 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class OutcomeData : BaseData
+    internal class OutputData : BaseData
     {
         public ITypeSymbol KeyType { get; set; }
 
@@ -26,9 +26,9 @@ namespace KafkaExchanger.AttributeDatas
 
         public string TypesPair => $"{FullKeyTypeName}, {FullValueTypeName}";
 
-        public static OutcomeData Create(INamedTypeSymbol type, AttributeData attribute)
+        public static OutputData Create(INamedTypeSymbol type, AttributeData attribute)
         {
-            var result = new OutcomeData();
+            var result = new OutputData();
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
@@ -39,18 +39,18 @@ namespace KafkaExchanger.AttributeDatas
 
             if (!SetKeyType(namedArguments[0], result))
             {
-                throw new Exception("Fail create IncomeData: KeyType");
+                throw new Exception("Fail create OutputData: KeyType");
             }
 
             if (!SetValueType(namedArguments[1], result))
             {
-                throw new Exception("Fail create IncomeData: ValueType");
+                throw new Exception("Fail create OutputData: ValueType");
             }
 
             return result;
         }
 
-        private static bool SetKeyType(TypedConstant argument, OutcomeData result)
+        private static bool SetKeyType(TypedConstant argument, OutputData result)
         {
             if (!(argument.Value is INamedTypeSymbol keyType))
             {
@@ -61,7 +61,7 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
-        private static bool SetValueType(TypedConstant argument, OutcomeData result)
+        private static bool SetValueType(TypedConstant argument, OutputData result)
         {
             if (!(argument.Value is INamedTypeSymbol valueType))
             {

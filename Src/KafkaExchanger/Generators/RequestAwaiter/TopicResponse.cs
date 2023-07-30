@@ -45,10 +45,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-            private TaskCompletionSource<Income{i}Message> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<Input{i}Message> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
 ");
             }
         }
@@ -64,7 +64,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public TopicResponse(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                 string topic{i}Name,
@@ -72,7 +72,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState," : "")}
+                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState," : "")}
                 string guid,
                 Action<string> removeAction,
                 int waitResponseTimeout = 0
@@ -80,7 +80,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 _response = CreateGetResponse(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 if (i != 0)
                 {
@@ -121,7 +121,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     _cts.Token.Register(() =>
                     {{
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                         _responseTopic{i}.TrySetCanceled();
@@ -149,7 +149,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private async Task<{assemblyName}.Response> CreateGetResponse(
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 if (i != 0)
                 {
@@ -161,11 +161,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 )
             {{
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                 var topic{i} = await _responseTopic{i}.Task.ConfigureAwait(false);
@@ -178,7 +178,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var currentState = await getCurrentState(
                     
 ");
-                for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+                for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
                     if(i != 0)
                     {
@@ -206,12 +206,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     new {assemblyName}.BaseResponse[]
                     {{
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-                        new ResponseItem<Income{i}Message>(topic{i}Name, topic{i})
+                        new ResponseItem<Input{i}Message>(topic{i}Name, topic{i})
 ");
-                if (i != requestAwaiter.IncomeDatas.Count - 1)
+                if (i != requestAwaiter.InputDatas.Count - 1)
                 {
                     builder.Append(',');
                 }
@@ -245,17 +245,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public bool TrySetResponse(int topicNumber, BaseIncomeMessage response)
+            public bool TrySetResponse(int topicNumber, BaseInputMessage response)
             {{
                 switch (topicNumber)
                 {{
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                     case {i}:
                     {{
-                        return _responseTopic{i}.TrySetResult((Income{i}Message)response);
+                        return _responseTopic{i}.TrySetResult((Input{i}Message)response);
                     }}
 ");
             }
@@ -281,7 +281,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 switch (topicNumber)
                 {{
 ");
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                     case {i}:
@@ -312,7 +312,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 _cts?.Cancel();
                 _cts?.Dispose();
 "); 
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
                         _responseTopic{i}.TrySetCanceled();

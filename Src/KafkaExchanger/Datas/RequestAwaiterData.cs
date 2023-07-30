@@ -14,13 +14,13 @@ namespace KafkaExchanger.AttributeDatas
 
         public ProducerData ProducerData => Data.ProducerData;
 
-        public List<IncomeData> IncomeDatas { get; } = new List<IncomeData>();
+        public List<InputData> InputDatas { get; } = new List<InputData>();
 
-        public List<OutcomeData> OutcomeDatas { get; } = new List<OutcomeData>();
+        public List<OutputData> OutputDatas { get; } = new List<OutputData>();
 
         public bool IsEmpty()
         {
-            return Data == null && OutcomeDatas.Count == 0 && IncomeDatas.Count == 0;
+            return Data == null && OutputDatas.Count == 0 && InputDatas.Count == 0;
         }
     }
 
@@ -52,9 +52,9 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create RequestAwaiter data: UseAfterCommit");
             }
 
-            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[3]))
+            if (!result.ProducerData.SetCustomOutputHeader(namedArguments[3]))
             {
-                throw new Exception("Fail create RequestAwaiter data: CustomOutcomeHeader");
+                throw new Exception("Fail create RequestAwaiter data: CustomOutputHeader");
             }
 
             if (!result.ProducerData.SetCustomHeaders(namedArguments[4]))

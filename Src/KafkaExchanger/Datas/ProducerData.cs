@@ -10,15 +10,15 @@ namespace KafkaExchanger.AttributeDatas
         public bool AfterSendResponse { get; private set; }
 
         public string AfterSendResponseFunc(
-            List<IncomeData> incomeDatas,
+            List<InputData> inputDatas,
             INamedTypeSymbol typeSymbol
             )
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int,");
-            for (int i = 0; i < incomeDatas.Count; i++)
+            for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" Income{i}Message,");
+                tempSb.Append($" Input{i}Message,");
             }
             tempSb.Append($"{typeSymbol.Name}.ResponseResult, Task>");
 
@@ -38,16 +38,16 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
-        public bool CustomOutcomeHeader { get; private set; }
+        public bool CustomOutputHeader { get; private set; }
 
-        public string CustomOutcomeHeaderFunc(
+        public string CustomOutputHeaderFunc(
             string assemblyName
             )
         {
             return $"Func<int, Task<{assemblyName}.RequestHeader>>";
         }
 
-        internal bool SetCustomOutcomeHeader(TypedConstant argument)
+        internal bool SetCustomOutputHeader(TypedConstant argument)
         {
             if (!(argument.Type is INamedTypeSymbol useLogger) ||
                 useLogger.Name != nameof(Boolean)
@@ -56,7 +56,7 @@ namespace KafkaExchanger.AttributeDatas
                 return false;
             }
 
-            CustomOutcomeHeader = (bool)argument.Value;
+            CustomOutputHeader = (bool)argument.Value;
             return true;
         }
 
@@ -80,13 +80,13 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
-        public string SendResponseFunc(List<IncomeData> incomeDatas, INamedTypeSymbol typeSymbol)
+        public string SendResponseFunc(List<InputData> inputDatas, INamedTypeSymbol typeSymbol)
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<");
-            for (int i = 0; i < incomeDatas.Count; i++)
+            for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" Income{i}Message,");
+                tempSb.Append($" Input{i}Message,");
             }
             tempSb.Append($"{typeSymbol.Name}.ResponseResult, Task<int>>");
 

@@ -37,8 +37,8 @@ namespace KafkaExchanger.Generators
             ConfigResponder();
             ConsumerResponderConfig(assemblyName, responder);
 
-            IncomeMessage(assemblyName, responder);
-            OutcomeMessage(responder);
+            InputMessage(assemblyName, responder);
+            OutputMessage(responder);
 
             PartitionItem(assemblyName, responder);
 
@@ -55,7 +55,7 @@ namespace KafkaExchanger.Generators
 
             PartitionItemStop();
             PartitionItemProduce(assemblyName, responder);
-            CreateOutcomeHeader(assemblyName, responder);
+            CreateOutputHeader(assemblyName, responder);
 
             _builder.Append($@"
         }}
@@ -97,7 +97,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         private void InterfaceMethods(Responder responder)
         {
             _builder.Append($@"
-        public void Start({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutcomeDatas[0].FullPoolInterfaceName} producerPool);
+        public void Start({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutputDatas[0].FullPoolInterfaceName} producerPool);
 
         public Task StopAsync();
 ");
@@ -128,7 +128,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         private void StartResponderMethod(Responder responder)
         {
             _builder.Append($@"
-        public void Start({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutcomeDatas[0].FullPoolInterfaceName} producerPool)
+        public void Start({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutputDatas[0].FullPoolInterfaceName} producerPool)
         {{
             BuildPartitionItems(config, producerPool);
 
@@ -146,7 +146,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         private void BuildPartitionItems(Responder responder)
         {
             _builder.Append($@"
-        private void BuildPartitionItems({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutcomeDatas[0].FullPoolInterfaceName} producerPool)
+        private void BuildPartitionItems({responder.Data.TypeSymbol.Name}.ConfigResponder config, {responder.OutputDatas[0].FullPoolInterfaceName} producerPool)
         {{
             _items = new PartitionItem[config.ConsumerConfigs.Length];
             var items = _items.AsSpan();
@@ -155,15 +155,15 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 items[i] =
                     new PartitionItem(
                         config.ServiceName,
-                        config.ConsumerConfigs[i].IncomeTopicName,
+                        config.ConsumerConfigs[i].InputTopicName,
                         config.ConsumerConfigs[i].CreateAnswer,
                         config.ConsumerConfigs[i].Partitions,
                         producerPool
-                        {(responder.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].IncomeTopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
+                        {(responder.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].InputTopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         {(responder.Data.ConsumerData.CheckCurrentState ? @",config.ConsumerConfigs[i].GetCurrentState" : "")}
                         {(responder.Data.ConsumerData.UseAfterCommit ? @",config.ConsumerConfigs[i].AfterCommit" : "")}
                         {(responder.Data.ProducerData.AfterSendResponse ? @",config.ConsumerConfigs[i].AfterSendResponse" : "")}
-                        {(responder.Data.ProducerData.CustomOutcomeHeader ? @",config.ConsumerConfigs[i].CreateOutcomeHeader" : "")}
+                        {(responder.Data.ProducerData.CustomOutputHeader ? @",config.ConsumerConfigs[i].CreateOutputHeader" : "")}
                         {(responder.Data.ProducerData.CustomHeaders ? @",config.ConsumerConfigs[i].SetHeaders" : "")}
                         );
             }}
@@ -221,62 +221,62 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         public class ConsumerResponderConfig
         {{
             public ConsumerResponderConfig(
-                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswer,
-                {(responder.Data.ConsumerData.CheckCurrentState ? "Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState," : "")}
+                Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> createAnswer,
+                {(responder.Data.ConsumerData.CheckCurrentState ? "Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState," : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommit," : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @"Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse," : "")}
-                {(responder.Data.ProducerData.CustomOutcomeHeader ? $@"Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutcomeHeader," : "")}
+                {(responder.Data.ProducerData.AfterSendResponse ? @"Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse," : "")}
+                {(responder.Data.ProducerData.CustomOutputHeader ? $@"Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutputHeader," : "")}
                 {(responder.Data.ProducerData.CustomHeaders ? @"Func<Headers, Task> setHeaders," : "")}
-                string incomeTopicName,
+                string inputTopicName,
                 params int[] partitions
                 )
             {{
                 CreateAnswer = createAnswer;
-                IncomeTopicName = incomeTopicName;
+                InputTopicName = inputTopicName;
                 Partitions = partitions;
 
                 {(responder.Data.ConsumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
                 {(responder.Data.ProducerData.AfterSendResponse ? @"AfterSendResponse = afterSendResponse;" : "")}
-                {(responder.Data.ProducerData.CustomOutcomeHeader ? @"CreateOutcomeHeader = createOutcomeHeader;" : "")}
+                {(responder.Data.ProducerData.CustomOutputHeader ? @"CreateOutputHeader = createOutputHeader;" : "")}
                 {(responder.Data.ProducerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
             }}
 
-            public string IncomeTopicName {{ get; init; }}
+            public string InputTopicName {{ get; init; }}
 
             public int[] Partitions {{ get; init; }}
 
-            public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> CreateAnswer {{ get; init; }}
-            {(responder.Data.ConsumerData.CheckCurrentState ? "public Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentState { get; init; }" : "")}
+            public Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> CreateAnswer {{ get; init; }}
+            {(responder.Data.ConsumerData.CheckCurrentState ? "public Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentState { get; init; }" : "")}
             {(responder.Data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommit { get; init; }" : "")}
-            {(responder.Data.ProducerData.AfterSendResponse ? "public Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> AfterSendResponse { get; init; }" : "")}
-            {(responder.Data.ProducerData.CustomOutcomeHeader ? $"public Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> CreateOutcomeHeader {{ get; init; }}" : "")}
+            {(responder.Data.ProducerData.AfterSendResponse ? "public Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> AfterSendResponse { get; init; }" : "")}
+            {(responder.Data.ProducerData.CustomOutputHeader ? $"public Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> CreateOutputHeader {{ get; init; }}" : "")}
             {(responder.Data.ProducerData.CustomHeaders ? "public Func<Headers, Task> SetHeaders { get; init; }" : "")}
         }}
 ");
         }
 
-        private void IncomeMessage(string assemblyName, Responder responder)
+        private void InputMessage(string assemblyName, Responder responder)
         {
             _builder.Append($@"
-        public class IncomeMessage
+        public class InputMessage
         {{
             public Message<{GetConsumerTType(responder)}> OriginalMessage {{ get; set; }}
-            public {responder.IncomeDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {responder.IncomeDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public {responder.InputDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {responder.InputDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public {assemblyName}.RequestHeader HeaderInfo {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
 
-        private void OutcomeMessage(Responder responder)
+        private void OutputMessage(Responder responder)
         {
             _builder.Append($@"
-        public class OutcomeMessage
+        public class OutputMessage
         {{
-            public {responder.OutcomeDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {responder.OutcomeDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public {responder.OutputDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {responder.OutputDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
         }}
 ");
         }
@@ -288,45 +288,45 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         {{
             public PartitionItem(
                 string serviceName,
-                string incomeTopicName,
-                Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> createAnswer,
+                string inputTopicName,
+                Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> createAnswer,
                 int[] partitions,
-                {responder.OutcomeDatas[0].FullPoolInterfaceName} producerPool
+                {responder.OutputDatas[0].FullPoolInterfaceName} producerPool
                 {(responder.Data.UseLogger ? @",ILogger logger" : "")}
-                {(responder.Data.ConsumerData.CheckCurrentState ? @",Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState" : "")}
+                {(responder.Data.ConsumerData.CheckCurrentState ? @",Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? @",Func<HashSet<int>, Task> afterCommit" : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @",Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> afterSendResponse" : "")}
-                {(responder.Data.ProducerData.CustomOutcomeHeader ? $@",Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutcomeHeader" : "")}
+                {(responder.Data.ProducerData.AfterSendResponse ? @",Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse" : "")}
+                {(responder.Data.ProducerData.CustomOutputHeader ? $@",Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutputHeader" : "")}
                 {(responder.Data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
                 )
             {{
                 Partitions = partitions;
                 {(responder.Data.UseLogger ? @"_logger = logger;" : "")}
                 _serviceName = serviceName;
-                _incomeTopicName = incomeTopicName;
+                _inputTopicName = inputTopicName;
                 _createAnswer = createAnswer;
                 _producerPool = producerPool;
                 {(responder.Data.ConsumerData.CheckCurrentState ? @"_getCurrentState = getCurrentState;" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? @"_afterCommit = afterCommit;" : "")}
                 {(responder.Data.ProducerData.AfterSendResponse ? @"_afterSendResponse = afterSendResponse;" : "")}
-                {(responder.Data.ProducerData.CustomOutcomeHeader ? @"_createOutcomeHeader = createOutcomeHeader;" : "")}
+                {(responder.Data.ProducerData.CustomOutputHeader ? @"_createOutputHeader = createOutputHeader;" : "")}
                 {(responder.Data.ProducerData.CustomHeaders ? @"_setHeaders = setHeaders;" : "")}
             }}
 
             {(responder.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
-            private readonly string _incomeTopicName;
+            private readonly string _inputTopicName;
             private readonly string _serviceName;
-            private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutcomeMessage>> _createAnswer;
-            {(responder.Data.ConsumerData.CheckCurrentState ? @"private readonly Func<IncomeMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
+            private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> _createAnswer;
+            {(responder.Data.ConsumerData.CheckCurrentState ? @"private readonly Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
             {(responder.Data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
-            {(responder.Data.ProducerData.AfterSendResponse ? @"private readonly Func<IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutcomeMessage, Task> _afterSendResponse;" : "")}
-            {(responder.Data.ProducerData.CustomOutcomeHeader ? $@"private readonly Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> _createOutcomeHeader;" : "")}
+            {(responder.Data.ProducerData.AfterSendResponse ? @"private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> _afterSendResponse;" : "")}
+            {(responder.Data.ProducerData.CustomOutputHeader ? $@"private readonly Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> _createOutputHeader;" : "")}
             {(responder.Data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
 
-            private {responder.OutcomeDatas[0].FullPoolInterfaceName} _producerPool;
+            private {responder.OutputDatas[0].FullPoolInterfaceName} _producerPool;
 
             public int[] Partitions {{ get; init; }}
 ");
@@ -394,7 +394,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                         .Build()
                         ;
 
-                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_incomeTopicName, sel)));
+                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_inputTopicName, sel)));
 ");
         }
 
@@ -424,31 +424,31 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                                 var consumeResult = consumer.Consume(_cts.Token);
                                 {(responder.Data.ConsumerData.CommitAfter > 1 ? "mesaggesPast++;" : "")}
                                 {(responder.Data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Add(consumeResult.Partition.Value);" : "")}
-                                var incomeMessage = new IncomeMessage();
-                                incomeMessage.Partition = consumeResult.Partition;
-                                incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetIncomeMessageKey(responder)};
-                                incomeMessage.Value = {GetIncomeMessageValue(responder)};
+                                var inputMessage = new InputMessage();
+                                inputMessage.Partition = consumeResult.Partition;
+                                inputMessage.OriginalMessage = consumeResult.Message;
+                                inputMessage.Key = {GetInputMessageKey(responder)};
+                                inputMessage.Value = {GetInputMessageValue(responder)};
 
-                                {(responder.Data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
+                                {(responder.Data.UseLogger ? @"_logger.LogInformation($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    {(responder.Data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
+                                    {(responder.Data.UseLogger ? @"_logger.LogError($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
                                     continue;
                                 }}
                                 
-                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
-                                if(!incomeMessage.HeaderInfo.TopicsForAnswer.Any(wh => wh.CanAnswerFrom.Contains(_serviceName)))
+                                inputMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                if(!inputMessage.HeaderInfo.TopicsForAnswer.Any(wh => wh.CanAnswerFrom.Contains(_serviceName)))
                                 {{
                                     continue;
                                 }}
 
-                                var currentState = {(responder.Data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                var currentState = {(responder.Data.ConsumerData.CheckCurrentState ? "await _getCurrentState(inputMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
-                                    var answer = await _createAnswer(incomeMessage, currentState);
-                                    await Produce(answer, incomeMessage.HeaderInfo);
-                                    {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, currentState, answer);" : "")}
+                                    var answer = await _createAnswer(inputMessage, currentState);
+                                    await Produce(answer, inputMessage.HeaderInfo);
+                                    {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(inputMessage, currentState, answer);" : "")}
                                 }}
 ");
             if(responder.Data.ConsumerData.CommitAfter > 1)
@@ -504,31 +504,31 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                             {{
                                 var consumeResult = consumer.Consume(_cts.Token);
 
-                                var incomeMessage = new IncomeMessage();
+                                var inputMessage = new InputMessage();
                                 {(responder.Data.ConsumerData.UseAfterCommit ? "partitionsInPackage.Add(consumeResult.Partition.Value);" : "")}
-                                incomeMessage.Partition = consumeResult.Partition;
-                                incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetIncomeMessageKey(responder)};
-                                incomeMessage.Value = {GetIncomeMessageValue(responder)};
+                                inputMessage.Partition = consumeResult.Partition;
+                                inputMessage.OriginalMessage = consumeResult.Message;
+                                inputMessage.Key = {GetInputMessageKey(responder)};
+                                inputMessage.Value = {GetInputMessageValue(responder)};
 
-                                {(responder.Data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
+                                {(responder.Data.UseLogger ? @"_logger.LogInformation($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    {(responder.Data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
+                                    {(responder.Data.UseLogger ? @"_logger.LogError($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
-                                var currentState = {(responder.Data.ConsumerData.CheckCurrentState ? "await _getCurrentState(incomeMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
+                                inputMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                var currentState = {(responder.Data.ConsumerData.CheckCurrentState ? "await _getCurrentState(inputMessage)" : "KafkaExchanger.Attributes.Enums.CurrentState.NewMessage")};
                                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                                 {{
                                     package.Add(
-                                            _createAnswer(incomeMessage, currentState)
+                                            _createAnswer(inputMessage, currentState)
                                         .ContinueWith
                                         (async (task) =>
                                         {{
-                                            await Produce(task.Result, incomeMessage.HeaderInfo);
-                                            {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(incomeMessage, currentState, task.Result);" : "")}
+                                            await Produce(task.Result, inputMessage.HeaderInfo);
+                                            {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(inputMessage, currentState, task.Result);" : "")}
                                         }},
                                         continuationOptions: TaskContinuationOptions.RunContinuationsAsynchronously
                                         )
@@ -578,21 +578,21 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetIncomeMessageKey(Responder responder)
+        private string GetInputMessageKey(Responder responder)
         {
-            if (responder.IncomeDatas[0].KeyType.IsProtobuffType())
+            if (responder.InputDatas[0].KeyType.IsProtobuffType())
             {
-                return $"{responder.IncomeDatas[0].KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
+                return $"{responder.InputDatas[0].KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
             }
 
             return "consumeResult.Message.Key";
         }
 
-        private string GetIncomeMessageValue(Responder responder)
+        private string GetInputMessageValue(Responder responder)
         {
-            if (responder.IncomeDatas[0].ValueType.IsProtobuffType())
+            if (responder.InputDatas[0].ValueType.IsProtobuffType())
             {
-                return $"{responder.IncomeDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
+                return $"{responder.InputDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
             }
 
             return "consumeResult.Message.Value";
@@ -628,16 +628,16 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
             private async Task Produce(
-                OutcomeMessage outcomeMessage,
+                OutputMessage outputMessage,
                 {assemblyName}.RequestHeader headerInfo
                 )
             {{
 ");
 
-            CreateOutcomeMessage(responder);
+            CreateOutputMessage(responder);
 
             _builder.Append($@"
-                {(responder.Data.ProducerData.CustomOutcomeHeader ? "var header = await _createOutcomeHeader(headerInfo);" : "var header = CreateOutcomeHeader(headerInfo);")}
+                {(responder.Data.ProducerData.CustomOutputHeader ? "var header = await _createOutputHeader(headerInfo);" : "var header = CreateOutputHeader(headerInfo);")}
                 message.Headers = new Headers
                 {{
                     {{ ""Info"", header.ToByteArray() }}
@@ -666,7 +666,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                         }}
                     }}
                 }}
-                catch (ProduceException<{responder.OutcomeDatas[0].TypesPair}> e)
+                catch (ProduceException<{responder.OutputDatas[0].TypesPair}> e)
                 {{
                     {(responder.Data.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "//ignore")}
                 }}
@@ -674,16 +674,16 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void CreateOutcomeHeader(string assemblyName, Responder responder)
+        private void CreateOutputHeader(string assemblyName, Responder responder)
         {
-            if(responder.Data.ProducerData.CustomOutcomeHeader)
+            if(responder.Data.ProducerData.CustomOutputHeader)
             {
                 //nothing
             }
             else
             {
                 _builder.Append($@"
-            private {assemblyName}.ResponseHeader CreateOutcomeHeader({assemblyName}.RequestHeader requestHeaderInfo)
+            private {assemblyName}.ResponseHeader CreateOutputHeader({assemblyName}.RequestHeader requestHeaderInfo)
             {{
                 var headerInfo = new {assemblyName}.ResponseHeader()
                 {{
@@ -696,20 +696,20 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             }
         }
 
-        private void CreateOutcomeMessage(Responder responder)
+        private void CreateOutputMessage(Responder responder)
         {
             _builder.Append($@"
-                var message = new Message<{responder.OutcomeDatas[0].TypesPair}>()
+                var message = new Message<{responder.OutputDatas[0].TypesPair}>()
                 {{
-                    Key = {(responder.OutcomeDatas[0].KeyType.IsProtobuffType() ? "outcomeMessage.Key.ToByteArray()" : "outcomeMessage.Key")},
-                    Value = {(responder.OutcomeDatas[0].ValueType.IsProtobuffType() ? "outcomeMessage.Value.ToByteArray()" : "outcomeMessage.Value")}
+                    Key = {(responder.OutputDatas[0].KeyType.IsProtobuffType() ? "outputMessage.Key.ToByteArray()" : "outputMessage.Key")},
+                    Value = {(responder.OutputDatas[0].ValueType.IsProtobuffType() ? "outputMessage.Value.ToByteArray()" : "outputMessage.Value")}
                 }};
 ");
         }
 
         private string GetConsumerTType(Responder responder)
         {
-            return $@"{(responder.IncomeDatas[0].KeyType.IsProtobuffType() ? "byte[]" : responder.IncomeDatas[0].KeyType.GetFullTypeName(true))}, {(responder.IncomeDatas[0].ValueType.IsProtobuffType() ? "byte[]" : responder.IncomeDatas[0].ValueType.GetFullTypeName(true))}";
+            return $@"{(responder.InputDatas[0].KeyType.IsProtobuffType() ? "byte[]" : responder.InputDatas[0].KeyType.GetFullTypeName(true))}, {(responder.InputDatas[0].ValueType.IsProtobuffType() ? "byte[]" : responder.InputDatas[0].ValueType.GetFullTypeName(true))}";
         }
 
         private void End()

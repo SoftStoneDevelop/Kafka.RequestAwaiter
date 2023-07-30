@@ -14,13 +14,13 @@ namespace KafkaExchanger.AttributeDatas
 
         public bool CheckCurrentState { get; private set; }
 
-        public string GetCurrentStateFunc(List<IncomeData> incomeDatas)
+        public string GetCurrentStateFunc(List<InputData> inputDatas)
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<");
-            for (int i = 0; i < incomeDatas.Count; i++)
+            for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($"Income{i}Message,");
+                tempSb.Append($"Input{i}Message,");
             }
             tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.CurrentState>>");
 
@@ -29,11 +29,11 @@ namespace KafkaExchanger.AttributeDatas
 
         public bool UseAfterCommit { get; private set; }
 
-        public string AfterCommitFunc(List<IncomeData> incomeDatas)
+        public string AfterCommitFunc(List<InputData> inputDatas)
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int, ");
-            for (int i = 0; i < incomeDatas.Count; i++)
+            for (int i = 0; i < inputDatas.Count; i++)
             {
                 tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
             }
@@ -95,13 +95,13 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
-        public string CreateResponseFunc(List<IncomeData> incomeDatas, INamedTypeSymbol typeSymbol)
+        public string CreateResponseFunc(List<InputData> inputDatas, INamedTypeSymbol typeSymbol)
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<KafkaExchanger.Attributes.Enums.CurrentState,");
-            for (int i = 0; i < incomeDatas.Count; i++)
+            for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" Income{i}Message,");
+                tempSb.Append($" Input{i}Message,");
             }
 
             tempSb.Append($" Task<{typeSymbol.Name}.ResponseResult>>");

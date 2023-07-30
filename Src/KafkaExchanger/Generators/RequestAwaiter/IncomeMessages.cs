@@ -6,7 +6,7 @@ using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
-    internal static class IncomeMessages
+    internal static class InputMessages
     {
         public static void Append(
             StringBuilder builder,
@@ -14,45 +14,45 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             AttributeDatas.GenerateData requestAwaiter
             )
         {
-            BaseIncomeMessage(builder);
-            AppendIncomeMessages(builder, assemblyName, requestAwaiter);
+            BaseInputMessage(builder);
+            AppendInputMessages(builder, assemblyName, requestAwaiter);
         }
 
-        private static void BaseIncomeMessage(StringBuilder builder)
+        private static void BaseInputMessage(StringBuilder builder)
         {
             builder.Append($@"
-        public abstract class BaseIncomeMessage
+        public abstract class BaseInputMessage
         {{
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
         }
 
-        private static void AppendIncomeMessages(
+        private static void AppendInputMessages(
             StringBuilder builder,
             string assemblyName,
             AttributeDatas.GenerateData requestAwaiter
             )
         {
-            for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                var incomeData = requestAwaiter.IncomeDatas[i];
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-        public class Income{i}Message : BaseIncomeMessage
+        public class Input{i}Message : BaseInputMessage
         {{
             public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 
-            public Message<{incomeData.TypesPair}> OriginalMessage {{ get; set; }}
+            public Message<{inputData.TypesPair}> OriginalMessage {{ get; set; }}
 ");
-                if (!incomeData.KeyType.IsKafkaNull())
+                if (!inputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            public {incomeData.KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {inputData.KeyType.GetFullTypeName(true)} Key {{ get; set; }}
 ");
                 }
 
                 builder.Append($@"
-            public {incomeData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public {inputData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
         }}
 ");
             }

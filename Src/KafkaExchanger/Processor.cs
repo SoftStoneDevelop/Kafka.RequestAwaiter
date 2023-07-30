@@ -16,8 +16,8 @@ namespace KafkaExchanger
         private readonly List<Responder> _responders = new List<Responder>();
         private readonly List<GenerateData> _requestAwaiters = new List<GenerateData>();
 
-        List<IncomeData> _incomesTemp = new List<IncomeData>();
-        List<OutcomeData> _outcomesTemp = new List<OutcomeData>();
+        List<InputData> _inputsTemp = new List<InputData>();
+        List<OutputData> _outputsTemp = new List<OutputData>();
 
         public void ProcessAttributes(
             ClassDeclarationSyntax classDeclarationSyntax,
@@ -31,8 +31,8 @@ namespace KafkaExchanger
                 var parentSymbol = attributeListSyntax.Parent.GetDeclaredSymbol(compilation);
                 var parentAttributes = parentSymbol.GetAttributes();
 
-                _incomesTemp.Clear();
-                _outcomesTemp.Clear();
+                _inputsTemp.Clear();
+                _outputsTemp.Clear();
                 ListenerData listenerData = null;
                 ResponderData responderData = null;
                 RequestAwaiterData requestAwaiterData = null;
@@ -41,15 +41,15 @@ namespace KafkaExchanger
                 {
                     var attributeData = parentAttributes.First(f => f.ApplicationSyntaxReference.GetSyntax() == attributeSyntax);
 
-                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "IncomeAttribute"))
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "InputAttribute"))
                     {
-                        _incomesTemp.Add(IncomeData.Create(type, attributeData));
+                        _inputsTemp.Add(InputData.Create(type, attributeData));
                         continue;
                     }
 
-                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "OutcomeAttribute"))
+                    if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "OutputAttribute"))
                     {
-                        _outcomesTemp.Add(OutcomeData.Create(type, attributeData));
+                        _outputsTemp.Add(OutputData.Create(type, attributeData));
                         continue;
                     }
 
@@ -116,12 +116,12 @@ namespace KafkaExchanger
 
             var newRA = new GenerateData();
             newRA.Data = requestAwaiterData;
-            newRA.IncomeDatas.AddRange(_incomesTemp);
-            newRA.OutcomeDatas.AddRange(_outcomesTemp);
+            newRA.InputDatas.AddRange(_inputsTemp);
+            newRA.OutputDatas.AddRange(_outputsTemp);
 
             _requestAwaiters.Add(newRA);
-            _incomesTemp.Clear();
-            _outcomesTemp.Clear();
+            _inputsTemp.Clear();
+            _outputsTemp.Clear();
         }
 
         private void TryAddResponder(
@@ -135,12 +135,12 @@ namespace KafkaExchanger
 
             var newRes = new Responder();
             newRes.Data = responderData;
-            newRes.IncomeDatas.AddRange(_incomesTemp);
-            newRes.OutcomeDatas.AddRange(_outcomesTemp);
+            newRes.InputDatas.AddRange(_inputsTemp);
+            newRes.OutputDatas.AddRange(_outputsTemp);
 
             _responders.Add(newRes);
-            _incomesTemp.Clear();
-            _outcomesTemp.Clear();
+            _inputsTemp.Clear();
+            _outputsTemp.Clear();
         }
 
         private void TryAddListener(
@@ -154,10 +154,10 @@ namespace KafkaExchanger
 
             var newLis = new Listener();
             newLis.Data = listenerData;
-            newLis.IncomeDatas.AddRange(_incomesTemp);
+            newLis.InputDatas.AddRange(_inputsTemp);
 
             _listeners.Add(newLis);
-            _incomesTemp.Clear();
+            _inputsTemp.Clear();
         }
 
         public void Generate(

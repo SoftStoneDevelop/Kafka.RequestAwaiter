@@ -44,18 +44,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public Task<{assemblyName}.Response> Produce(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeData = requestAwaiter.OutcomeDatas[i];
-                if (!outcomeData.KeyType.IsKafkaNull())
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outcomeData.KeyType.GetFullTypeName(true, true)} key{i},
+            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
 ");
                 }
 
                 builder.Append($@"
-            {outcomeData.ValueType.GetFullTypeName(true, true)} value{i},
+            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
 ");
             }
 
@@ -75,10 +75,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public void Start(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
             builder.Append($@",

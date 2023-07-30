@@ -104,7 +104,7 @@ namespace KafkaExchengerTests
         private ResponderOneToOneSimple.ConfigResponder CreateResponderConfig(
             string groupId,
             string serviceName,
-            Func<ResponderOneToOneSimple.IncomeMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutcomeMessage>> createAnswer
+            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer
             )
         {
             return
@@ -116,7 +116,7 @@ namespace KafkaExchengerTests
                 {
                     new ResponderOneToOneSimple.ConsumerResponderConfig(
                         createAnswer: createAnswer,
-                        incomeTopicName: _outputSimpleTopic,
+                        inputTopicName: _outputSimpleTopic,
                         partitions: new int[] { 0, 1, 2 }
                         )
                 }
@@ -143,12 +143,12 @@ namespace KafkaExchengerTests
                     {
                         //From _inputSimpleTopic1
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
@@ -158,12 +158,12 @@ namespace KafkaExchengerTests
                             maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new[] { _responderService2 },
                                 partitions: new int[] { 1 }
@@ -173,12 +173,12 @@ namespace KafkaExchengerTests
                             maxInFly: 10
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
@@ -233,12 +233,12 @@ namespace KafkaExchengerTests
                     {
                         //From _inputSimpleTopic1
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
@@ -248,12 +248,12 @@ namespace KafkaExchengerTests
                             maxInFly: 50
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 1 }
@@ -263,12 +263,12 @@ namespace KafkaExchengerTests
                             maxInFly: 50
                             ),
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            income0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
-                            income1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
@@ -297,7 +297,7 @@ namespace KafkaExchengerTests
                 "RAResponder1",
                 (input, s) =>
                 {
-                    var result = new ResponderOneToOneSimple.OutcomeMessage()
+                    var result = new ResponderOneToOneSimple.OutputMessage()
                     {
                         Value = $"1: Answer {input.Value}"
                     };
@@ -312,7 +312,7 @@ namespace KafkaExchengerTests
                 "RAResponder2",
                 (input, s) =>
                 {
-                    var result = new ResponderOneToOneSimple.OutcomeMessage()
+                    var result = new ResponderOneToOneSimple.OutputMessage()
                     {
                         Value = $"2: Answer {input.Value}"
                     };
@@ -351,7 +351,7 @@ namespace KafkaExchengerTests
                     Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
                 });
 
-                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterManyToOneSimple.Income0Message>;
+                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterManyToOneSimple.Input0Message>;
                 Assert.That(answerFrom1 != null, Is.True);
                 Assert.That(answerFrom1.Result != null, Is.True);
                 Assert.Multiple(() => 
@@ -361,7 +361,7 @@ namespace KafkaExchengerTests
                     Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
                 });
 
-                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterManyToOneSimple.Income1Message>;
+                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterManyToOneSimple.Input1Message>;
                 Assert.That(answerFrom2 != null, Is.True);
                 Assert.That(answerFrom2.Result != null, Is.True);
                 Assert.Multiple(() =>

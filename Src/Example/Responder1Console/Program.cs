@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 namespace Responder0Console
 {
     [Responder(useLogger: false),
-        Income(keyType: typeof(Null), valueType: typeof(string)),
-        Outcome(keyType: typeof(Null), valueType: typeof(string))
+        Input(keyType: typeof(Null), valueType: typeof(string)),
+        Output(keyType: typeof(Null), valueType: typeof(string))
         ]
     public partial class ResponderOneToOneSimple
     {
@@ -33,43 +33,43 @@ namespace Responder0Console
                     new ResponderOneToOneSimple.ConsumerResponderConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Income: {input.Value}");
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            Console.WriteLine($"Input: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutputMessage()
                             {
                                 Value = $"2: Answer {input.Value}"
                             };
 
                             return Task.FromResult(result);
                         },
-                        incomeTopicName: inputName,
+                        inputTopicName: inputName,
                         partitions: new int[] { 0 }
                         ),
                     new ResponderOneToOneSimple.ConsumerResponderConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Income: {input.Value}");
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            Console.WriteLine($"Input: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutputMessage()
                             {
                                 Value = $"2: Answer {input.Value}"
                             };
 
                             return Task.FromResult(result);
                         },
-                        incomeTopicName: inputName,
+                        inputTopicName: inputName,
                         partitions: new int[] { 1 }
                         ),
                     new ResponderOneToOneSimple.ConsumerResponderConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Income: {input.Value}");
-                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            Console.WriteLine($"Input: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutputMessage()
                             {
                                 Value = $"2: Answer {input.Value}"
                             };
 
                             return Task.FromResult(result);
                         },
-                        incomeTopicName: inputName,
+                        inputTopicName: inputName,
                         partitions: new int[] { 2 }
                         )
                 }

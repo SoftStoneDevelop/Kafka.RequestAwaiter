@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators
     internal class ProducerPoolsGenerator
     {
         StringBuilder _builder = new StringBuilder();
-        HashSet<OutcomeData> _producers = new HashSet<OutcomeData>(ProducerPairComparer.Default);
+        HashSet<OutputData> _producers = new HashSet<OutputData>(ProducerPairComparer.Default);
 
         public void FillProducerTypes(
             List<KafkaExchanger.AttributeDatas.GenerateData> requestAwaiters,
@@ -18,17 +18,17 @@ namespace KafkaExchanger.Generators
         {
             foreach (var requestAwaiter in requestAwaiters) 
             {
-                foreach (var outcomeData in requestAwaiter.OutcomeDatas)
+                foreach (var outputData in requestAwaiter.OutputDatas)
                 {
-                    _producers.Add(outcomeData);
+                    _producers.Add(outputData);
                 }
             }
 
             foreach (var responder in responders)
             {
-                foreach (var outcomeData in responder.OutcomeDatas)
+                foreach (var outputData in responder.OutputDatas)
                 {
-                    _producers.Add(outcomeData);
+                    _producers.Add(outputData);
                 }
             }
         }
@@ -38,10 +38,10 @@ namespace KafkaExchanger.Generators
             _builder.Clear();
 
             Start();
-            foreach (var outcomeData in _producers)
+            foreach (var outputData in _producers)
             {
-                GenerateProducerPoolInterface(outcomeData);
-                GenerateProducerPool(outcomeData);
+                GenerateProducerPoolInterface(outputData);
+                GenerateProducerPool(outputData);
             }
 
             End();
@@ -49,32 +49,32 @@ namespace KafkaExchanger.Generators
             context.AddSource($"ProducerPools.g.cs", _builder.ToString());
         }
 
-        private void GenerateProducerPoolInterface(OutcomeData outcomeData)
+        private void GenerateProducerPoolInterface(OutputData outputData)
         {
             _builder.Append($@"
-    public interface {outcomeData.PoolInterfaceName}
+    public interface {outputData.PoolInterfaceName}
     {{
-        public IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}> Rent();
+        public IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}> Rent();
 
-        public void Return(IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}> producer);
+        public void Return(IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}> producer);
     }}
 ");
         }
 
-        private void GenerateProducerPool(OutcomeData outcomeData)
+        private void GenerateProducerPool(OutputData outputData)
         {
             _builder.Append($@"
-    public class ProducerPool{outcomeData.KeyTypeAlias}{outcomeData.ValueTypeAlias} : {outcomeData.PoolInterfaceName}, System.IDisposable
+    public class ProducerPool{outputData.KeyTypeAlias}{outputData.ValueTypeAlias} : {outputData.PoolInterfaceName}, System.IDisposable
     {{
-        private readonly IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}>[] _producers;
+        private readonly IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}>[] _producers;
 
-        public ProducerPool{outcomeData.KeyTypeAlias}{outcomeData.ValueTypeAlias}(
+        public ProducerPool{outputData.KeyTypeAlias}{outputData.ValueTypeAlias}(
             uint producerCount,
             string bootstrapServers,
             Action<Confluent.Kafka.ProducerConfig> changeConfig = null
             )
         {{
-            _producers = new IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}>[producerCount];
+            _producers = new IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}>[producerCount];
             var config = new Confluent.Kafka.ProducerConfig();
             if(changeConfig != null)
             {{
@@ -86,18 +86,18 @@ namespace KafkaExchanger.Generators
             for (int i = 0; i < producerCount; i++)
             {{
                 _producers[i] =
-                    new ProducerBuilder<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}>(config)
+                    new ProducerBuilder<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}>(config)
                     .Build()
                     ;
             }}
         }}
 
-        public IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}> Rent()
+        public IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}> Rent()
         {{
             return _producers[ChooseItemIndex()];
         }}
 
-        public void Return(IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}> producer)
+        public void Return(IProducer<{outputData.FullKeyTypeName}, {outputData.FullValueTypeName}> producer)
         {{
             //nothing
         }}

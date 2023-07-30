@@ -19,37 +19,34 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public ResponseResult(
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeDatas = requestAwaiter.OutcomeDatas[i];
                 if (i != 0)
                 {
                     builder.Append(',');
                 }
 
                 builder.Append($@"
-                Outcome{i}Message outcome{i}
+                Output{i}Message output{i}
 ");
             }
             builder.Append($@"
                 )
             {{
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeDatas = requestAwaiter.OutcomeDatas[i];
                 builder.Append($@"
-                Outcome{i} = outcome{i};
+                Output{i} = output{i};
 ");
             }
             builder.Append($@"
             }}
 ");
-            for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                var outcomeDatas = requestAwaiter.OutcomeDatas[i];
                 builder.Append($@"
-            Outcome{i}Message Outcome{i} {{ get; init; }}
+            Output{i}Message Output{i} {{ get; init; }}
 ");
             }
 

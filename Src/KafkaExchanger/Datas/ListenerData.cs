@@ -8,11 +8,11 @@ namespace KafkaExchanger.AttributeDatas
     internal class Listener
     {
         public ListenerData Data { get; set; }
-        public List<IncomeData> IncomeDatas { get; } = new List<IncomeData>();
+        public List<InputData> InputDatas { get; } = new List<InputData>();
 
         public bool IsEmpty()
         {
-            return Data == null && IncomeDatas.Count == 0;
+            return Data == null && InputDatas.Count == 0;
         }
     }
 

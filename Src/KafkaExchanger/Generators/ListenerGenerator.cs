@@ -37,7 +37,7 @@ namespace KafkaExchanger.Generators
             ConfigListener();
             ConsumerListenerConfig();
 
-            IncomeMessage(assemblyName, listener);
+            InputMessage(assemblyName, listener);
 
             PartitionItem(assemblyName, listener);
 
@@ -206,7 +206,7 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
         public class ConsumerListenerConfig
         {{
             public ConsumerListenerConfig(
-                Action<IncomeMessage> processDelegate,
+                Action<InputMessage> processDelegate,
                 string topicName,
                 params int[] partitions
                 )
@@ -220,19 +220,19 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
 
             public int[] Partitions {{ get; init; }}
 
-            public Action<IncomeMessage> ProcessDelegate {{ get; init; }}
+            public Action<InputMessage> ProcessDelegate {{ get; init; }}
         }}
 ");
         }
 
-        private void IncomeMessage(string assemblyName, Listener listener)
+        private void InputMessage(string assemblyName, Listener listener)
         {
             _builder.Append($@"
-        public class IncomeMessage
+        public class InputMessage
         {{
             public Message<{GetConsumerTType(listener)}> OriginalMessage {{ get; set; }}
-            public {listener.IncomeDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
-            public {listener.IncomeDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public {listener.InputDatas[0].KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {listener.InputDatas[0].ValueType.GetFullTypeName(true)} Value {{ get; set; }}
             public {assemblyName}.RequestHeader HeaderInfo {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
@@ -245,21 +245,21 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
         private class PartitionItem
         {{
             public PartitionItem(
-                string incomeTopicName,
-                Action<IncomeMessage> processDelegate,
+                string inputTopicName,
+                Action<InputMessage> processDelegate,
                 int[] partitions
                 {(listener.Data.UseLogger ? @",ILogger logger" : "")}
                 )
             {{
                 Partitions = partitions;
                 {(listener.Data.UseLogger ? @"_logger = logger;" : "")}
-                _incomeTopicName = incomeTopicName;
+                _inputTopicName = inputTopicName;
                 _processDelegate = processDelegate;
             }}
 
             {(listener.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
-            private readonly string _incomeTopicName;
-            private readonly Action<IncomeMessage> _processDelegate;
+            private readonly string _inputTopicName;
+            private readonly Action<InputMessage> _processDelegate;
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
@@ -306,7 +306,7 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
                         .Build()
                         ;
 
-                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_incomeTopicName, sel)));
+                    consumer.Assign(Partitions.Select(sel => new TopicPartition(_inputTopicName, sel)));
 
                     try
                     {{
@@ -316,23 +316,23 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
                             {{
                                 var consumeResult = consumer.Consume(_cts.Token);
 
-                                var incomeMessage = new IncomeMessage();
-                                incomeMessage.Partition = consumeResult.Partition;
-                                incomeMessage.OriginalMessage = consumeResult.Message;
-                                incomeMessage.Key = {GetIncomeMessageKey(listener)};
-                                incomeMessage.Value = {GetIncomeMessageValue(listener)};
+                                var inputMessage = new InputMessage();
+                                inputMessage.Partition = consumeResult.Partition;
+                                inputMessage.OriginalMessage = consumeResult.Message;
+                                inputMessage.Key = {GetInputMessageKey(listener)};
+                                inputMessage.Value = {GetInputMessageValue(listener)};
 
-                                {(listener.Data.UseLogger ? @"_logger.LogInformation($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
+                                {(listener.Data.UseLogger ? @"_logger.LogInformation($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}'."");" : "")}
                                 if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                 {{
-                                    {(listener.Data.UseLogger ? @"_logger.LogError($""Consumed incomeMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
+                                    {(listener.Data.UseLogger ? @"_logger.LogError($""Consumed inputMessage 'Key: {consumeResult.Message.Key}, Value: {consumeResult.Message.Value}' not contain Info header"");" : "")}
                                     consumer.Commit(consumeResult);
                                     continue;
                                 }}
 
-                                incomeMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                inputMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
 
-                                _processDelegate(incomeMessage);
+                                _processDelegate(inputMessage);
                                 consumer.Commit(consumeResult);
                             }}
                             catch (ConsumeException e)
@@ -359,21 +359,21 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private string GetIncomeMessageKey(Listener listener)
+        private string GetInputMessageKey(Listener listener)
         {
-            if (listener.IncomeDatas[0].KeyType.IsProtobuffType())
+            if (listener.InputDatas[0].KeyType.IsProtobuffType())
             {
-                return $"{listener.IncomeDatas[0].KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
+                return $"{listener.InputDatas[0].KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
             }
 
             return "consumeResult.Message.Key";
         }
 
-        private string GetIncomeMessageValue(Listener listener)
+        private string GetInputMessageValue(Listener listener)
         {
-            if (listener.IncomeDatas[0].ValueType.IsProtobuffType())
+            if (listener.InputDatas[0].ValueType.IsProtobuffType())
             {
-                return $"{listener.IncomeDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
+                return $"{listener.InputDatas[0].ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
             }
 
             return "consumeResult.Message.Value";
@@ -407,7 +407,7 @@ namespace {listener.Data.TypeSymbol.ContainingNamespace}
 
         private string GetConsumerTType(Listener listener)
         {
-            return $@"{(listener.IncomeDatas[0].KeyType.IsProtobuffType() ? "byte[]" : listener.IncomeDatas[0].KeyType.GetFullTypeName(true))}, {(listener.IncomeDatas[0].ValueType.IsProtobuffType() ? "byte[]" : listener.IncomeDatas[0].ValueType.GetFullTypeName(true))}";
+            return $@"{(listener.InputDatas[0].KeyType.IsProtobuffType() ? "byte[]" : listener.InputDatas[0].KeyType.GetFullTypeName(true))}, {(listener.InputDatas[0].ValueType.IsProtobuffType() ? "byte[]" : listener.InputDatas[0].ValueType.GetFullTypeName(true))}";
         }
 
         private void End()

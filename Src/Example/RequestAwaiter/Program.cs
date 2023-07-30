@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 namespace RequestAwaiterConsole
 {
     [RequestAwaiter(useLogger: false),
-        Income(keyType: typeof(Null), valueType: typeof(string)),
-        Income(keyType: typeof(Null), valueType: typeof(string)),
-        Outcome(keyType: typeof(Null), valueType: typeof(string))
+        Input(keyType: typeof(Null), valueType: typeof(string)),
+        Input(keyType: typeof(Null), valueType: typeof(string)),
+        Output(keyType: typeof(Null), valueType: typeof(string))
         ]
     public partial class RequestAwaiter
     {
@@ -51,47 +51,47 @@ namespace RequestAwaiterConsole
                     {
                         //From _inputSimpleTopic1
                         new RequestAwaiter.ProcessorConfig(
-                            income0: new RequestAwaiter.ConsumerInfo(
+                            input0: new RequestAwaiter.ConsumerInfo(
                                 topicName: input0Name,
                                 canAnswerService: new [] { responderName0 },
                                 partitions: new int[] { 0 }
                                 ),
-                            income1: new RequestAwaiter.ConsumerInfo(
+                            input1: new RequestAwaiter.ConsumerInfo(
                                 topicName: input1Name,
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 0 }
                                 ),
-                            outcome0: new RequestAwaiter.ProducerInfo(outputName),
+                            output0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             ),
                         new RequestAwaiter.ProcessorConfig(
-                            income0: new RequestAwaiter.ConsumerInfo(
+                            input0: new RequestAwaiter.ConsumerInfo(
                                 topicName: input0Name,
                                 canAnswerService: new [] { responderName0 },
                                 partitions: new int[] { 1 }
                                 ),
-                            income1: new RequestAwaiter.ConsumerInfo(
+                            input1: new RequestAwaiter.ConsumerInfo(
                                 topicName: input1Name,
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 1 }
                                 ),
-                            outcome0:new RequestAwaiter.ProducerInfo(outputName),
+                            output0:new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             ),
                         new RequestAwaiter.ProcessorConfig(
-                            income0: new RequestAwaiter.ConsumerInfo(
+                            input0: new RequestAwaiter.ConsumerInfo(
                                 topicName: input0Name,
                                 canAnswerService: new [] { responderName0 },
                                 partitions: new int[] { 2 }
                                 ),
-                            income1: new RequestAwaiter.ConsumerInfo(
+                            input1: new RequestAwaiter.ConsumerInfo(
                                 topicName: input1Name,
                                 canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 2 }
                                 ),
-                            outcome0: new RequestAwaiter.ProducerInfo(outputName),
+                            output0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
                             maxInFly: 100
                             )
