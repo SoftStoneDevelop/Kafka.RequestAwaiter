@@ -161,8 +161,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 
                 _builder.Append($@"
                         config.Processors[i].Input{i}.TopicName,
-                        config.Processors[i].Input{i}.Partitions,
-                        config.Processors[i].Input{i}.CanAnswerService
+                        config.Processors[i].Input{i}.Partitions
 ");
             }
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)

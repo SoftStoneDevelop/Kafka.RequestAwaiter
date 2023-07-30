@@ -47,9 +47,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
+                var inputData = requestAwaiter.InputDatas[i];
+                if(inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
             private TaskCompletionSource<Input{i}Message> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+            private TaskCompletionSource<Input{i}Message> _responseTopic{i}{inputData.AcceptedService[j]} = new(TaskCreationOptions.RunContinuationsAsynchronously);
+");
+                    }
+                }
             }
         }
 
@@ -123,9 +136,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
+                var inputData = requestAwaiter.InputDatas[i];
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                         _responseTopic{i}.TrySetCanceled();
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                        _responseTopic{i}{inputData.AcceptedService[j]}.TrySetCanceled();
+");
+                    }
+                }
             }
             builder.Append($@"
                             ;
@@ -167,9 +193,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
+                var inputData = requestAwaiter.InputDatas[i];
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                 var topic{i} = await _responseTopic{i}.Task.ConfigureAwait(false);
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                var topic{i}{inputData.AcceptedService[j]} = await _responseTopic{i}{inputData.AcceptedService[j]}.Task.ConfigureAwait(false);
+");
+                    }
+                }
             }
 
             if (consumerData.CheckCurrentState)
@@ -180,14 +219,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                 for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
-                    if(i != 0)
+                    var inputData = requestAwaiter.InputDatas[i];
+                    if (i != 0)
                     {
                         builder.Append(',');
                     }
-
-                    builder.Append($@"
+                    if (inputData.AcceptFromAny)
+                    {
+                        builder.Append($@"
                     topic{i}
 ");
+                    }
+                    else
+                    {
+                        for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                        {
+                            builder.Append($@",
+                    topic{i}{inputData.AcceptedService[j]}
+");
+                        }
+                    }
                 }
                 builder.Append($@"
                     );
@@ -208,9 +259,28 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
+                var inputData = requestAwaiter.InputDatas[i];
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                         new ResponseItem<Input{i}Message>(topic{i}Name, topic{i})
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        if(j != 0)
+                        {
+                            builder.Append(',');
+                        }
+
+                        builder.Append($@"
+                        new ResponseItem<Input{i}Message>(topic{i}Name, topic{i}{inputData.AcceptedService[j]})
+");
+                    }
+                }
+
                 if (i != requestAwaiter.InputDatas.Count - 1)
                 {
                     builder.Append(',');
@@ -245,19 +315,35 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public bool TrySetResponse(int topicNumber, BaseInputMessage response)
+            public bool TrySetResponse(int topicNumber, BaseInputMessage response, int serviceNumber = 0)
             {{
-                switch (topicNumber)
+                switch (topicNumber, serviceNumber)
                 {{
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
-                    case {i}:
+                var inputData = requestAwaiter.InputDatas[i];
+                if(inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
+                    case ({i}, 0):
                     {{
                         return _responseTopic{i}.TrySetResult((Input{i}Message)response);
                     }}
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                    case ({i}, {j}):
+                    {{
+                        return _responseTopic{i}{inputData.AcceptedService[j]}.TrySetResult((Input{i}Message)response);
+                    }}
+");
+                    }
+                }
             }
 
             builder.Append($@"
@@ -276,19 +362,35 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public bool TrySetException(int topicNumber, Exception exception)
+            public bool TrySetException(int topicNumber, Exception exception, int serviceNumber = 0)
             {{
-                switch (topicNumber)
+                switch (topicNumber, serviceNumber)
                 {{
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
-                    case {i}:
+                var inputData = requestAwaiter.InputDatas[i];
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
+                    case ({i}, 0):
                     {{
                         return _responseTopic{i}.TrySetException(exception);
                     }}
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                    case ({i}, {j}):
+                    {{
+                        return _responseTopic{i}{inputData.AcceptedService[j]}.TrySetException(exception);
+                    }}
+");
+                    }
+                }
             }
 
             builder.Append($@"
@@ -314,9 +416,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 "); 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                builder.Append($@"
+                var inputData = requestAwaiter.InputDatas[i];
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                         _responseTopic{i}.TrySetCanceled();
 ");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                        _responseTopic{i}{inputData.AcceptedService[j]}.TrySetCanceled();
+");
+                    }
+                }
             }
             builder.Append($@"
                 try

@@ -438,7 +438,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                                 }}
                                 
                                 inputMessage.HeaderInfo = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
-                                if(!inputMessage.HeaderInfo.TopicsForAnswer.Any(wh => wh.CanAnswerFrom.Contains(_serviceName)))
+                                if(!inputMessage.HeaderInfo.TopicsForAnswer.Any(wh => !wh.CanAnswerFrom.Any() || wh.CanAnswerFrom.Contains(_serviceName)))
                                 {{
                                     continue;
                                 }}
@@ -652,7 +652,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                         return;
                     }}
 
-                    foreach (var topicForAnswer in headerInfo.TopicsForAnswer.Where(wh => wh.CanAnswerFrom.Contains(_serviceName)))
+                    foreach (var topicForAnswer in headerInfo.TopicsForAnswer.Where(wh => !wh.CanAnswerFrom.Any() || wh.CanAnswerFrom.Contains(_serviceName)))
                     {{
                         var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions.First());
                         var producer = _producerPool.Rent();
@@ -687,7 +687,8 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             {{
                 var headerInfo = new {assemblyName}.ResponseHeader()
                 {{
-                    AnswerToMessageGuid = requestHeaderInfo.MessageGuid
+                    AnswerToMessageGuid = requestHeaderInfo.MessageGuid,
+                    AnswerFrom = _serviceName
                 }};
                 
                 return headerInfo;

@@ -55,8 +55,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 builder.Append($@"
                 string inputTopic{i}Name,
-                int[] inputTopic{i}Partitions,
-                string[] inputTopic{i}CanAnswerService
+                int[] inputTopic{i}Partitions
 ");
             }
 
@@ -89,7 +88,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                         inputTopic{i}Name,
                         inputTopic{i}Partitions,
-                        inputTopic{i}CanAnswerService,
 ");
             }
 

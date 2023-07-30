@@ -18,18 +18,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public ConsumerInfo(
                 string topicName,
-                string[] canAnswerService,
                 int[] partitions
                 )
             {{
-                CanAnswerService = canAnswerService;
                 TopicName = topicName;
                 Partitions = partitions;
             }}
 
             public string TopicName {{ get; init; }}
-
-            public string[] CanAnswerService {{ get; init; }}
 
             public int[] Partitions {{ get; init; }}
         }}

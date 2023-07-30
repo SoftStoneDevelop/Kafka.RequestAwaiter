@@ -13,8 +13,8 @@ namespace KafkaExchengerTests
     }
 
     [RequestAwaiter(useLogger: false),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder2" }),
         Output(keyType: typeof(Null), valueType: typeof(string))
         ]
     public partial class RequestAwaiterManyToOneSimple

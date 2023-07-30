@@ -23,9 +23,6 @@ namespace KafkaExchengerTests
         private static string _inputProtobuffTopic2 = "RAInputProtobuff2";
         private static string _outputProtobuffTopic = "RAOutputProtobuff";
 
-        private static string _responderService1 = "RAResponder1";
-        private static string _responderService2 = "RAResponder2";
-
         [SetUp]
         public async Task Setup()
         {
@@ -75,7 +72,7 @@ namespace KafkaExchengerTests
             var metadata = adminClient.GetMetadata(TimeSpan.FromSeconds(30));
             if(metadata.Topics.Any(an => an.Topic == topicName))
             {
-                return;
+                throw new Exception("Duplicate");
             }
 
             try
@@ -145,12 +142,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -160,12 +155,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new[] { _responderService2 },
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -175,12 +168,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -235,12 +226,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 0 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -250,12 +239,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 1 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
@@ -265,12 +252,10 @@ namespace KafkaExchengerTests
                         new RequestAwaiterManyToOneSimple.ProcessorConfig(
                             input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
-                                canAnswerService: new [] { _responderService1 },
                                 partitions: new int[] { 2 }
                                 ),
                             input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
-                                canAnswerService: new [] { _responderService2 },
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),

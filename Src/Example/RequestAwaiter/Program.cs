@@ -19,6 +19,15 @@ namespace RequestAwaiterConsole
 
     }
 
+    [RequestAwaiter(useLogger: false),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1", "RAResponder2" }),
+        Output(keyType: typeof(Null), valueType: typeof(string))
+        ]
+    public partial class RequestAwaiter2
+    {
+
+    }
+
     internal class Program
     {
         static async Task Main(string[] args)
@@ -27,9 +36,6 @@ namespace RequestAwaiterConsole
             var input0Name = "RAInputSimple1";
             var input1Name = "RAInputSimple2";
             var outputName = "RAOutputSimple";
-
-            var responderName0 = "RAResponder1";
-            var responderName1 = "RAResponder2";
 
             var pool = new KafkaExchanger.Common.ProducerPoolNullString(
                 20,
@@ -42,74 +48,8 @@ namespace RequestAwaiterConsole
                 }
                 );
 
-            using var reqAwaiter = new RequestAwaiter();
-            var reqAwaiterConfitg =
-                new RequestAwaiter.Config(
-                    groupId: "SimpleProduce",
-                    bootstrapServers: bootstrapServers,
-                    processors: new RequestAwaiter.ProcessorConfig[]
-                    {
-                        //From _inputSimpleTopic1
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                canAnswerService: new [] { responderName0 },
-                                partitions: new int[] { 0 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                canAnswerService: new [] { responderName1 },
-                                partitions: new int[] { 0 }
-                                ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
-                            ),
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                canAnswerService: new [] { responderName0 },
-                                partitions: new int[] { 1 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                canAnswerService: new [] { responderName1 },
-                                partitions: new int[] { 1 }
-                                ),
-                            output0:new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
-                            ),
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                canAnswerService: new [] { responderName0 },
-                                partitions: new int[] { 2 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                canAnswerService: new [] { responderName1 },
-                                partitions: new int[] { 2 }
-                                ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
-                            )
-                    }
-                    );
-            Console.WriteLine("Start ReqAwaiter");
-            reqAwaiter.Start(
-                reqAwaiterConfitg, 
-                producerPool0: pool,
-                static (config) =>
-                {
-                    //config.MaxPollIntervalMs = 5_000;
-                    //config.SessionTimeoutMs = 2_000;
-                    config.SocketKeepaliveEnable = true;
-                    config.AllowAutoCreateTopics = false;
-                }
-                );
-            Console.WriteLine("ReqAwaiter started");
+            //using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
+            using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
 
             int requests = 0;
             while ( true )
@@ -127,7 +67,8 @@ namespace RequestAwaiterConsole
                 var tasks = new Task<(RequestAwaiterConsole.BaseResponse[], long)>[requests];
                 for (int i = 0; i < requests; i++)
                 {
-                    tasks[i] = Produce(reqAwaiter);
+                    //tasks[i] = Produce(reqAwaiter);
+                    tasks[i] = Produce2(reqAwaiter);
                 }
                 Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
                 Task.WaitAll(tasks);
@@ -183,7 +124,149 @@ namespace RequestAwaiterConsole
             }
         }
 
+        private static RequestAwaiter Scenario1(
+            string bootstrapServers,
+            string input0Name,
+            string input1Name,
+            string outputName,
+            KafkaExchanger.Common.ProducerPoolNullString pool
+            )
+        {
+            var reqAwaiter = new RequestAwaiter();
+            var reqAwaiterConfitg =
+                new RequestAwaiter.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: bootstrapServers,
+                    processors: new RequestAwaiter.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiter.ProcessorConfig(
+                            input0: new RequestAwaiter.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 0 }
+                                ),
+                            input1: new RequestAwaiter.ConsumerInfo(
+                                topicName: input1Name,
+                                partitions: new int[] { 0 }
+                                ),
+                            output0: new RequestAwaiter.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            ),
+                        new RequestAwaiter.ProcessorConfig(
+                            input0: new RequestAwaiter.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 1 }
+                                ),
+                            input1: new RequestAwaiter.ConsumerInfo(
+                                topicName: input1Name,
+                                partitions: new int[] { 1 }
+                                ),
+                            output0:new RequestAwaiter.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            ),
+                        new RequestAwaiter.ProcessorConfig(
+                            input0: new RequestAwaiter.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 2 }
+                                ),
+                            input1: new RequestAwaiter.ConsumerInfo(
+                                topicName: input1Name,
+                                partitions: new int[] { 2 }
+                                ),
+                            output0: new RequestAwaiter.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            )
+                    }
+                    );
+            Console.WriteLine("Start ReqAwaiter");
+            reqAwaiter.Start(
+                reqAwaiterConfitg,
+                producerPool0: pool,
+                static (config) =>
+                {
+                    //config.MaxPollIntervalMs = 5_000;
+                    //config.SessionTimeoutMs = 2_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+            Console.WriteLine("ReqAwaiter started");
+
+            return reqAwaiter;
+        }
+
+        private static RequestAwaiter2 Scenario2(
+            string bootstrapServers,
+            string input0Name,
+            string outputName,
+            KafkaExchanger.Common.ProducerPoolNullString pool
+            )
+        {
+            var reqAwaiter = new RequestAwaiter2();
+            var reqAwaiterConfitg =
+                new RequestAwaiter2.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: bootstrapServers,
+                    processors: new RequestAwaiter2.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiter2.ProcessorConfig(
+                            input0: new RequestAwaiter2.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 0 }
+                                ),
+                            output0: new RequestAwaiter2.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            ),
+                        new RequestAwaiter2.ProcessorConfig(
+                            input0: new RequestAwaiter2.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 1 }
+                                ),
+                            output0:new RequestAwaiter2.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            ),
+                        new RequestAwaiter2.ProcessorConfig(
+                            input0: new RequestAwaiter2.ConsumerInfo(
+                                topicName: input0Name,
+                                partitions: new int[] { 2 }
+                                ),
+                            output0: new RequestAwaiter2.ProducerInfo(outputName),
+                            buckets: 2,
+                            maxInFly: 100
+                            )
+                    }
+                    );
+            Console.WriteLine("Start ReqAwaiter");
+            reqAwaiter.Start(
+                reqAwaiterConfitg,
+                producerPool0: pool,
+                static (config) =>
+                {
+                    //config.MaxPollIntervalMs = 5_000;
+                    //config.SessionTimeoutMs = 2_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+            Console.WriteLine("ReqAwaiter started");
+
+            return reqAwaiter;
+        }
+
         private static async Task<(RequestAwaiterConsole.BaseResponse[], long)> Produce(RequestAwaiter reqAwaiter)
+        {
+            Stopwatch sb = Stopwatch.StartNew();
+            using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
+            return (result.Result, sb.ElapsedMilliseconds);
+        }
+
+        private static async Task<(RequestAwaiterConsole.BaseResponse[], long)> Produce2(RequestAwaiter2 reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);

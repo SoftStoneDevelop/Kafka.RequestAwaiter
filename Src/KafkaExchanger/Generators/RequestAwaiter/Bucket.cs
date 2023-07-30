@@ -80,8 +80,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 builder.Append($@"
                     string inputTopic{i}Name,
-                    int[] inputTopic{i}Partitions,
-                    string[] inputTopic{i}CanAnswerService
+                    int[] inputTopic{i}Partitions
 ");
             }
 
@@ -119,7 +118,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                     _inputTopic{i}Name = inputTopic{i}Name;
                     _inputTopic{i}Partitions = inputTopic{i}Partitions;
-                    _inputTopic{i}CanAnswerService = inputTopic{i}CanAnswerService;
 ");
             }
 
@@ -143,10 +141,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                     private readonly string _inputTopic{i}Name;
                     private readonly int[] _inputTopic{i}Partitions;
-                    private readonly string[] _inputTopic{i}CanAnswerService;
 ");
             }
 
@@ -257,7 +255,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         {{
                                             foreach (var topicResponseItem in _responseAwaiters.Values)
                                             {{
+");
+                if(inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                                                 topicResponseItem.TrySetException({i}, oce);
+");
+                }
+                else
+                {
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                                                topicResponseItem.TrySetException({i}, oce, {j});
+");
+                    }
+                }
+                builder.Append($@"
                                             }}
                                         }}
                                         finally
@@ -368,7 +382,40 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                                             if(topicResponse != null)
                                             {{
+");
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
                                                 topicResponse.TrySetResponse({i}, inputMessage);
+");
+                }
+                else
+                {
+                    builder.Append($@"
+                                                switch(inputMessage.HeaderInfo.AnswerFrom)
+                                                {{
+                                                    default:
+                                                    {{
+                                                        //ignore
+                                                        break;
+                                                    }}
+");
+
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        builder.Append($@"
+                                                    case ""{inputData.AcceptedService[j]}"":
+                                                    {{
+                                                        topicResponse.TrySetResponse({i}, inputMessage, {j});
+                                                        break;
+                                                    }}
+");
+                    }
+                    builder.Append($@"
+                                                }}
+");
+                }
+                builder.Append($@"
                                             }}
                                             
                                             break;
@@ -760,6 +807,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                 for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
+                    var inputData = requestAwaiter.InputDatas[i];
                     var variable = i == 0 ? $"var topic" : $"topic";
                     builder.Append($@"
                 {variable} = new {assemblyName}.Topic()
@@ -767,7 +815,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     Name = _inputTopic{i}Name
                 }};
                 topic.Partitions.Add(_inputTopic{i}Partitions);
-                topic.CanAnswerFrom.Add(_inputTopic{i}CanAnswerService);
+");
+                    if(!inputData.AcceptFromAny)
+                    {
+                        builder.Append($@"
+                topic.CanAnswerFrom.Add(new string[]{{
+");
+                        for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                        {
+                            if(j != 0)
+                            {
+                                builder.Append(',');
+                            }
+
+                            builder.Append('"');
+                            builder.Append(inputData.AcceptedService[j]);
+                            builder.Append('"');
+                        }
+                        builder.Append($@"}});");
+                    }
+                    builder.Append($@"
                 headerInfo.TopicsForAnswer.Add(topic);
 ");
 
