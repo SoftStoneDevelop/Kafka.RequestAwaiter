@@ -5,8 +5,8 @@
 [ProducerPool](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/ProducerPool.md)
 
 ## Attributes:
-- [Income](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/Income.md)
-- [Outcome](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/Outcome.md)
+- [Input](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/Input.md)
+- [Output](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/Output.md)
 
 - [Listener](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/Listener.md)
 - [RequestAwaiter](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/RequestAwaiter.md)
