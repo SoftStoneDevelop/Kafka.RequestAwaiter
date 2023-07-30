@@ -85,7 +85,7 @@ var reqAwaiterConfitg =
                 producerPool0: pool
                 );
   
-  using var answer = await simpleAwaiter.Produce(
+  using var answer = await reqAwaiter.Produce(
     new protobuff.SimpleKey() { Id = 12  },
     new protobuff.SimpleValue() { Id = 12, Message = "Hello" }
     );
@@ -94,3 +94,5 @@ var reqAwaiterConfitg =
 ```
 
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter.svg)
+Each bucket have you own consumer thread for aech input topic. When you Produce request then RequestAwaiter chose bucket not busy bicket and send it from him.
+`maxInFly` it is limit of maximum requests in moment in the bucket. After requests(equal to `maxInFly`) completed we commit offsets topics.
