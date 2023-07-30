@@ -4,9 +4,12 @@ Constructors:
 
 public RequestAwaiterAttribute(
   bool useLogger = true,
+  uint commitAfter = 1u,
+  bool checkCurrentState = false,
+  bool useAfterCommit = false,
   bool customOutcomeHeader = false,
   bool customHeaders = false
-  )
+)
 
 ```
 
@@ -16,48 +19,78 @@ Usage:
 
 ```C#
 
-[RequestAwaiter(),
+[RequestAwaiter(useLogger: false),
+        Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
         Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
         Outcome(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
         ]
-    public partial class TestProtobuffAwaiter
+    public partial class RequestAwaiter
     {
 
     }
 
 //Implement IProducerPoolProtoProto for producerPool self or use delault generated pool ProducerPoolProtoProto
-var simpleAwaiter = new TestProtobuffAwaiter(loggerFactory);
-var consumerConfigs = new KafkaExchanger.Common.ConsumerConfig[]
-{
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
-    new int[] { 0 }
-  ),
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
-    new int[] { 1 }
-  ),
-  new KafkaExchanger.Common.ConsumerConfig(
-    "IncomeTopicName",
-    new int[] { 2 }
-  )
-  };
+var pool = new KafkaExchanger.Common.ProducerPoolProtoProto(
+                20,
+                bootstrapServers,
+                static (config) =>
+                {
+                    config.LingerMs = 1;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
 
-  var configKafka = new KafkaExchanger.Common.ConfigRequestAwaiter(
-    "groupId",
-    "localhost:9194, localhost:9294, localhost:9394",//bootstrapServers
-    "OutComeTopicName",
-    consumerConfigs
-    );
-
-  simpleAwaiter.Start(configKafka, producerPool);
+var reqAwaiter = new RequestAwaiter();
+var reqAwaiterConfitg =
+                new RequestAwaiter.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: bootstrapServers,
+                    processors: new RequestAwaiter.ProcessorConfig[]
+                    {
+                        new RequestAwaiter.ProcessorConfig(
+                            income0: new RequestAwaiter.ConsumerInfo(
+                                topicName: "input0Name",
+                                canAnswerService: new [] { "responderName0" },
+                                partitions: new int[] { 0 }
+                                ),
+                            income1: new RequestAwaiter.ConsumerInfo(
+                                topicName: "input1Name",
+                                canAnswerService: new [] { "responderName1" },
+                                partitions: new int[] { 0 }
+                                ),
+                            outcome0: new RequestAwaiter.ProducerInfo("outputName"),
+                            buckets: 2,
+                            maxInFly: 100
+                            ),
+                        new RequestAwaiter.ProcessorConfig(
+                            income0: new RequestAwaiter.ConsumerInfo(
+                                topicName: "input0Name",
+                                canAnswerService: new [] { "responderName0" },
+                                partitions: new int[] { 1 }
+                                ),
+                            income1: new RequestAwaiter.ConsumerInfo(
+                                topicName: "input1Name",
+                                canAnswerService: new [] { responderName1 },
+                                partitions: new int[] { 1 }
+                                ),
+                            outcome0:new RequestAwaiter.ProducerInfo("outputName"),
+                            buckets: 2,
+                            maxInFly: 100
+                            )
+                    }
+                    );
+  reqAwaiter.Start(
+                reqAwaiterConfitg, 
+                producerPool0: pool
+                );
   
-  var answer = await simpleAwaiter.Produce(
+  using var answer = await simpleAwaiter.Produce(
     new protobuff.SimpleKey() { Id = 12  },
     new protobuff.SimpleValue() { Id = 12, Message = "Hello" }
     );
     
     //process answer.Result
-    
-    answer.FinishProcessing();
 ```
+
+![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter.svg)
