@@ -9,7 +9,7 @@ public ResponderAttribute(
   bool checkCurrentState = false,
   bool useAfterSendResponse = false,
   bool useAfterCommit = false,
-  bool customOutcomeHeader = false,
+  bool customOutputHeader = false,
   bool customHeaders = false
   )
 
@@ -20,8 +20,8 @@ Usage:
 ```C#
 
 [Responder(),
-        Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
-        Outcome(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+        Output(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
         ]
     public partial class TestProtobuffResponder
     {
@@ -35,17 +35,17 @@ var consumerConfigs = new TestProtobuffResponder.ConsumerResponderConfig[]
 {
   new TestProtobuffResponder.ConsumerResponderConfig(
     funcCreateAnswer,
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 0 }
   ),
   new TestProtobuffResponder.ConsumerResponderConfig(
     funcCreateAnswer,
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 1 }
   ),
   new TestProtobuffResponder.ConsumerResponderConfig(
     funcCreateAnswer,
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 2 }
   )
 };
