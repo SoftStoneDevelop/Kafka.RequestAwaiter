@@ -32,7 +32,7 @@ namespace KafkaExchanger.AttributeDatas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 6)
+            if (namedArguments.Length != 5)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -42,27 +42,22 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create RequestAwaiter data: UseLogger");
             }
 
-            if (!result.ConsumerData.SetCommitAfter(namedArguments[1]))
-            {
-                throw new Exception("Fail create RequestAwaiter data: CommitAfter");
-            }
-
-            if (!result.ConsumerData.SetCheckCurrentState(namedArguments[2]))
+            if (!result.ConsumerData.SetCheckCurrentState(namedArguments[1]))
             {
                 throw new Exception("Fail create RequestAwaiter data: SetCheckCurrentState");
             }
 
-            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[3]))
+            if (!result.ConsumerData.SetUseAfterCommit(namedArguments[2]))
             {
                 throw new Exception("Fail create RequestAwaiter data: UseAfterCommit");
             }
 
-            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[4]))
+            if (!result.ProducerData.SetCustomOutcomeHeader(namedArguments[3]))
             {
                 throw new Exception("Fail create RequestAwaiter data: CustomOutcomeHeader");
             }
 
-            if (!result.ProducerData.SetCustomHeaders(namedArguments[5]))
+            if (!result.ProducerData.SetCustomHeaders(namedArguments[4]))
             {
                 throw new Exception("Fail create RequestAwaiter data: CustomHeaders");
             }

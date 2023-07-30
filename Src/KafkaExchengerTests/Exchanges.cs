@@ -22,7 +22,7 @@ namespace KafkaExchengerTests
 
     }
 
-    [RequestAwaiter(useLogger: true, commitAfter: 50, checkCurrentState: true, useAfterCommit: true, customOutcomeHeader: true, customHeaders: true),
+    [RequestAwaiter(useLogger: true, checkCurrentState: true, useAfterCommit: true, customOutcomeHeader: true, customHeaders: true),
         Income(keyType: typeof(Null), valueType: typeof(string)),
         Income(keyType: typeof(Null), valueType: typeof(string)),
         Outcome(keyType: typeof(Null), valueType: typeof(string))
