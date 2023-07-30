@@ -32,22 +32,62 @@ namespace Responder0Console
                 {
                     new ResponderOneToOneSimple.ConsumerResponderConfig(
                         createAnswer: (input, s) =>
-                {
-                    var result = new ResponderOneToOneSimple.OutcomeMessage()
-                    {
-                        Value = $"2: Answer {input.Value}"
-                    };
+                        {
+                            Console.WriteLine($"Income: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            {
+                                Value = $"2: Answer {input.Value}"
+                            };
 
-                    return Task.FromResult(result);
-                },
+                            return Task.FromResult(result);
+                        },
                         incomeTopicName: inputName,
-                        partitions: new int[] { 0, 1, 2 }
+                        partitions: new int[] { 0 }
+                        ),
+                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                        createAnswer: (input, s) =>
+                        {
+                            Console.WriteLine($"Income: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            {
+                                Value = $"2: Answer {input.Value}"
+                            };
+
+                            return Task.FromResult(result);
+                        },
+                        incomeTopicName: inputName,
+                        partitions: new int[] { 1 }
+                        ),
+                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                        createAnswer: (input, s) =>
+                        {
+                            Console.WriteLine($"Income: {input.Value}");
+                            var result = new ResponderOneToOneSimple.OutcomeMessage()
+                            {
+                                Value = $"2: Answer {input.Value}"
+                            };
+
+                            return Task.FromResult(result);
+                        },
+                        incomeTopicName: inputName,
+                        partitions: new int[] { 2 }
                         )
                 }
                 );
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullString(5, bootstrapServers);
+            var pool = new KafkaExchanger.Common.ProducerPoolNullString(
+                5,
+                bootstrapServers,
+                static (config) =>
+                {
+                    config.LingerMs = 2;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+            Console.WriteLine("Start Responder");
             responder2.Start(config: responder1Config, producerPool: pool);
+            Console.WriteLine("Responder started");
 
             while (true)
             {

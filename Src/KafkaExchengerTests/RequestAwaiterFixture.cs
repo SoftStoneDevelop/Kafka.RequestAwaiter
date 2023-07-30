@@ -46,6 +46,30 @@ namespace KafkaExchengerTests
             }
         }
 
+        [TearDown]
+        public async Task TearDown()
+        {
+            var config = new AdminClientConfig
+            {
+                BootstrapServers = GlobalSetUp.Configuration["BootstrapServers"]
+            };
+
+            using (var adminClient = new AdminClientBuilder(config).Build())
+            {
+                await adminClient.DeleteTopicsAsync(
+                    new string[]
+                    {
+                        _inputSimpleTopic1,
+                        _inputSimpleTopic2,
+                        _outputSimpleTopic,
+
+                        _inputProtobuffTopic1,
+                        _inputProtobuffTopic2,
+                        _outputProtobuffTopic,
+                    });
+            }
+        }
+
         private async Task CreateTopic(IAdminClient adminClient, string topicName)
         {
             var metadata = adminClient.GetMetadata(TimeSpan.FromSeconds(30));
@@ -102,7 +126,14 @@ namespace KafkaExchengerTests
         [Test]
         public void CancelByTimeout()
         {
-            var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"]);
+            var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"],
+                static (config) =>
+                {
+                    config.LingerMs = 2;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
             using var reqAwaiter = new RequestAwaiterManyToOneSimple();
             var reqAwaiterConfitg =
                 new RequestAwaiterManyToOneSimple.Config(
@@ -158,7 +189,17 @@ namespace KafkaExchengerTests
                             )
                     }
                     );
-            reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
+            reqAwaiter.Start(
+                reqAwaiterConfitg, 
+                producerPool0: pool,
+                static (config) =>
+                {
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
             
             var sw = Stopwatch.StartNew();
             var tasks = new Task[120];
@@ -176,7 +217,13 @@ namespace KafkaExchengerTests
         [Test]
         public async Task SimpleProduce()
         {
-            var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"]);
+            var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
+                static (config) =>
+                {
+                    config.LingerMs = 2;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                });
             using var reqAwaiter = new RequestAwaiterManyToOneSimple();
             var reqAwaiterConfitg = 
                 new RequestAwaiterManyToOneSimple.Config(
@@ -232,7 +279,17 @@ namespace KafkaExchengerTests
                             )
                     }
                     );
-            reqAwaiter.Start(reqAwaiterConfitg, producerPool0: pool);
+            reqAwaiter.Start(
+                reqAwaiterConfitg, 
+                producerPool0: pool,
+                static (config) =>
+                {
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
 
             var responder1 = new ResponderOneToOneSimple();
             var responder1Config = CreateResponderConfig(

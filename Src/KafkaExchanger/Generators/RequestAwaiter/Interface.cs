@@ -81,7 +81,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
-            builder.Append($@"
+            builder.Append($@",
+            Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
             )
             ;
 ");

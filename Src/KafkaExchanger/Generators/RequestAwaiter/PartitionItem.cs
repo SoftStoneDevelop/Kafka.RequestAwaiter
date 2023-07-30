@@ -19,7 +19,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
             StopPartitionItem(sb);
-            Produce(sb, assemblyName, requestAwaiter);
+            TryProduce(sb, assemblyName, requestAwaiter);
             End(sb);
         }
 
@@ -34,7 +34,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{
             private readonly Bucket[] _buckets;
             private uint _current;
-            private readonly {assemblyName}.AsyncManualResetEvent _mre = new();
 ");
         }
 
@@ -104,8 +103,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         i,
-                        maxInFly,
-                        _mre
+                        maxInFly
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
@@ -124,12 +122,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public void Start(
                 string bootstrapServers,
-                string groupId
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
                 for (int i = 0; i < _buckets.Length; i++)
                 {{
-                    _buckets[i].Start(bootstrapServers, groupId);
+                    _buckets[i].Start(bootstrapServers, groupId, changeConfig);
                 }}
             }}
 ");
@@ -149,14 +148,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void Produce(
+        private static void TryProduce(
             StringBuilder builder, 
             string assemblyName, 
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
             )
         {
             builder.Append($@"
-            public async Task<{assemblyName}.Response> Produce(
+            public async ValueTask<{assemblyName}.TryProduceResult> TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -176,12 +175,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                while (true)
+                for (int i = 0; i < _buckets.Length; i++)
                 {{
-                    for (int i = 0; i < _buckets.Length; i++)
-                    {{
-                        var index = Interlocked.Increment(ref _current) % _buckets.Length;
-                        var tp = await _buckets[index].TryProduce(
+                    var index = _current;
+                    var tp = await _buckets[index].TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -189,25 +186,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (!outcomeData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                        key{i},
+                    key{i},
 ");
                 }
 
                 builder.Append($@"
-                        value{i},
+                    value{i},
 ");
             }
             builder.Append($@"
-                        waitResponseTimeout
-                        );
-                        if (tp.Succsess)
-                        {{
-                            return tp.Response;
-                        }}
+                    waitResponseTimeout
+                    ).ConfigureAwait(false);
+                    if (tp.Succsess)
+                    {{
+                        return tp;
                     }}
 
-                    await _mre.WaitAsync();
+                    uint nextIndex = (index + 1) % (uint)_buckets.Length;
+                    Interlocked.CompareExchange(ref _current, nextIndex, index);
                 }}
+
+                return new {assemblyName}.TryProduceResult {{ Succsess = false }};
             }}
 ");
         }

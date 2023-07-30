@@ -18,7 +18,6 @@ namespace KafkaExchanger.Generators
             BaseResponse();
             ResponseItem();
             Response();
-            AsyncManualResetEvent();
             TryProduceResult(assemblyName);
 
             End();
@@ -159,30 +158,6 @@ namespace {assemblyName}
     {{
         public bool Succsess;
         public {assemblyName}.Response Response;
-    }}
-");
-        }
-
-        public void AsyncManualResetEvent()
-        {
-            _builder.Append($@"
-    public class AsyncManualResetEvent
-    {{
-        private volatile TaskCompletionSource<bool> m_tcs = new TaskCompletionSource<bool>();
-
-        public Task WaitAsync() {{ return m_tcs.Task; }}
-
-        public void Set() {{ m_tcs.TrySetResult(true); }}
-
-        public void Reset()
-        {{
-            while (true)
-            {{
-                var tcs = m_tcs;
-                if (!tcs.Task.IsCompleted || Interlocked.CompareExchange(ref m_tcs, new TaskCompletionSource<bool>(), tcs) == tcs)
-                    return;
-            }}
-        }}
     }}
 ");
         }

@@ -41,7 +41,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 private readonly int _bucketId;
                 private readonly int _maxInFly;
-                private readonly {assemblyName}.AsyncManualResetEvent _mre;
                 private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
                 private int _addedCount;
                 private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
@@ -97,8 +96,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var producerData = requestAwaiter.Data.ProducerData;
             builder.Append($@",
                     int bucketId,
-                    int maxInFly,
-                    {assemblyName}.AsyncManualResetEvent mre
+                    int maxInFly
                     {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                     {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.IncomeDatas)} getCurrentState" : "")}
                     {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.IncomeDatas)} afterCommit" : "")}
@@ -108,7 +106,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     _bucketId = bucketId;
                     _maxInFly = maxInFly;
-                    _mre = mre;
                     _responseAwaiters = new(_maxInFly);
 
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
@@ -182,7 +179,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public void Start(
                 string bootstrapServers,
-                string groupId
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
                 _consumeRoutines = new Thread[{requestAwaiter.IncomeDatas.Count}];
@@ -191,7 +189,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.IncomeDatas.Count; i++)
             {
                 builder.Append($@"
-                _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId);
+                _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId, changeConfig);
                 _consumeRoutines[{i}].Start();
                 _consume{i}Canceled = false;
                 _tcsPartitions{i} = new();
@@ -215,19 +213,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                 private Thread StartTopic{i}Consume(
                     string bootstrapServers,
-                    string groupId
+                    string groupId,
+                    Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                     )
                 {{
                     return new Thread((param) =>
                     {{
-                        var conf = new Confluent.Kafka.ConsumerConfig
+                        var conf = new Confluent.Kafka.ConsumerConfig();
+                        if(changeConfig != null)
                         {{
-                            GroupId = $""{{groupId}}Bucket{{_bucketId}}"",
-                            BootstrapServers = bootstrapServers,
-                            AutoOffsetReset = AutoOffsetReset.Earliest,
-                            AllowAutoCreateTopics = false,
-                            EnableAutoCommit = false
-                        }};
+                            changeConfig(conf);
+                        }}
+
+                        conf.GroupId = $""{{groupId}}Bucket{{_bucketId}}"";
+                        conf.BootstrapServers = bootstrapServers;
+                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                        conf.AllowAutoCreateTopics = false;
+                        conf.EnableAutoCommit = false;
 
                         var consumer =
                             new ConsumerBuilder<{incomeData.TypesPair}>(conf)
@@ -243,7 +245,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             {{
                                 try
                                 {{
-                                    ConsumeResult<{incomeData.TypesPair}> consumeResult = consumer.Consume(100);
+                                    ConsumeResult<{incomeData.TypesPair}> consumeResult = consumer.Consume(20);
                                     try
                                     {{
                                         _ctsConsume.Token.ThrowIfCancellationRequested();
@@ -292,12 +294,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         var locked = _lock.TryEnterUpgradeableReadLock(50);
                                         if(locked)
                                         {{
-                                            var needFreeMre = false;
+                                            {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse topicResponse = null;
                                             try
                                             {{
-                                                if (incomeMessage != null && _responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out var topicResponse))
+                                                if (incomeMessage != null)
                                                 {{
-                                                    topicResponse.TrySetResponse({i}, incomeMessage);
+                                                    _responseAwaiters.TryGetValue(incomeMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse);
                                                 }}
 
                                                 if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
@@ -326,7 +328,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                         if(allPartitions.Count != 0)
                                                             consumer.Commit(allPartitions);
                                                         _addedCount = 0;
-                                                        needFreeMre = true;
 ");
                 if(consumerData.UseAfterCommit)
                 {
@@ -363,11 +364,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             finally
                                             {{
                                                 _lock.ExitUpgradeableReadLock();
-                                                if(needFreeMre)
-                                                {{
-                                                    _mre.Set();
-                                                    _mre.Reset();
-                                                }}
+                                            }}
+
+                                            if(topicResponse != null)
+                                            {{
+                                                topicResponse.TrySetResponse({i}, incomeMessage);
                                             }}
                                             
                                             break;
@@ -456,7 +457,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public async Task<{assemblyName}.TryProduceResult> TryProduce(
+            public async ValueTask<{assemblyName}.TryProduceResult> TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -478,6 +479,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 string messageGuid = null;
                 {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse awaiter = null;
 
+                var needDispose = false;
                 _lock.EnterUpgradeableReadLock();
                 try
                 {{
@@ -511,8 +513,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         {{
                             if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
                             {{
-                                awaiter.Dispose();
-                                throw new Exception();
+                                needDispose = true;
                             }}
                             else
                             {{
@@ -528,6 +529,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 finally
                 {{
                     _lock.ExitUpgradeableReadLock();
+                }}
+
+                if(needDispose)
+                {{
+                    awaiter.Dispose(); 
+                    return new {assemblyName}.TryProduceResult {{Succsess = false}};
                 }}
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
@@ -567,7 +574,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {variable} = _producerPool{i}.Rent();
                 try
                 {{
-                    var deliveryResult = await producer.ProduceAsync(_outcomeTopic{i}Name, message{i});
+                    var deliveryResult = await producer.ProduceAsync(_outcomeTopic{i}Name, message{i}).ConfigureAwait(false);
                 }}
                 catch (ProduceException<{outcomeData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                 {{

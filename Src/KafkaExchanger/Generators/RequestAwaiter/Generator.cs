@@ -96,7 +96,8 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             {requestAwaiter.OutcomeDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
-            _builder.Append($@"
+            _builder.Append($@",
+            Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
             )
         {{
             BuildPartitionItems(
@@ -114,7 +115,8 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             {{
                 item.Start(
                     config.BootstrapServers,
-                    config.GroupId
+                    config.GroupId,
+                    changeConfig
                     );
             }}
         }}
@@ -202,7 +204,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void Produce(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
-        public Task<{assemblyName}.Response> Produce(
+        public async Task<{assemblyName}.Response> Produce(
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -221,10 +223,13 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             int waitResponseTimeout = 0
             )
         {{
-            var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-            var item = _items[index];
-            return 
-                item.Produce(
+
+            while(true)
+            {{
+                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                var item = _items[index];
+                var tp =
+                    await item.TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutcomeDatas.Count; i++)
             {
@@ -241,7 +246,13 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
             _builder.Append($@"
                     waitResponseTimeout
-                );
+                ).ConfigureAwait(false);
+
+                if(tp.Succsess)
+                {{
+                    return tp.Response;
+                }}
+            }}
         }}
         private uint _currentItemIndex = 0;
 ");

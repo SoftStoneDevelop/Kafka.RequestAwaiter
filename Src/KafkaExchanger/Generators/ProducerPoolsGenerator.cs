@@ -70,15 +70,18 @@ namespace KafkaExchanger.Generators
 
         public ProducerPool{outcomeData.KeyTypeAlias}{outcomeData.ValueTypeAlias}(
             uint producerCount,
-            string bootstrapServers
+            string bootstrapServers,
+            Action<Confluent.Kafka.ProducerConfig> changeConfig = null
             )
         {{
             _producers = new IProducer<{outcomeData.FullKeyTypeName}, {outcomeData.FullValueTypeName}>[producerCount];
-            var config = new ProducerConfig
+            var config = new Confluent.Kafka.ProducerConfig();
+            if(changeConfig != null)
             {{
-                BootstrapServers = bootstrapServers,
-                AllowAutoCreateTopics = false
-            }};
+                changeConfig(config);
+            }}
+
+            config.BootstrapServers = bootstrapServers;
 
             for (int i = 0; i < producerCount; i++)
             {{
@@ -125,6 +128,7 @@ namespace KafkaExchanger.Generators
 using Confluent.Kafka;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System;
 
 namespace KafkaExchanger.Common
 {{
