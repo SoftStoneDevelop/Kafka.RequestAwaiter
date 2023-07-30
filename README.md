@@ -71,8 +71,8 @@ public partial class TestProtobuffAwaiter
 Pass configs to Start methods. It's all what you need to do.
 ```C#
 
-var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
-var awaitService = new TestProtobuffAwaiter();
+using var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
+using var awaitService = new TestProtobuffAwaiter();
 awaitService.Start(configKafka, producerPool);
 
 using var response = await awaitService.Produce(
@@ -101,8 +101,8 @@ public partial class TestProtobuffAwaiter
 
 }
 
-var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
-var awaitService = new TestProtobuffAwaiter();
+using var producerPool = new ProducerPoolProtoProto(3, "localhost:9194, localhost:9294, localhost:9394");
+using var awaitService = new TestProtobuffAwaiter();
 awaitService.Start(configKafka, producerPool, producerPool);
 
 using var response = await awaitService.Produce(
