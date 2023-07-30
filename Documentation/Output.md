@@ -2,7 +2,7 @@ Constructors:
 
 ```C#
 
-public IncomeAttribute(
+public OutputAttribute(
     Type keyType,
     Type valueType
 )

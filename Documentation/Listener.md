@@ -15,7 +15,7 @@ Usage:
 ```C#
 
 [KafkaExchanger.Attributes.Listener(),
-        Income(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
         ]
     public partial class TestProtobuffListener
     {
@@ -29,17 +29,17 @@ var consumerConfigs = new TestProtobuffListener.ConsumerListenerConfig[]
 {
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 0 }
   ),
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 1 }
   ),
   new TestProtobuffListener.ConsumerListenerConfig(
     action,//Called on incoming messages
-    "IncomeTopicName",
+    "InputTopicName",
     new int[] { 2 }
   )
 };
