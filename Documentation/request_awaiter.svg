@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="1"
-     inkscape:cx="861"
-     inkscape:cy="406.5"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="987.82817"
+     inkscape:cy="438.75976"
      inkscape:window-width="2560"
      inkscape:window-height="1361"
      inkscape:window-x="2551"
@@ -249,6 +249,44 @@
          style="fill:context-stroke;fill-rule:evenodd;stroke:none"
          id="path7-49-82" />
     </marker>
+    <marker
+       style="overflow:visible"
+       id="ConcaveTriangle-5-2"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Concave triangle arrow"
+       markerWidth="3"
+       markerHeight="3"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.7)"
+         d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         id="path7-4-2" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="ConcaveTriangle-5-1"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Concave triangle arrow"
+       markerWidth="3"
+       markerHeight="3"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.7)"
+         d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         id="path7-4-9" />
+    </marker>
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -406,6 +444,16 @@
        style="fill:none;stroke:#05ff00;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#ConcaveTriangle-5)"
        d="M 150.31628,60.254262 222.10222,43.66603"
        id="path21-1"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#05ff00;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#ConcaveTriangle-5-1)"
+       d="m 149.96609,86.640059 72.11369,-42.92106"
+       id="path21-1-6"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#05ff00;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#ConcaveTriangle-5-2)"
+       d="M 149.20243,118.05254 222.11338,43.921026 M 204.39063,68.527083"
+       id="path21-1-8"
        sodipodi:nodetypes="cc" />
     <text
        xml:space="preserve"
