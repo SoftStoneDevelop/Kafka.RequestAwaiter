@@ -234,7 +234,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {
                         for (int j = 0; j < inputData.AcceptedService.Length; j++)
                         {
-                            builder.Append($@",
+                            if(j != 0)
+                            {
+                                builder.Append(',');
+                            }
+
+                            builder.Append($@"
                     topic{i}{inputData.AcceptedService[j]}
 ");
                         }
