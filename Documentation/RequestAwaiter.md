@@ -19,8 +19,8 @@ Usage:
 ```C#
 
 [RequestAwaiter(useLogger: false),
-        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
-        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue)),
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder0" }),
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder1" }),
         Output(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
         ]
     public partial class RequestAwaiter
@@ -50,12 +50,10 @@ var reqAwaiterConfitg =
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
                                 topicName: "input0Name",
-                                canAnswerService: new [] { "responderName0" },
                                 partitions: new int[] { 0 }
                                 ),
                             input1: new RequestAwaiter.ConsumerInfo(
                                 topicName: "input1Name",
-                                canAnswerService: new [] { "responderName1" },
                                 partitions: new int[] { 0 }
                                 ),
                             output0: new RequestAwaiter.ProducerInfo("outputName"),
@@ -65,12 +63,10 @@ var reqAwaiterConfitg =
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
                                 topicName: "input0Name",
-                                canAnswerService: new [] { "responderName0" },
                                 partitions: new int[] { 1 }
                                 ),
                             input1: new RequestAwaiter.ConsumerInfo(
                                 topicName: "input1Name",
-                                canAnswerService: new [] { responderName1 },
                                 partitions: new int[] { 1 }
                                 ),
                             output0:new RequestAwaiter.ProducerInfo("outputName"),
@@ -95,3 +91,18 @@ var reqAwaiterConfitg =
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter.svg)
 Each bucket have you own consumer thread for aech input topic. When you Produce request then RequestAwaiter chose bucket not busy bicket and send it from him.
 `maxInFly` it is limit of maximum requests in moment in the bucket. After requests(equal to `maxInFly`) completed we commit offsets topics.
+
+We can also accept answers in one input topic from different services:
+```C#
+
+[RequestAwaiter(useLogger: false),
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder0", "Responder1" }),
+        Output(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
+        ]
+    public partial class RequestAwaiter
+    {
+
+    }
+
+```
+![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter_one.svg)
