@@ -335,6 +335,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             }}
 
                                             var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                            if(headerInfo.Bucket != _bucketId)
+                                            {{
+                                                offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                                continue;
+                                            }}
 
                                             inputMessage = new()
                                             {{

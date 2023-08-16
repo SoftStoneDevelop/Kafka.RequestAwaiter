@@ -666,7 +666,8 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 var headerInfo = new {assemblyName}.ResponseHeader()
                 {{
                     AnswerToMessageGuid = requestHeaderInfo.MessageGuid,
-                    AnswerFrom = _serviceName
+                    AnswerFrom = _serviceName,
+                    Bucket = requestHeaderInfo.Bucket
                 }};
                 
                 return headerInfo;
