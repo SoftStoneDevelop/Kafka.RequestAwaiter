@@ -18,7 +18,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
-            StopPartitionItem(sb);
+            DisposeAsync(sb);
             TryProduce(sb, assemblyName, requestAwaiter);
             TryProduceDelay(sb, assemblyName, requestAwaiter);
             TryAddAwaiter(sb, assemblyName, requestAwaiter);
@@ -32,7 +32,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class PartitionItem
+        public class PartitionItem : IAsyncDisposable
         {{
             private readonly Bucket[] _buckets;
             private uint _current;
@@ -150,15 +150,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void StopPartitionItem(StringBuilder builder)
+        private static void DisposeAsync(StringBuilder builder)
         {
             builder.Append($@"
-            public void Stop()
+            public async ValueTask DisposeAsync()
             {{
                 for (int i = 0; i < _buckets.Length; i++)
                 {{
-                    _buckets[i].StopConsume();
-                    _buckets[i].Dispose();
+                    await _buckets[i].DisposeAsync();
                 }}
             }}
 ");

@@ -49,7 +49,7 @@ namespace RequestAwaiterConsole
                 );
 
             //using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
-            using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
+            await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
 
             int requests = 0;
             while ( true )

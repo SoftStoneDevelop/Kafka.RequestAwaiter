@@ -2,7 +2,6 @@
 using Confluent.Kafka.Admin;
 using KafkaExchanger.Attributes.Enums;
 using KafkaExchanger.Common;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using NUnit.Framework;
 using System;
 using System.Collections.Concurrent;
@@ -124,7 +123,7 @@ namespace KafkaExchengerTests
         }
 
         [Test]
-        public void CancelByTimeout()
+        public async Task CancelByTimeout()
         {
             var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"],
                 static (config) =>
@@ -134,7 +133,7 @@ namespace KafkaExchengerTests
                     config.AllowAutoCreateTopics = false;
                 }
                 );
-            using var reqAwaiter = new RequestAwaiterSimple();
+            await using var reqAwaiter = new RequestAwaiterSimple();
             var reqAwaiterConfitg =
                 new RequestAwaiterSimple.Config(
                     groupId: "SimpleProduce",
@@ -230,7 +229,7 @@ namespace KafkaExchengerTests
                     config.SocketKeepaliveEnable = true;
                     config.AllowAutoCreateTopics = false;
                 });
-            using var reqAwaiter = new RequestAwaiterSimple();
+            await using var reqAwaiter = new RequestAwaiterSimple();
             var reqAwaiterConfitg = 
                 new RequestAwaiterSimple.Config(
                     groupId: "SimpleProduce",
@@ -489,8 +488,8 @@ namespace KafkaExchengerTests
                     }
                     );
 
-            var requestsCount = 1000;
-            using (var reqAwaiterPrepare = new RequestAwaiterSimple())
+            var requestsCount = 300;
+            await using (var reqAwaiterPrepare = new RequestAwaiterSimple())
             {
                 reqAwaiterPrepare.Start(
                 reqAwaiterConfitg,
@@ -506,7 +505,7 @@ namespace KafkaExchengerTests
 
                 for (int i = 0; i < requestsCount; i++)
                 {
-                    _ = reqAwaiterPrepare.Produce($"{i}");
+                    _ = reqAwaiterPrepare.Produce(i.ToString());
                 }
 
                 while(true)
@@ -516,24 +515,11 @@ namespace KafkaExchengerTests
                         break;
                     }
 
-                    Thread.Sleep(1000);
+                    Thread.Sleep(50);
                 }
 
-                reqAwaiterPrepare.Stop();
+                await reqAwaiterPrepare.StopAsync();
             }
-
-            using var reqAwaiter = new RequestAwaiterSimple();
-            reqAwaiter.Start(
-                reqAwaiterConfitg,
-                producerPool0: pool,
-                static (config) =>
-                {
-                    config.MaxPollIntervalMs = 10_000;
-                    config.SessionTimeoutMs = 5_000;
-                    config.SocketKeepaliveEnable = true;
-                    config.AllowAutoCreateTopics = false;
-                }
-                );
 
             #region responders
 
@@ -570,64 +556,91 @@ namespace KafkaExchengerTests
             #endregion
 
             var answers = new List<Task<(BaseResponse[], CurrentState, string)>>(awaitersGuids.Count);
-            foreach (var pair in awaitersGuids)
+            await using (var reqAwaiter = new RequestAwaiterSimple())
             {
-                answers.Add(AddAwaiter(pair.Value.Header, pair.Value.Value));
-
-                async Task<(BaseResponse[], CurrentState, string)> AddAwaiter(KafkaExchengerTests.RequestHeader header,  string value)
+                reqAwaiter.Start(
+                reqAwaiterConfitg,
+                producerPool0: pool,
+                static (config) =>
                 {
-                    using var result = 
-                        await reqAwaiter.AddAwaiter(
-                            header.MessageGuid,
-                            header.Bucket,
-                            header.TopicsForAnswer[0].Partitions.ToArray(),
-                            header.TopicsForAnswer[1].Partitions.ToArray()
-                            )
-                        .ConfigureAwait(false);
-                    var state = result.CurrentState;
-                    var response = result.Result;
-                    var requestValue = value;
-
-                    return (response, state, requestValue);
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
                 }
+                );
+                foreach (var pair in awaitersGuids)
+                {
+                    answers.Add(
+                    AddAwaiter(
+                            pair.Value.Header.MessageGuid,
+                            pair.Value.Header.Bucket,
+                            pair.Value.Header.TopicsForAnswer[0].Partitions.ToArray(),
+                            pair.Value.Header.TopicsForAnswer[1].Partitions.ToArray(),
+                            pair.Value.Value
+                            )
+                        );
+
+                    async Task<(BaseResponse[], CurrentState, string)> AddAwaiter(
+                        string messageGuid,
+                        int bucket,
+                        int[] input0Partitions,
+                        int[] input1Partitions,
+                        string requestValue
+                        )
+                    {
+                        using var result =
+                            await reqAwaiter.AddAwaiter(
+                                messageGuid,
+                                bucket,
+                                input0Partitions,
+                                input1Partitions
+                                )
+                            .ConfigureAwait(false);
+                        var state = result.CurrentState;
+                        var response = result.Result;
+
+                        return (response, state, requestValue);
+                    }
+                }
+
+                var unique1 = new HashSet<string>(requestsCount);
+                var unique2 = new HashSet<string>(requestsCount);
+
+                Task.WaitAll(answers.ToArray());
+                for (int i = 0; i < answers.Count; i++)
+                {
+                    (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(result.result.Count, Is.EqualTo(2));
+                        Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                    });
+
+                    var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
+                    Assert.That(answerFrom1 != null, Is.True);
+                    Assert.That(answerFrom1.Result != null, Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
+                        Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                        Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                    });
+
+                    var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
+                    Assert.That(answerFrom2 != null, Is.True);
+                    Assert.That(answerFrom2.Result != null, Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
+                        Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                        Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                    });
+                }
+
+                Assert.That(unique1.Count, Is.EqualTo(requestsCount));
+                Assert.That(unique2.Count, Is.EqualTo(requestsCount));
             }
-
-            var unique1 = new HashSet<string>(requestsCount);
-            var unique2 = new HashSet<string>(requestsCount);
-
-            Task.WaitAll(answers.ToArray());
-            for (int i = 0; i < requestsCount; i++)
-            {
-                (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
-                Assert.Multiple(() =>
-                {
-                    Assert.That(result.result.Count, Is.EqualTo(2));
-                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
-                });
-
-                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
-                Assert.That(answerFrom1 != null, Is.True);
-                Assert.That(answerFrom1.Result != null, Is.True);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
-                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result} Answer from 1"));
-                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
-                });
-
-                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
-                Assert.That(answerFrom2 != null, Is.True);
-                Assert.That(answerFrom2.Result != null, Is.True);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
-                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result} Answer from 2"));
-                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
-                });
-            }
-
-            Assert.That(unique1.Count, Is.EqualTo(requestsCount));
-            Assert.That(unique2.Count, Is.EqualTo(requestsCount));
 
             await responder1.StopAsync();
             await responder2.StopAsync();

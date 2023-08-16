@@ -15,7 +15,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
             PrivateFilds(sb, requestAwaiter);
-            Dispose(sb);
+            DisposeAsync(sb, requestAwaiter);
             Start(sb, requestAwaiter);
 
             StartTopicConsume(sb, assemblyName, requestAwaiter);
@@ -39,7 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public class Bucket : IDisposable
+            public class Bucket : IAsyncDisposable
             {{
                 private readonly int _bucketId;
                 public int BucketId => _bucketId;
@@ -181,14 +181,32 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
         }
 
-        private static void Dispose(
-            StringBuilder builder
+        private static void DisposeAsync(
+            StringBuilder builder,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public void Dispose()
+            public async ValueTask DisposeAsync()
             {{
+                await StopConsume();
+                var isEmpty = false;
+                while(!isEmpty)
+                {{
+                    await Task.Delay(50);
+                    _lock.EnterReadLock();
+                    try
+                    {{
+                        isEmpty |= _responseAwaiters.Count == 0;
+                    }}
+                    finally
+                    {{ 
+                        _lock.ExitReadLock();
+                    }}
+                }}
+
                 _lock.Dispose();
+                _lock = null;
             }}
 ");
         }
@@ -241,49 +259,51 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     return new Thread((param) =>
                     {{
-                        var conf = new Confluent.Kafka.ConsumerConfig();
-                        if(changeConfig != null)
-                        {{
-                            changeConfig(conf);
-                        }}
-
-                        conf.GroupId = $""{{groupId}}Bucket{{_bucketId}}"";
-                        conf.BootstrapServers = bootstrapServers;
-                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
-                        conf.AllowAutoCreateTopics = false;
-                        conf.EnableAutoCommit = false;
-
-                        var consumer =
-                            new ConsumerBuilder<{inputData.TypesPair}>(conf)
-                            .Build()
-                            ;
-
-                        consumer.Assign(_inputTopic{i}Partitions.Select(sel => new TopicPartition(_inputTopic{i}Name, sel)));
                         try
                         {{
-                            var offsets = new Dictionary<Partition, TopicPartitionOffset>();
-                            while (!_ctsConsume.Token.IsCancellationRequested)
+                            var conf = new Confluent.Kafka.ConsumerConfig();
+                            if(changeConfig != null)
                             {{
-                                try
+                                changeConfig(conf);
+                            }}
+
+                            conf.GroupId = $""{{groupId}}Bucket{{_bucketId}}"";
+                            conf.BootstrapServers = bootstrapServers;
+                            conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                            conf.AllowAutoCreateTopics = false;
+                            conf.EnableAutoCommit = false;
+
+                            var consumer =
+                                new ConsumerBuilder<{inputData.TypesPair}>(conf)
+                                .Build()
+                                ;
+
+                            consumer.Assign(_inputTopic{i}Partitions.Select(sel => new TopicPartition(_inputTopic{i}Name, sel)));
+                            try
+                            {{
+                                var offsets = new Dictionary<Partition, TopicPartitionOffset>();
+                                while (!_ctsConsume.Token.IsCancellationRequested)
                                 {{
-                                    ConsumeResult<{inputData.TypesPair}> consumeResult = consumer.Consume(50);
                                     try
                                     {{
-                                        _ctsConsume.Token.ThrowIfCancellationRequested();
-                                    }}
-                                    catch (OperationCanceledException oce)
-                                    {{
-                                        Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
-                                        _lock.EnterReadLock();
+                                        ConsumeResult<{inputData.TypesPair}> consumeResult = consumer.Consume(50);
                                         try
                                         {{
-                                            foreach (var topicResponseItem in _responseAwaiters.Values)
+                                            _ctsConsume.Token.ThrowIfCancellationRequested();
+                                        }}
+                                        catch (OperationCanceledException oce)
+                                        {{
+                                            Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
+                                            _lock.EnterReadLock();
+                                            try
                                             {{
+                                                foreach (var topicResponseItem in _responseAwaiters.Values)
+                                                {{
 ");
                 if(inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                                                topicResponseItem.TrySetException({i}, oce);
+                                                    topicResponseItem.TrySetException({i}, oce);
 ");
                 }
                 else
@@ -291,61 +311,61 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-                                                topicResponseItem.TrySetException({i}, oce, {j});
+                                                    topicResponseItem.TrySetException({i}, oce, {j});
 ");
                     }
                 }
                 builder.Append($@"
-                                            }}
-                                        }}
-                                        finally
-                                        {{
-                                            _lock.ExitReadLock();
-                                        }}
-                                        throw;
-                                    }}
-                                    {requestAwaiter.Data.TypeSymbol.Name}.Input{i}Message inputMessage = null;
-                                    if(consumeResult != null)
-                                    {{
-                                        if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
-                                        {{
-                                            {LogInputMessage(requestAwaiter, inputData, "LogError")}
-                                            offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
-                                            continue;
-                                        }}
-
-                                        var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
-
-                                        inputMessage = new()
-                                        {{
-                                            OriginalMessage = consumeResult.Message,
-                                            {(inputData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(inputData)},")}
-                                            Value = {GetResponseValue(inputData)},
-                                            Partition = consumeResult.Partition,
-                                            HeaderInfo = headerInfo
-                                        }};
-
-                                        {LogInputMessage(requestAwaiter, inputData, "LogInformation")}
-                                    }}
-                                    while (true) 
-                                    {{
-                                        var locked = _lock.TryEnterUpgradeableReadLock(50);
-                                        if(locked)
-                                        {{
-                                            {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse topicResponse = null;
-                                            try
-                                            {{
-                                                if (inputMessage != null)
-                                                {{
-                                                    _responseAwaiters.TryGetValue(inputMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse);
                                                 }}
+                                            }}
+                                            finally
+                                            {{
+                                                _lock.ExitReadLock();
+                                            }}
+                                            throw;
+                                        }}
+                                        {requestAwaiter.Data.TypeSymbol.Name}.Input{i}Message inputMessage = null;
+                                        if(consumeResult != null)
+                                        {{
+                                            if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
+                                            {{
+                                                {LogInputMessage(requestAwaiter, inputData, "LogError")}
+                                                offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                                continue;
+                                            }}
 
-                                                if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
+                                            var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+
+                                            inputMessage = new()
+                                            {{
+                                                OriginalMessage = consumeResult.Message,
+                                                {(inputData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(inputData)},")}
+                                                Value = {GetResponseValue(inputData)},
+                                                Partition = consumeResult.Partition,
+                                                HeaderInfo = headerInfo
+                                            }};
+
+                                            {LogInputMessage(requestAwaiter, inputData, "LogInformation")}
+                                        }}
+                                        while (true) 
+                                        {{
+                                            var locked = _lock.TryEnterUpgradeableReadLock(50);
+                                            if(locked)
+                                            {{
+                                                {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse topicResponse = null;
+                                                try
                                                 {{
-                                                    _lock.EnterWriteLock();
-                                                    try
+                                                    if (inputMessage != null)
                                                     {{
-                                                        var allPartitions = offsets.Values.ToList();
+                                                        _responseAwaiters.TryGetValue(inputMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse);
+                                                    }}
+
+                                                    if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
+                                                    {{
+                                                        _lock.EnterWriteLock();
+                                                        try
+                                                        {{
+                                                            var allPartitions = offsets.Values.ToList();
 ");
                 for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                 {
@@ -355,24 +375,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }
 
                     builder.Append($@"
-                                                        var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
-                                                        Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
-                                                        Volatile.Write(ref _consume{j}Canceled, true);
-                                                        var partitions{j} = tcsPartitions{j}.Task.Result;
-                                                        allPartitions.AddRange(partitions{j});
+                                                            var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
+                                                            Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
+                                                            Volatile.Write(ref _consume{j}Canceled, true);
+                                                            var partitions{j} = tcsPartitions{j}.Task.Result;
+                                                            allPartitions.AddRange(partitions{j});
 ");
                 }
                 builder.Append($@"
-                                                        if(allPartitions.Count != 0)
-                                                            consumer.Commit(allPartitions);
-                                                        _addedCount = 0;
+                                                            if(allPartitions.Count != 0)
+                                                                consumer.Commit(allPartitions);
+                                                            _addedCount = 0;
 ");
                 if(consumerData.UseAfterCommit)
                 {
                     builder.Append($@"
-                                                        _afterCommit(
-                                                            _bucketId,
-                                                            offsets.Keys.ToHashSet()
+                                                            _afterCommit(
+                                                                _bucketId,
+                                                                offsets.Keys.ToHashSet()
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                     {
@@ -382,94 +402,106 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }
 
                         builder.Append($@",
-                                                            partitions{j}.Select(sel => sel.Partition).ToHashSet()
+                                                                partitions{j}.Select(sel => sel.Partition).ToHashSet()
 ");
                     }
                     builder.Append($@"
-                                                            )
-                                                            .Wait();
+                                                                )
+                                                                .Wait();
 ");
                 }
 
                 builder.Append($@"
-                                                    }}
-                                                    finally
-                                                    {{
-                                                        _lock.ExitWriteLock();
+                                                        }}
+                                                        finally
+                                                        {{
+                                                            _lock.ExitWriteLock();
+                                                        }}
                                                     }}
                                                 }}
-                                            }}
-                                            finally
-                                            {{
-                                                _lock.ExitUpgradeableReadLock();
-                                            }}
+                                                finally
+                                                {{
+                                                    _lock.ExitUpgradeableReadLock();
+                                                }}
 
-                                            if(topicResponse != null)
-                                            {{
+                                                if(topicResponse != null)
+                                                {{
 ");
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                                                topicResponse.TrySetResponse({i}, inputMessage);
+                                                    topicResponse.TrySetResponse({i}, inputMessage);
 ");
                 }
                 else
                 {
                     builder.Append($@"
-                                                switch(inputMessage.HeaderInfo.AnswerFrom)
-                                                {{
-                                                    default:
+                                                    switch(inputMessage.HeaderInfo.AnswerFrom)
                                                     {{
-                                                        //ignore
-                                                        break;
-                                                    }}
+                                                        default:
+                                                        {{
+                                                            //ignore
+                                                            break;
+                                                        }}
 ");
 
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-                                                    case ""{inputData.AcceptedService[j]}"":
-                                                    {{
-                                                        topicResponse.TrySetResponse({i}, inputMessage, {j});
-                                                        break;
-                                                    }}
+                                                        case ""{inputData.AcceptedService[j]}"":
+                                                        {{
+                                                            topicResponse.TrySetResponse({i}, inputMessage, {j});
+                                                            break;
+                                                        }}
 ");
                     }
                     builder.Append($@"
-                                                }}
+                                                    }}
 ");
                 }
                 builder.Append($@"
-                                            }}
+                                                }}
                                             
-                                            break;
+                                                break;
+                                            }}
+                                            else if(Volatile.Read(ref _consume{i}Canceled))
+                                            {{
+                                                Volatile.Write(ref _consume{i}Canceled, false);
+                                                Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
+                                            }}
                                         }}
-                                        else if(Volatile.Read(ref _consume{i}Canceled))
-                                        {{
-                                            Volatile.Write(ref _consume{i}Canceled, false);
-                                            Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
-                                        }}
-                                    }}
 
-                                    if(consumeResult != null)
-                                    {{
-                                        offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                        if(consumeResult != null)
+                                        {{
+                                            offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
+                                        }}
                                     }}
-                                }}
-                                catch (ConsumeException {(requestAwaiter.Data.UseLogger ? "e" : "")})
-                                {{
-                                    {(requestAwaiter.Data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
+                                    catch (ConsumeException {(requestAwaiter.Data.UseLogger ? "e" : "")})
+                                    {{
+                                        {(requestAwaiter.Data.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
+                                    }}
                                 }}
                             }}
+                            catch (OperationCanceledException)
+                            {{
+                                // Ensure the consumer leaves the group cleanly and final offsets are committed.
+                                consumer.Close();
+                            }}
+                            finally
+                            {{
+                                consumer.Dispose();
+                            }}
                         }}
-                        catch (OperationCanceledException)
+                        catch(OperationCanceledException)
                         {{
-                            // Ensure the consumer leaves the group cleanly and final offsets are committed.
-                            consumer.Close();
+                            //ignore
                         }}
-                        finally
+                        catch(AggregateException agg)
                         {{
-                            consumer.Dispose();
+                            if(!agg.InnerExceptions.All(an => an is OperationCanceledException))
+                            {{
+                                throw;
+                            }}
                         }}
                     }}
                 )
@@ -489,37 +521,37 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-                public void StopConsume()
+                private async ValueTask StopConsume()
                 {{
                     _ctsConsume?.Cancel();
 ");
             builder.Append($@"
-                _lock.EnterWriteLock();
-                try
-                {{
+                    _lock.EnterWriteLock();
+                    try
+                    {{
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-                    Volatile.Write(ref _consume{i}Canceled, true);
+                        Volatile.Write(ref _consume{i}Canceled, true);
 ");
             }
             builder.Append($@"
-                }}
-                finally
-                {{ 
-                    _lock.ExitWriteLock(); 
-                }}
-");
-            builder.Append($@"
+                    }}
+                    finally
+                    {{ 
+                        _lock.ExitWriteLock();
+                    }}
+                    
                     foreach (var consumeRoutine in _consumeRoutines)
                     {{
-                        consumeRoutine.Join();
+                        while(consumeRoutine.IsAlive)
+                        {{
+                            await Task.Delay(50);
+                        }}
                     }}
 
                     _ctsConsume?.Dispose();
-");
-            builder.Append($@"
                 }}
 ");
         }
@@ -989,7 +1021,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private {assemblyName}.RequestHeader CreateOutputHeader()
             {{
-                var headerInfo = new {assemblyName}.RequestHeader();
+                var headerInfo = new {assemblyName}.RequestHeader()
+                {{
+                    Bucket = _bucketId
+                }};
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {

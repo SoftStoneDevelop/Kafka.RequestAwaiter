@@ -47,8 +47,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Produce(assemblyName, requestAwaiter);
             ProduceDelay(assemblyName, requestAwaiter);
             AddAwaiter(assemblyName, requestAwaiter);
-            Stop();
-            Dispose();
+            StopAsync();
+            DisposeAsync();
 
             EndClass();
 
@@ -201,17 +201,25 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Stop()
+        private void StopAsync()
         {
             _builder.Append($@"
-        public void Stop()
+        public async ValueTask StopAsync()
         {{
-            foreach (var item in _items)
+            var items = _items;
+            if(items == null)
             {{
-                item.Stop();
+                return;
+            }}
+
+            _items = null;
+            var disposeTasks = new Task[items.Length];
+            for (var i = 0; i < items.Length; i++)
+            {{
+                disposeTasks[i] = items[i].DisposeAsync().AsTask();
             }}
             
-            _items = null;
+            await Task.WhenAll(disposeTasks);
         }}
 ");
         }
@@ -375,12 +383,12 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Dispose()
+        private void DisposeAsync()
         {
             _builder.Append($@"
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {{
-            Stop();
+            await StopAsync();
         }}
 ");
         }
