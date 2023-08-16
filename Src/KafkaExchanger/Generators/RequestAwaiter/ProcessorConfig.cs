@@ -78,7 +78,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
                 {
-                    builder.Append($@"AfterSendOutput{i} = afterSendOutput{i};");
+                    builder.Append($@"
+                AfterSendOutput{i} = afterSendOutput{i};
+");
                 }
             }
 
@@ -122,7 +124,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if(requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-            public ProducerInfo Output{i} {{ get; init; }}
             public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData)} AfterSendOutput{i} {{ get; init; }}
 ");
                 }
