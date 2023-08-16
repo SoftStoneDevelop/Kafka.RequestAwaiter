@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder sb,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
@@ -27,7 +27,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -41,7 +41,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Constructor(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -68,15 +68,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             var consumerData = requestAwaiter.Data.ConsumerData;
-            var producerData = requestAwaiter.Data.ProducerData;
             builder.Append($@",
                 int buckets,
                 int maxInFly
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
-                {(producerData.CustomOutputHeader ? $@",{producerData.CustomOutputHeaderFunc(assemblyName)} createOutputHeader" : "")}
-                {(producerData.CustomHeaders ? $@",{producerData.CustomHeadersFunc()} setHeaders" : "")}
+");
+            if(requestAwaiter.Data.AfterSend)
+            {
+                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                {
+                    var outputData = requestAwaiter.OutputDatas[i];
+                    builder.Append($@",{requestAwaiter.Data.AfterSendFunc(assemblyName, outputData)} afterSendOutput{i}
+");
+                }
+            }
+            builder.Append($@"
                 )
             {{
                 _buckets = new Bucket[buckets];
@@ -106,8 +114,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
                         {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
                         {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
-                        {(producerData.CustomOutputHeader ? $@",createOutputHeader" : "")}
-                        {(producerData.CustomHeaders ? $@",setHeaders" : "")}
+");
+            if(requestAwaiter.Data.AfterSend)
+            {
+                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                {
+                    builder.Append($@",afterSendOutput{i}
+");
+                }
+            }
+            builder.Append($@"
                         );
                 }}
             }}
@@ -150,7 +166,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void TryProduce(
             StringBuilder builder, 
             string assemblyName, 
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -213,7 +229,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void TryProduceDelay(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

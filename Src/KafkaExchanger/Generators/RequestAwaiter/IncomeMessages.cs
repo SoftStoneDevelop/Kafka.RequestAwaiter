@@ -11,7 +11,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             BaseInputMessage(builder);
@@ -31,7 +31,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void AppendInputMessages(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)

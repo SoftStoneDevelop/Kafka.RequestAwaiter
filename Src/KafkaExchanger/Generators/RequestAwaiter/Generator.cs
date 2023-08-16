@@ -14,7 +14,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public void Generate(
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter,
+            AttributeDatas.RequestAwaiter requestAwaiter,
             SourceProductionContext context
             )
         {
@@ -32,7 +32,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Config.Append(_builder);
             ProcessorConfig.Append(_builder, assemblyName, requestAwaiter);
             ConsumerInfo.Append(_builder);
-            ProducerInfo.Append(_builder, assemblyName, requestAwaiter);
+            ProducerInfo.Append(_builder);
 
             InputMessages.Append(_builder, assemblyName, requestAwaiter);
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
@@ -53,7 +53,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             context.AddSource($"{requestAwaiter.Data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
-        private void Start(AttributeDatas.GenerateData requestAwaiter)
+        private void Start(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
 using Confluent.Kafka;
@@ -72,7 +72,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartClass(AttributeDatas.GenerateData requestAwaiter)
+        private void StartClass(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
     {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
@@ -87,7 +87,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StartMethod(AttributeDatas.GenerateData requestAwaiter)
+        private void StartMethod(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public void Start(
@@ -134,7 +134,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(AttributeDatas.GenerateData requestAwaiter)
+        private void BuildPartitionItems(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         private void BuildPartitionItems(
@@ -180,8 +180,17 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
                         {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
                         {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
-                        {(requestAwaiter.Data.ProducerData.CustomOutputHeader ? @",config.Processors[i].CreateOutputHeader" : "")}
-                        {(requestAwaiter.Data.ProducerData.CustomHeaders ? @",config.Processors[i].SetHeaders" : "")}
+");
+            if(requestAwaiter.Data.AfterSend)
+            {
+                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                {
+                    _builder.Append($@",
+                        config.Processors[i].AfterSendOutput{i}
+");
+                }
+            }
+            _builder.Append($@"
                         );
             }}
         }}
@@ -203,7 +212,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Produce(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
+        private void Produce(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public async ValueTask<{assemblyName}.Response> Produce(
@@ -260,7 +269,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void ProduceDelay(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
+        private void ProduceDelay(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
         public async ValueTask<{requestAwaiter.Data.TypeSymbol.Name}.DelayProduce> ProduceDelay(

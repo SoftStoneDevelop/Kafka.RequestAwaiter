@@ -162,9 +162,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                         {(responder.Data.UseLogger ? @",_loggerFactory.CreateLogger($""{config.ConsumerConfigs[i].InputTopicName}:Partitions:{string.Join(',',config.ConsumerConfigs[i].Partitions)}"")" : "")}
                         {(responder.Data.ConsumerData.CheckCurrentState ? @",config.ConsumerConfigs[i].GetCurrentState" : "")}
                         {(responder.Data.ConsumerData.UseAfterCommit ? @",config.ConsumerConfigs[i].AfterCommit" : "")}
-                        {(responder.Data.ProducerData.AfterSendResponse ? @",config.ConsumerConfigs[i].AfterSendResponse" : "")}
-                        {(responder.Data.ProducerData.CustomOutputHeader ? @",config.ConsumerConfigs[i].CreateOutputHeader" : "")}
-                        {(responder.Data.ProducerData.CustomHeaders ? @",config.ConsumerConfigs[i].SetHeaders" : "")}
+                        {(responder.Data.AfterSend ? @",config.ConsumerConfigs[i].AfterSendResponse" : "")}
                         );
             }}
         }}
@@ -224,9 +222,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> createAnswer,
                 {(responder.Data.ConsumerData.CheckCurrentState ? "Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState," : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? "Func<HashSet<int>,Task> afterCommit," : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @"Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse," : "")}
-                {(responder.Data.ProducerData.CustomOutputHeader ? $@"Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutputHeader," : "")}
-                {(responder.Data.ProducerData.CustomHeaders ? @"Func<Headers, Task> setHeaders," : "")}
+                {(responder.Data.AfterSend ? @"Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse," : "")}
                 string inputTopicName,
                 params int[] partitions
                 )
@@ -237,9 +233,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
 
                 {(responder.Data.ConsumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @"AfterSendResponse = afterSendResponse;" : "")}
-                {(responder.Data.ProducerData.CustomOutputHeader ? @"CreateOutputHeader = createOutputHeader;" : "")}
-                {(responder.Data.ProducerData.CustomHeaders ? @"SetHeaders = setHeaders;" : "")}
+                {(responder.Data.AfterSend ? @"AfterSendResponse = afterSendResponse;" : "")}
             }}
 
             public string InputTopicName {{ get; init; }}
@@ -249,9 +243,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             public Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> CreateAnswer {{ get; init; }}
             {(responder.Data.ConsumerData.CheckCurrentState ? "public Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> GetCurrentState { get; init; }" : "")}
             {(responder.Data.ConsumerData.UseAfterCommit ? "public Func<HashSet<int>,Task> AfterCommit { get; init; }" : "")}
-            {(responder.Data.ProducerData.AfterSendResponse ? "public Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> AfterSendResponse { get; init; }" : "")}
-            {(responder.Data.ProducerData.CustomOutputHeader ? $"public Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> CreateOutputHeader {{ get; init; }}" : "")}
-            {(responder.Data.ProducerData.CustomHeaders ? "public Func<Headers, Task> SetHeaders { get; init; }" : "")}
+            {(responder.Data.AfterSend ? "public Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> AfterSendResponse { get; init; }" : "")}
         }}
 ");
         }
@@ -295,9 +287,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 {(responder.Data.UseLogger ? @",ILogger logger" : "")}
                 {(responder.Data.ConsumerData.CheckCurrentState ? @",Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> getCurrentState" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? @",Func<HashSet<int>, Task> afterCommit" : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @",Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse" : "")}
-                {(responder.Data.ProducerData.CustomOutputHeader ? $@",Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> createOutputHeader" : "")}
-                {(responder.Data.ProducerData.CustomHeaders ? @",Func<Headers, Task> setHeaders" : "")}
+                {(responder.Data.AfterSend ? @",Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> afterSendResponse" : "")}
                 )
             {{
                 Partitions = partitions;
@@ -308,9 +298,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 _producerPool = producerPool;
                 {(responder.Data.ConsumerData.CheckCurrentState ? @"_getCurrentState = getCurrentState;" : "")}
                 {(responder.Data.ConsumerData.UseAfterCommit ? @"_afterCommit = afterCommit;" : "")}
-                {(responder.Data.ProducerData.AfterSendResponse ? @"_afterSendResponse = afterSendResponse;" : "")}
-                {(responder.Data.ProducerData.CustomOutputHeader ? @"_createOutputHeader = createOutputHeader;" : "")}
-                {(responder.Data.ProducerData.CustomHeaders ? @"_setHeaders = setHeaders;" : "")}
+                {(responder.Data.AfterSend ? @"_afterSendResponse = afterSendResponse;" : "")}
             }}
 
             {(responder.Data.UseLogger ? @"private readonly ILogger _logger;" : "")}
@@ -319,9 +307,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> _createAnswer;
             {(responder.Data.ConsumerData.CheckCurrentState ? @"private readonly Func<InputMessage, Task<KafkaExchanger.Attributes.Enums.CurrentState>> _getCurrentState;" : "")}
             {(responder.Data.ConsumerData.UseAfterCommit ? @"private readonly Func<HashSet<int>, Task> _afterCommit;" : "")}
-            {(responder.Data.ProducerData.AfterSendResponse ? @"private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> _afterSendResponse;" : "")}
-            {(responder.Data.ProducerData.CustomOutputHeader ? $@"private readonly Func<{assemblyName}.RequestHeader, Task<{assemblyName}.ResponseHeader>> _createOutputHeader;" : "")}
-            {(responder.Data.ProducerData.CustomHeaders ? @"private readonly Func<Headers, Task> _setHeaders;" : "")}
+            {(responder.Data.AfterSend ? @"private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, OutputMessage, Task> _afterSendResponse;" : "")}
 
             private CancellationTokenSource _cts;
             private Task _routineConsume;
@@ -448,7 +434,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                                 {{
                                     var answer = await _createAnswer(inputMessage, currentState);
                                     await Produce(answer, inputMessage.HeaderInfo);
-                                    {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(inputMessage, currentState, answer);" : "")}
+                                    {(responder.Data.AfterSend ? "await _afterSendResponse(inputMessage, currentState, answer);" : "")}
                                 }}
 ");
             if(responder.Data.ConsumerData.CommitAfter > 1)
@@ -528,7 +514,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                                         (async (task) =>
                                         {{
                                             await Produce(task.Result, inputMessage.HeaderInfo);
-                                            {(responder.Data.ProducerData.AfterSendResponse ? "await _afterSendResponse(inputMessage, currentState, task.Result);" : "")}
+                                            {(responder.Data.AfterSend ? "await _afterSendResponse(inputMessage, currentState, task.Result);" : "")}
                                         }},
                                         continuationOptions: TaskContinuationOptions.RunContinuationsAsynchronously
                                         )
@@ -637,13 +623,11 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             CreateOutputMessage(responder);
 
             _builder.Append($@"
-                {(responder.Data.ProducerData.CustomOutputHeader ? "var header = await _createOutputHeader(headerInfo);" : "var header = CreateOutputHeader(headerInfo);")}
+                var header = CreateOutputHeader(headerInfo);
                 message.Headers = new Headers
                 {{
                     {{ ""Info"", header.ToByteArray() }}
                 }};
-
-                {(responder.Data.ProducerData.CustomHeaders ? "await _setHeaders(message.Headers);" : "")}
                 
                 try
                 {{
@@ -676,13 +660,7 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
 
         private void CreateOutputHeader(string assemblyName, Responder responder)
         {
-            if(responder.Data.ProducerData.CustomOutputHeader)
-            {
-                //nothing
-            }
-            else
-            {
-                _builder.Append($@"
+            _builder.Append($@"
             private {assemblyName}.ResponseHeader CreateOutputHeader({assemblyName}.RequestHeader requestHeaderInfo)
             {{
                 var headerInfo = new {assemblyName}.ResponseHeader()
@@ -694,7 +672,6 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
                 return headerInfo;
             }}
 ");
-            }
         }
 
         private void CreateOutputMessage(Responder responder)

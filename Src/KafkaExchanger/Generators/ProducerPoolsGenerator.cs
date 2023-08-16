@@ -12,7 +12,7 @@ namespace KafkaExchanger.Generators
         HashSet<OutputData> _producers = new HashSet<OutputData>(ProducerPairComparer.Default);
 
         public void FillProducerTypes(
-            List<KafkaExchanger.AttributeDatas.GenerateData> requestAwaiters,
+            List<KafkaExchanger.AttributeDatas.RequestAwaiter> requestAwaiters,
             List<Responder> responders
             ) 
         {

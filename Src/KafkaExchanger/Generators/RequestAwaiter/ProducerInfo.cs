@@ -7,14 +7,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
     internal static class ProducerInfo
     {
         public static void Append(
-            StringBuilder builder,
-            string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            StringBuilder builder
             )
         {
-            var consumerData = requestAwaiter.Data.ConsumerData;
-            var producerData = requestAwaiter.Data.ProducerData;
-
             builder.Append($@"
         public class ProducerInfo
         {{

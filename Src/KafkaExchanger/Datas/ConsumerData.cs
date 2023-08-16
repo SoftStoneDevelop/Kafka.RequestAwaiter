@@ -27,6 +27,19 @@ namespace KafkaExchanger.AttributeDatas
             return tempSb.ToString();
         }
 
+        internal bool SetCheckCurrentState(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(Boolean)
+                )
+            {
+                return false;
+            }
+
+            CheckCurrentState = (bool)argument.Value;
+            return true;
+        }
+
         public bool UseAfterCommit { get; private set; }
 
         public string AfterCommitFunc(List<InputData> inputDatas)
@@ -42,32 +55,6 @@ namespace KafkaExchanger.AttributeDatas
             return tempSb.ToString();
         }
 
-        internal bool SetCommitAfter(TypedConstant argument)
-        {
-            if (!(argument.Type is INamedTypeSymbol useLogger) ||
-                useLogger.Name != nameof(UInt32)
-                )
-            {
-                return false;
-            }
-
-            CommitAfter = (uint)argument.Value;
-            return true;
-        }
-
-        internal bool SetCheckCurrentState(TypedConstant argument)
-        {
-            if (!(argument.Type is INamedTypeSymbol useLogger) ||
-                useLogger.Name != nameof(Boolean)
-                )
-            {
-                return false;
-            }
-
-            CheckCurrentState = (bool)argument.Value;
-            return true;
-        }
-
         internal bool SetUseAfterCommit(TypedConstant argument)
         {
             if (!(argument.Type is INamedTypeSymbol useLogger) ||
@@ -78,6 +65,19 @@ namespace KafkaExchanger.AttributeDatas
             }
 
             UseAfterCommit = (bool)argument.Value;
+            return true;
+        }
+
+        internal bool SetCommitAfter(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(UInt32)
+                )
+            {
+                return false;
+            }
+
+            CommitAfter = (uint)argument.Value;
             return true;
         }
 

@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -23,6 +23,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
+            public {assemblyName}.RequestHeader Message{i}Header;
             public Confluent.Kafka.Message<{inputData.TypesPair}> Message{i};
 ");
             }

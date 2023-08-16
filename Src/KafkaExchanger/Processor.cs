@@ -12,9 +12,8 @@ namespace KafkaExchanger
 {
     internal class Processor
     {
-        private readonly List<Listener> _listeners = new List<Listener>();
         private readonly List<Responder> _responders = new List<Responder>();
-        private readonly List<GenerateData> _requestAwaiters = new List<GenerateData>();
+        private readonly List<RequestAwaiter> _requestAwaiters = new List<RequestAwaiter>();
 
         List<InputData> _inputsTemp = new List<InputData>();
         List<OutputData> _outputsTemp = new List<OutputData>();
@@ -33,7 +32,6 @@ namespace KafkaExchanger
 
                 _inputsTemp.Clear();
                 _outputsTemp.Clear();
-                ListenerData listenerData = null;
                 ResponderData responderData = null;
                 RequestAwaiterData requestAwaiterData = null;
 
@@ -67,12 +65,11 @@ namespace KafkaExchanger
 
                     if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ListenerAttribute"))
                     {
-                        listenerData = ListenerData.Create(type, attributeData);
+                        //TODO
                         continue;
                     }
                 }
 
-                TryAddListener(listenerData);
                 TryAddResponder(responderData);
                 TryAddRequestAwaiter(requestAwaiterData);
             }
@@ -114,7 +111,7 @@ namespace KafkaExchanger
                 return;
             }
 
-            var newRA = new GenerateData();
+            var newRA = new RequestAwaiter();
             newRA.Data = requestAwaiterData;
             newRA.InputDatas.AddRange(_inputsTemp);
             newRA.OutputDatas.AddRange(_outputsTemp);
@@ -143,23 +140,6 @@ namespace KafkaExchanger
             _outputsTemp.Clear();
         }
 
-        private void TryAddListener(
-            ListenerData listenerData
-            )
-        {
-            if (listenerData == null)
-            {
-                return;
-            }
-
-            var newLis = new Listener();
-            newLis.Data = listenerData;
-            newLis.InputDatas.AddRange(_inputsTemp);
-
-            _listeners.Add(newLis);
-            _inputsTemp.Clear();
-        }
-
         public void Generate(
             string assemblyName,
             SourceProductionContext context
@@ -182,13 +162,6 @@ namespace KafkaExchanger
                 responderGenerator.GenerateResponder(assemblyName, responder, context);
             }
             _responders.Clear();
-
-            var listenerGenerator = new ListenerGenerator();
-            foreach (var listener in _listeners)
-            {
-                listenerGenerator.GenerateListener(assemblyName, listener, context);
-            }
-            _listeners.Clear();
         }
     }
 }

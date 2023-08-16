@@ -7,7 +7,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

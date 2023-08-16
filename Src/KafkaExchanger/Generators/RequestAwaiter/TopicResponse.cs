@@ -11,7 +11,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             StartClass(builder, requestAwaiter, assemblyName);
@@ -27,7 +27,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartClass(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter,
             string assemblyName
             )
         {
@@ -44,7 +44,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TCS(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -70,11 +70,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Constructor(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             var consumerData = requestAwaiter.ConsumerData;
-            var producerData = requestAwaiter.ProducerData;
 
             builder.Append($@"
             public TopicResponse(
@@ -169,11 +168,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void CreateGetResponse(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
-            var producerData = requestAwaiter.ProducerData;
 
             builder.Append($@"
             private async Task<{assemblyName}.Response> CreateGetResponse(
@@ -319,7 +317,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TrySetResponse(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -366,7 +364,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TrySetException(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -413,7 +411,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Dispose(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

@@ -13,7 +13,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             StartInterface(builder, requestAwaiter);
@@ -27,7 +27,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartInterface(
             StringBuilder builder,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -39,7 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceProduceMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -69,7 +69,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceProduceDelayMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -99,7 +99,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceStartMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

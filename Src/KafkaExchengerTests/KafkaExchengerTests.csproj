@@ -14,7 +14,7 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="7.0.0" />
-		<PackageReference Include="KafkaExchanger.Attributes" Version="1.1.9.2" />
+		<PackageReference Include="KafkaExchanger.Attributes" Version="1.1.9.3" />
 		<PackageReference Include="Grpc.Tools" Version="2.56.2">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

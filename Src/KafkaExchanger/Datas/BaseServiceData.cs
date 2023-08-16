@@ -11,8 +11,6 @@ namespace KafkaExchanger.AttributeDatas
     {
         public ConsumerData ConsumerData { get; } = new ConsumerData();
 
-        public ProducerData ProducerData { get; } = new ProducerData();
-
         public bool UseLogger { get; set; }
 
         protected static bool SetUseLogger(TypedConstant argument, BaseServiceData result)

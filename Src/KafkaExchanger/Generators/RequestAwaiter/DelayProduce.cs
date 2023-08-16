@@ -7,7 +7,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             StartClass(builder, requestAwaiter);
@@ -19,7 +19,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartClass(
             StringBuilder builder,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -45,7 +45,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Fields(
             StringBuilder builder,
-            AttributeDatas.GenerateData requestAwaiter
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

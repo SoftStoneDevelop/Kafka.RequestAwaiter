@@ -6,13 +6,11 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class GenerateData
+    internal class RequestAwaiter
     {
-        public BaseServiceData Data { get; set; }
+        public RequestAwaiterData Data { get; set; }
 
         public ConsumerData ConsumerData => Data.ConsumerData;
-
-        public ProducerData ProducerData => Data.ProducerData;
 
         public List<InputData> InputDatas { get; } = new List<InputData>();
 
@@ -26,13 +24,36 @@ namespace KafkaExchanger.AttributeDatas
 
     internal class RequestAwaiterData : BaseServiceData
     {
+        public bool AfterSend { get; private set; }
+
+        public string AfterSendFunc(
+            string assemblyName,
+            OutputData outputData
+            )
+        {
+            return $"Func<{assemblyName}.RequestHeader, Confluent.Kafka.Message<{outputData.TypesPair}>, Task>";
+        }
+
+        internal bool SetAfterSend(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(Boolean)
+                )
+            {
+                return false;
+            }
+
+            AfterSend = (bool)argument.Value;
+            return true;
+        }
+
         public static RequestAwaiterData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new RequestAwaiterData();
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 5)
+            if (namedArguments.Length != 4)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -52,14 +73,9 @@ namespace KafkaExchanger.AttributeDatas
                 throw new Exception("Fail create RequestAwaiter data: UseAfterCommit");
             }
 
-            if (!result.ProducerData.SetCustomOutputHeader(namedArguments[3]))
+            if (!result.SetAfterSend(namedArguments[3]))
             {
-                throw new Exception("Fail create RequestAwaiter data: CustomOutputHeader");
-            }
-
-            if (!result.ProducerData.SetCustomHeaders(namedArguments[4]))
-            {
-                throw new Exception("Fail create RequestAwaiter data: CustomHeaders");
+                throw new Exception("Fail create RequestAwaiter data: AfterSend");
             }
 
             return result;
