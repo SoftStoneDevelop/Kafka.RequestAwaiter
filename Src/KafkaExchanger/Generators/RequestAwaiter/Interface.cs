@@ -65,6 +65,36 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
+        private static void InterfaceProduceDelayMethod(
+            StringBuilder builder,
+            string assemblyName,
+            AttributeDatas.GenerateData requestAwaiter
+            )
+        {
+            builder.Append($@"
+        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
+");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
+");
+                }
+
+                builder.Append($@"
+            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
+");
+            }
+
+            builder.Append($@"
+            int waitResponseTimeout = 0
+            );
+");
+        }
+
         private static void InterfaceStartMethod(
             StringBuilder builder,
             string assemblyName,

@@ -30,7 +30,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        private class PartitionItem
+        public class PartitionItem
         {{
             private readonly Bucket[] _buckets;
             private uint _current;

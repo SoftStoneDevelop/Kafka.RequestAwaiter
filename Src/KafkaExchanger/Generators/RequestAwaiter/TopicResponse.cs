@@ -37,6 +37,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private TaskCompletionSource<bool> _responseProcess = new(TaskCreationOptions.RunContinuationsAsynchronously);
             public Task<{assemblyName}.Response> _response;
             private CancellationTokenSource _cts;
+            private string _guid;
+            public string MessageGuid => _guid;
 ");
         }
 
@@ -91,6 +93,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
+                _guid = guid;
                 _response = CreateGetResponse(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
