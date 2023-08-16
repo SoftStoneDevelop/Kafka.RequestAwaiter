@@ -21,7 +21,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartTopicConsume(sb, assemblyName, requestAwaiter);
             StopConsume(sb, requestAwaiter);
             TryProduce(sb, assemblyName, requestAwaiter);
-            TryDelayProduce(sb, assemblyName, requestAwaiter);
+            TryProduceDelay(sb, assemblyName, requestAwaiter);
             Produce(sb, assemblyName, requestAwaiter);
             RemoveAwaiter(sb);
             CreateOutputHeader(sb, assemblyName, requestAwaiter);
@@ -662,7 +662,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void TryDelayProduce(
+        private static void TryProduceDelay(
             StringBuilder builder,
             string assemblyName,
             KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
@@ -672,7 +672,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult TryDelayProduce(
+            public {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {

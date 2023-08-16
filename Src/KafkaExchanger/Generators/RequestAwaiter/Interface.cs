@@ -18,6 +18,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             StartInterface(builder, requestAwaiter);
             InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
+            InterfaceProduceDelayMethod(builder, assemblyName, requestAwaiter);
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
             InterfaceStopMethod(builder);
 

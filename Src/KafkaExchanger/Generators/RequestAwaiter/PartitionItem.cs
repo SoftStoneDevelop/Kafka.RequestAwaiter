@@ -20,6 +20,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Start(sb);
             StopPartitionItem(sb);
             TryProduce(sb, assemblyName, requestAwaiter);
+            TryProduceDelay(sb, assemblyName, requestAwaiter);
             End(sb);
         }
 
@@ -205,6 +206,69 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
 
                 return new {assemblyName}.TryProduceResult {{ Succsess = false }};
+            }}
+");
+        }
+
+        private static void TryProduceDelay(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.AttributeDatas.GenerateData requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult TryProduceDelay(
+");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                {outputData.KeyType.GetFullTypeName(true)} key{i},
+");
+                }
+
+                builder.Append($@"
+                {outputData.ValueType.GetFullTypeName(true)} value{i},
+");
+            }
+            builder.Append($@"
+                int waitResponseTimeout = 0
+                )
+            {{
+                for (int i = 0; i < _buckets.Length; i++)
+                {{
+                    var index = _current;
+                    var tp = _buckets[index].TryProduceDelay(
+");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                    key{i},
+");
+                }
+
+                builder.Append($@"
+                    value{i},
+");
+            }
+            builder.Append($@"
+                    waitResponseTimeout
+                    );
+                    if (tp.Succsess)
+                    {{
+                        return tp;
+                    }}
+
+                    uint nextIndex = (index + 1) % (uint)_buckets.Length;
+                    Interlocked.CompareExchange(ref _current, nextIndex, index);
+                }}
+
+                return new {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
             }}
 ");
         }

@@ -42,6 +42,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartMethod(requestAwaiter);
             BuildPartitionItems(requestAwaiter);
             Produce(assemblyName, requestAwaiter);
+            ProduceDelay(assemblyName, requestAwaiter);
             StopAsync();
             Dispose();
 
@@ -256,6 +257,62 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }}
         }}
         private uint _currentItemIndex = 0;
+");
+        }
+
+        private void ProduceDelay(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
+        {
+            _builder.Append($@"
+        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
+");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
+                {
+                    _builder.Append($@"
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
+");
+                }
+
+                _builder.Append($@"
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
+");
+            }
+            _builder.Append($@"
+            int waitResponseTimeout = 0
+            )
+        {{
+
+            while(true)
+            {{
+                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                var item = _items[index];
+                var tp =
+                    item.TryProduceDelay(
+");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
+                {
+                    _builder.Append($@"
+                    key{i},
+");
+                }
+
+                _builder.Append($@"
+                    value{i},
+");
+            }
+            _builder.Append($@"
+                    waitResponseTimeout
+                );
+
+                if(tp.Succsess)
+                {{
+                    return new {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce(tp);
+                }}
+            }}
+        }}
 ");
         }
 
