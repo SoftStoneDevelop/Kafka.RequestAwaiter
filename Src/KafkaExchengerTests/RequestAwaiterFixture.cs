@@ -196,7 +196,7 @@ namespace KafkaExchengerTests
             var tasks = new Task[120];
             for (int i = 0; i < 120; i++)
             {
-                tasks[i] = reqAwaiter.Produce("Hello", 1_000);
+                tasks[i] = reqAwaiter.Produce("Hello", 1_000).AsTask();
             }
 
             foreach (var task in tasks)

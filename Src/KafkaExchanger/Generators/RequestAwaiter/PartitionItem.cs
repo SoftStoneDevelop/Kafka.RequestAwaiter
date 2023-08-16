@@ -217,7 +217,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult TryProduceDelay(
+            public async ValueTask<{requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult> TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -240,7 +240,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 for (int i = 0; i < _buckets.Length; i++)
                 {{
                     var index = _current;
-                    var tp = _buckets[index].TryProduceDelay(
+                    var tp = await _buckets[index].TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -258,7 +258,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@"
                     waitResponseTimeout
-                    );
+                    ).ConfigureAwait(false);
                     if (tp.Succsess)
                     {{
                         return tp;

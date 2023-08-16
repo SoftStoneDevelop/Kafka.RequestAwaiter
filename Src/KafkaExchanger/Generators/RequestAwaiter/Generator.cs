@@ -206,7 +206,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void Produce(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
-        public async Task<{assemblyName}.Response> Produce(
+        public async ValueTask<{assemblyName}.Response> Produce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -263,7 +263,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void ProduceDelay(string assemblyName, AttributeDatas.GenerateData requestAwaiter)
         {
             _builder.Append($@"
-        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
+        public async ValueTask<{requestAwaiter.Data.TypeSymbol.Name}.DelayProduce> ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -288,7 +288,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
                 var item = _items[index];
                 var tp =
-                    item.TryProduceDelay(
+                    await item.TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -305,7 +305,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }
             _builder.Append($@"
                     waitResponseTimeout
-                );
+                ).ConfigureAwait(false);
 
                 if(tp.Succsess)
                 {{

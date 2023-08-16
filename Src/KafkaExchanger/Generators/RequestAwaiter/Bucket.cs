@@ -602,7 +602,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (producerData.CustomOutputHeader)
                 {
                     builder.Append($@"
-                {headerVariable} = await _createOutputHeader(_bucketId);
+                {headerVariable} = await _createOutputHeader(_bucketId).ConfigureAwait(false);
 ");
                 }
                 else
@@ -619,7 +619,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
-                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
+                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers).ConfigureAwait(false);" : "")}
 ");
             }
             
@@ -672,7 +672,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult TryProduceDelay(
+            public async ValueTask<{requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult> TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -760,7 +760,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (producerData.CustomOutputHeader)
                 {
                     builder.Append($@"
-                {headerVariable} = await _createOutputHeader(_bucketId);
+                {headerVariable} = await _createOutputHeader(_bucketId).ConfigureAwait(false);
 ");
                 }
                 else
@@ -777,7 +777,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
-                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers);" : "")}
+                {(producerData.CustomHeaders ? $"await _setHeaders(message{i}.Headers).ConfigureAwait(false);" : "")}
 ");
             }
             builder.Append($@"
