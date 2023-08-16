@@ -41,17 +41,18 @@ namespace {assemblyName} {{
     static HeadersReflection() {{
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            ""Cg1oZWFkZXJzLnByb3RvEgdoZWFkZXJzIk0KDVJlcXVlc3RIZWFkZXISEwoL"",
-            ""TWVzc2FnZUd1aWQYASABKAkSJwoPVG9waWNzRm9yQW5zd2VyGAIgAygLMg4u"",
-            ""aGVhZGVycy5Ub3BpYyJBCg5SZXNwb25zZUhlYWRlchIbChNBbnN3ZXJUb01l"",
-            ""c3NhZ2VHdWlkGAEgASgJEhIKCkFuc3dlckZyb20YAiABKAkiQAoFVG9waWMS"",
-            ""DAoETmFtZRgBIAEoCRISCgpQYXJ0aXRpb25zGAIgAygFEhUKDUNhbkFuc3dl"",
-            ""ckZyb20YAyADKAlCCKoCBWthZmthYgZwcm90bzM=""));
+            ""Cg1oZWFkZXJzLnByb3RvEgdoZWFkZXJzIl0KDVJlcXVlc3RIZWFkZXISEwoL"",
+            ""TWVzc2FnZUd1aWQYASABKAkSDgoGQnVja2V0GAIgASgFEicKD1RvcGljc0Zv"",
+            ""ckFuc3dlchgDIAMoCzIOLmhlYWRlcnMuVG9waWMiUQoOUmVzcG9uc2VIZWFk"",
+            ""ZXISGwoTQW5zd2VyVG9NZXNzYWdlR3VpZBgBIAEoCRIOCgZCdWNrZXQYAiAB"",
+            ""KAUSEgoKQW5zd2VyRnJvbRgDIAEoCSJACgVUb3BpYxIMCgROYW1lGAEgASgJ"",
+            ""EhIKClBhcnRpdGlvbnMYAiADKAUSFQoNQ2FuQW5zd2VyRnJvbRgDIAMoCUII"",
+            ""qgIFa2Fma2FiBnByb3RvMw==""));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] {{ }},
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {{
-            new pbr::GeneratedClrTypeInfo(typeof(global::{assemblyName}.RequestHeader), global::{assemblyName}.RequestHeader.Parser, new[]{{ ""MessageGuid"", ""TopicsForAnswer"" }}, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::{assemblyName}.ResponseHeader), global::{assemblyName}.ResponseHeader.Parser, new[]{{ ""AnswerToMessageGuid"", ""AnswerFrom"" }}, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::{assemblyName}.RequestHeader), global::{assemblyName}.RequestHeader.Parser, new[]{{ ""MessageGuid"", ""Bucket"", ""TopicsForAnswer"" }}, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::{assemblyName}.ResponseHeader), global::{assemblyName}.ResponseHeader.Parser, new[]{{ ""AnswerToMessageGuid"", ""Bucket"", ""AnswerFrom"" }}, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::{assemblyName}.Topic), global::{assemblyName}.Topic.Parser, new[]{{ ""Name"", ""Partitions"", ""CanAnswerFrom"" }}, null, null, null, null)
           }}));
     }}
@@ -94,6 +95,7 @@ namespace {assemblyName} {{
     [global::System.CodeDom.Compiler.GeneratedCode(""protoc"", null)]
     public RequestHeader(RequestHeader other) : this() {{
       messageGuid_ = other.messageGuid_;
+      bucket_ = other.bucket_;
       topicsForAnswer_ = other.topicsForAnswer_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }}
@@ -119,10 +121,22 @@ namespace {assemblyName} {{
       }}
     }}
 
+    /// <summary>Field number for the ""Bucket"" field.</summary>
+    public const int BucketFieldNumber = 2;
+    private int bucket_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode(""protoc"", null)]
+    public int Bucket {{
+      get {{ return bucket_; }}
+      set {{
+        bucket_ = value;
+      }}
+    }}
+
     /// <summary>Field number for the ""TopicsForAnswer"" field.</summary>
-    public const int TopicsForAnswerFieldNumber = 2;
+    public const int TopicsForAnswerFieldNumber = 3;
     private static readonly pb::FieldCodec<global::{assemblyName}.Topic> _repeated_topicsForAnswer_codec
-        = pb::FieldCodec.ForMessage(18, global::{assemblyName}.Topic.Parser);
+        = pb::FieldCodec.ForMessage(26, global::{assemblyName}.Topic.Parser);
     private readonly pbc::RepeatedField<global::{assemblyName}.Topic> topicsForAnswer_ = new pbc::RepeatedField<global::{assemblyName}.Topic>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode(""protoc"", null)]
@@ -146,6 +160,7 @@ namespace {assemblyName} {{
         return true;
       }}
       if (MessageGuid != other.MessageGuid) return false;
+      if (Bucket != other.Bucket) return false;
       if(!topicsForAnswer_.Equals(other.topicsForAnswer_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }}
@@ -155,6 +170,7 @@ namespace {assemblyName} {{
     public override int GetHashCode() {{
       int hash = 1;
       if (MessageGuid.Length != 0) hash ^= MessageGuid.GetHashCode();
+      if (Bucket != 0) hash ^= Bucket.GetHashCode();
       hash ^= topicsForAnswer_.GetHashCode();
       if (_unknownFields != null) {{
         hash ^= _unknownFields.GetHashCode();
@@ -178,6 +194,10 @@ namespace {assemblyName} {{
         output.WriteRawTag(10);
         output.WriteString(MessageGuid);
       }}
+      if (Bucket != 0) {{
+        output.WriteRawTag(16);
+        output.WriteInt32(Bucket);
+      }}
       topicsForAnswer_.WriteTo(output, _repeated_topicsForAnswer_codec);
       if (_unknownFields != null) {{
         _unknownFields.WriteTo(output);
@@ -193,6 +213,10 @@ namespace {assemblyName} {{
         output.WriteRawTag(10);
         output.WriteString(MessageGuid);
       }}
+      if (Bucket != 0) {{
+        output.WriteRawTag(16);
+        output.WriteInt32(Bucket);
+      }}
       topicsForAnswer_.WriteTo(ref output, _repeated_topicsForAnswer_codec);
       if (_unknownFields != null) {{
         _unknownFields.WriteTo(ref output);
@@ -206,6 +230,9 @@ namespace {assemblyName} {{
       int size = 0;
       if (MessageGuid.Length != 0) {{
         size += 1 + pb::CodedOutputStream.ComputeStringSize(MessageGuid);
+      }}
+      if (Bucket != 0) {{
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Bucket);
       }}
       size += topicsForAnswer_.CalculateSize(_repeated_topicsForAnswer_codec);
       if (_unknownFields != null) {{
@@ -222,6 +249,9 @@ namespace {assemblyName} {{
       }}
       if (other.MessageGuid.Length != 0) {{
         MessageGuid = other.MessageGuid;
+      }}
+      if (other.Bucket != 0) {{
+        Bucket = other.Bucket;
       }}
       topicsForAnswer_.Add(other.topicsForAnswer_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
@@ -243,7 +273,11 @@ namespace {assemblyName} {{
             MessageGuid = input.ReadString();
             break;
           }}
-          case 18: {{
+          case 16: {{
+            Bucket = input.ReadInt32();
+            break;
+          }}
+          case 26: {{
             topicsForAnswer_.AddEntriesFrom(input, _repeated_topicsForAnswer_codec);
             break;
           }}
@@ -266,7 +300,11 @@ namespace {assemblyName} {{
             MessageGuid = input.ReadString();
             break;
           }}
-          case 18: {{
+          case 16: {{
+            Bucket = input.ReadInt32();
+            break;
+          }}
+          case 26: {{
             topicsForAnswer_.AddEntriesFrom(ref input, _repeated_topicsForAnswer_codec);
             break;
           }}
@@ -312,6 +350,7 @@ namespace {assemblyName} {{
     [global::System.CodeDom.Compiler.GeneratedCode(""protoc"", null)]
     public ResponseHeader(ResponseHeader other) : this() {{
       answerToMessageGuid_ = other.answerToMessageGuid_;
+      bucket_ = other.bucket_;
       answerFrom_ = other.answerFrom_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }}
@@ -337,8 +376,20 @@ namespace {assemblyName} {{
       }}
     }}
 
+    /// <summary>Field number for the ""Bucket"" field.</summary>
+    public const int BucketFieldNumber = 2;
+    private int bucket_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode(""protoc"", null)]
+    public int Bucket {{
+      get {{ return bucket_; }}
+      set {{
+        bucket_ = value;
+      }}
+    }}
+
     /// <summary>Field number for the ""AnswerFrom"" field.</summary>
-    public const int AnswerFromFieldNumber = 2;
+    public const int AnswerFromFieldNumber = 3;
     private string answerFrom_ = """";
     /// <summary>
     ///Service Name
@@ -368,6 +419,7 @@ namespace {assemblyName} {{
         return true;
       }}
       if (AnswerToMessageGuid != other.AnswerToMessageGuid) return false;
+      if (Bucket != other.Bucket) return false;
       if (AnswerFrom != other.AnswerFrom) return false;
       return Equals(_unknownFields, other._unknownFields);
     }}
@@ -377,6 +429,7 @@ namespace {assemblyName} {{
     public override int GetHashCode() {{
       int hash = 1;
       if (AnswerToMessageGuid.Length != 0) hash ^= AnswerToMessageGuid.GetHashCode();
+      if (Bucket != 0) hash ^= Bucket.GetHashCode();
       if (AnswerFrom.Length != 0) hash ^= AnswerFrom.GetHashCode();
       if (_unknownFields != null) {{
         hash ^= _unknownFields.GetHashCode();
@@ -400,8 +453,12 @@ namespace {assemblyName} {{
         output.WriteRawTag(10);
         output.WriteString(AnswerToMessageGuid);
       }}
+      if (Bucket != 0) {{
+        output.WriteRawTag(16);
+        output.WriteInt32(Bucket);
+      }}
       if (AnswerFrom.Length != 0) {{
-        output.WriteRawTag(18);
+        output.WriteRawTag(26);
         output.WriteString(AnswerFrom);
       }}
       if (_unknownFields != null) {{
@@ -418,8 +475,12 @@ namespace {assemblyName} {{
         output.WriteRawTag(10);
         output.WriteString(AnswerToMessageGuid);
       }}
+      if (Bucket != 0) {{
+        output.WriteRawTag(16);
+        output.WriteInt32(Bucket);
+      }}
       if (AnswerFrom.Length != 0) {{
-        output.WriteRawTag(18);
+        output.WriteRawTag(26);
         output.WriteString(AnswerFrom);
       }}
       if (_unknownFields != null) {{
@@ -434,6 +495,9 @@ namespace {assemblyName} {{
       int size = 0;
       if (AnswerToMessageGuid.Length != 0) {{
         size += 1 + pb::CodedOutputStream.ComputeStringSize(AnswerToMessageGuid);
+      }}
+      if (Bucket != 0) {{
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Bucket);
       }}
       if (AnswerFrom.Length != 0) {{
         size += 1 + pb::CodedOutputStream.ComputeStringSize(AnswerFrom);
@@ -452,6 +516,9 @@ namespace {assemblyName} {{
       }}
       if (other.AnswerToMessageGuid.Length != 0) {{
         AnswerToMessageGuid = other.AnswerToMessageGuid;
+      }}
+      if (other.Bucket != 0) {{
+        Bucket = other.Bucket;
       }}
       if (other.AnswerFrom.Length != 0) {{
         AnswerFrom = other.AnswerFrom;
@@ -475,7 +542,11 @@ namespace {assemblyName} {{
             AnswerToMessageGuid = input.ReadString();
             break;
           }}
-          case 18: {{
+          case 16: {{
+            Bucket = input.ReadInt32();
+            break;
+          }}
+          case 26: {{
             AnswerFrom = input.ReadString();
             break;
           }}
@@ -498,7 +569,11 @@ namespace {assemblyName} {{
             AnswerToMessageGuid = input.ReadString();
             break;
           }}
-          case 18: {{
+          case 16: {{
+            Bucket = input.ReadInt32();
+            break;
+          }}
+          case 26: {{
             AnswerFrom = input.ReadString();
             break;
           }}

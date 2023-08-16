@@ -28,7 +28,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             //inner classes
             DelayProduce.Append(_builder, assemblyName, requestAwaiter);
+
             TryDelayProduceResult.Append(_builder, assemblyName, requestAwaiter);
+            TryAddAwaiterResult.Append(_builder, requestAwaiter);
+
             Config.Append(_builder);
             ProcessorConfig.Append(_builder, assemblyName, requestAwaiter);
             ConsumerInfo.Append(_builder);
@@ -43,7 +46,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             BuildPartitionItems(requestAwaiter);
             Produce(assemblyName, requestAwaiter);
             ProduceDelay(assemblyName, requestAwaiter);
-            StopAsync();
+            AddAwaiter(assemblyName, requestAwaiter);
+            Stop();
             Dispose();
 
             EndClass();
@@ -197,10 +201,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void StopAsync()
+        private void Stop()
         {
             _builder.Append($@"
-        public void StopAsync()
+        public void Stop()
         {{
             foreach (var item in _items)
             {{
@@ -325,12 +329,58 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
+        private void AddAwaiter(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
+        {
+            _builder.Append($@"
+        public async ValueTask<{assemblyName}.Response> AddAwaiter(
+            string messageGuid,
+            int bucket,
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                _builder.Append($@"
+            int[] input{i}partitions,
+");
+            }
+            _builder.Append($@"
+            int waitResponseTimeout = 0
+            )
+        {{
+
+            for (var i = 0; i < _items.Length; i++ )
+            {{
+                var taw =
+                    _items[i].TryAddAwaiter(
+                        messageGuid,
+                        bucket,
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                _builder.Append($@"
+                        input{i}partitions,
+");
+            }
+            _builder.Append($@"
+                        waitResponseTimeout
+                        );
+
+                if(taw.Succsess)
+                {{
+                    return await taw.Response.GetResponse().ConfigureAwait(false);
+                }}
+            }}
+
+            throw new System.Exception(""No matching bucket found in combination with partitions"");
+        }}
+");
+        }
+
         private void Dispose()
         {
             _builder.Append($@"
         public void Dispose()
         {{
-            StopAsync();
+            Stop();
         }}
 ");
         }

@@ -7,17 +7,18 @@ message RequestHeader
 {
 	//8-4-4-4-12
 	string MessageGuid = 1;
-	
-	repeated Topic TopicsForAnswer = 2;
+	int32 Bucket = 2;
+	repeated Topic TopicsForAnswer = 3;
 }
 
 message ResponseHeader
 {
 	//8-4-4-4-12
 	string AnswerToMessageGuid = 1;
-	
+	int32 Bucket = 2;
+
 	//Service Name
-	string AnswerFrom = 2;
+	string AnswerFrom = 3;
 }
 
 message Topic

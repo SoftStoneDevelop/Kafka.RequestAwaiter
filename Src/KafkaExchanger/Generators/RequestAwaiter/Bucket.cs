@@ -23,6 +23,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             TryProduce(sb, assemblyName, requestAwaiter);
             TryProduceDelay(sb, assemblyName, requestAwaiter);
             Produce(sb, assemblyName, requestAwaiter);
+            AddAwaiter(sb, assemblyName, requestAwaiter);
             RemoveAwaiter(sb);
             CreateOutputHeader(sb, assemblyName, requestAwaiter);
 
@@ -880,6 +881,81 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                     Value = {(outputData.ValueType.IsProtobuffType() ? $"value{messageNum}.ToByteArray()" : $"value{messageNum}")}
                 }};
+");
+        }
+
+        private static void AddAwaiter(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            )
+        {
+            var consumerData = requestAwaiter.Data.ConsumerData;
+
+            builder.Append($@"
+            public {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse AddAwaiter(
+                string messageGuid,
+                int waitResponseTimeout = 0
+                )
+            {{
+                {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse awaiter = null;
+                
+                var needDispose = false;
+                _lock.EnterUpgradeableReadLock();
+                try
+                {{
+                    if (_addedCount == _maxInFly)
+                    {{
+                        throw new InvalidOperationException(""Expect awaiter's limit exceeded"");
+                    }}
+                    else
+                    {{
+                        awaiter =
+                            new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                builder.Append($@"
+                                _inputTopic{i}Name,
+");
+            }
+            builder.Append($@"
+                                messageGuid,
+                                RemoveAwaiter,
+                                waitResponseTimeout
+                                );
+
+                        _lock.EnterWriteLock();
+                        try
+                        {{
+                            if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                            {{
+                                needDispose = true;
+                            }}
+                            else
+                            {{
+                                _addedCount++;
+                            }}
+                        }}
+                        finally
+                        {{
+                            _lock.ExitWriteLock();
+                        }}
+                    }}
+                }}
+                finally
+                {{
+                    _lock.ExitUpgradeableReadLock();
+                }}
+
+                if (needDispose)
+                {{
+                    awaiter.Dispose();
+                    throw new InvalidOperationException(""Duplicate awaiter key"");
+                }}
+
+                return awaiter;
+            }}
 ");
         }
 

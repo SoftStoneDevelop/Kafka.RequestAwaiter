@@ -2,11 +2,14 @@
 using Confluent.Kafka.Admin;
 using KafkaExchanger.Attributes.Enums;
 using KafkaExchanger.Common;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using NUnit.Framework;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace KafkaExchengerTests
@@ -131,52 +134,64 @@ namespace KafkaExchengerTests
                     config.AllowAutoCreateTopics = false;
                 }
                 );
-            using var reqAwaiter = new RequestAwaiterManyToOneSimple();
+            using var reqAwaiter = new RequestAwaiterSimple();
             var reqAwaiterConfitg =
-                new RequestAwaiterManyToOneSimple.Config(
+                new RequestAwaiterSimple.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                    processors: new RequestAwaiterManyToOneSimple.ProcessorConfig[]
+                    processors: new RequestAwaiterSimple.ProcessorConfig[]
                     {
                         //From _inputSimpleTopic1
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 0 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 0 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             ),
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 1 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 1 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             ),
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 2 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 2 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 10
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             )
                     }
                     );
@@ -215,52 +230,64 @@ namespace KafkaExchengerTests
                     config.SocketKeepaliveEnable = true;
                     config.AllowAutoCreateTopics = false;
                 });
-            using var reqAwaiter = new RequestAwaiterManyToOneSimple();
+            using var reqAwaiter = new RequestAwaiterSimple();
             var reqAwaiterConfitg = 
-                new RequestAwaiterManyToOneSimple.Config(
+                new RequestAwaiterSimple.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                    processors: new RequestAwaiterManyToOneSimple.ProcessorConfig[] 
+                    processors: new RequestAwaiterSimple.ProcessorConfig[] 
                     {
                         //From _inputSimpleTopic1
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 0 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 0 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 50
+                            maxInFly: 50,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             ),
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 1 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 1 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 50
+                            maxInFly: 50,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             ),
-                        new RequestAwaiterManyToOneSimple.ProcessorConfig(
-                            input0: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic1,
                                 partitions: new int[] { 2 }
                                 ),
-                            input1: new RequestAwaiterManyToOneSimple.ConsumerInfo(
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
                                 topicName: _inputSimpleTopic2,
                                 partitions: new int[] { 2 }
                                 ),
-                            new RequestAwaiterManyToOneSimple.ProducerInfo(_outputSimpleTopic),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
                             buckets: 2,
-                            maxInFly: 50
+                            maxInFly: 50,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            }
                             )
                     }
                     );
@@ -336,7 +363,7 @@ namespace KafkaExchengerTests
                     Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
                 });
 
-                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterManyToOneSimple.Input0Message>;
+                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
                 Assert.That(answerFrom1 != null, Is.True);
                 Assert.That(answerFrom1.Result != null, Is.True);
                 Assert.Multiple(() => 
@@ -346,13 +373,255 @@ namespace KafkaExchengerTests
                     Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
                 });
 
-                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterManyToOneSimple.Input1Message>;
+                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
                 Assert.That(answerFrom2 != null, Is.True);
                 Assert.That(answerFrom2.Result != null, Is.True);
                 Assert.Multiple(() =>
                 {
                     Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
                     Assert.That(answerFrom2.Result.Value, Is.EqualTo($"2: Answer Hello{i}"));
+                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                });
+            }
+
+            Assert.That(unique1.Count, Is.EqualTo(requestsCount));
+            Assert.That(unique2.Count, Is.EqualTo(requestsCount));
+
+            await responder1.StopAsync();
+            await responder2.StopAsync();
+        }
+
+        private class AddAwaiterInfo
+        {
+            public KafkaExchengerTests.RequestHeader Header;
+            public string Value;
+        }
+
+        [Test]
+        public async Task AddAwaiter()
+        {
+            var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
+                static (config) =>
+                {
+                    config.LingerMs = 2;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                });
+            var awaitersGuids = new ConcurrentDictionary<string, AddAwaiterInfo>();
+
+            var reqAwaiterConfitg =
+                new RequestAwaiterSimple.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                    processors: new RequestAwaiterSimple.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 0 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 0 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50, 
+                            afterSendOutput0: (header, message) => 
+                            {
+                                var info = new AddAwaiterInfo()
+                                {
+                                    Value = message.Value,
+                                    Header = header,
+                                };
+                                awaitersGuids.TryAdd(header.MessageGuid, info);
+                                return Task.CompletedTask;
+                            }
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 1 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 1 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                var info = new AddAwaiterInfo()
+                                {
+                                    Value = message.Value,
+                                    Header = header,
+                                };
+                                awaitersGuids.TryAdd(header.MessageGuid, info);
+                                return Task.CompletedTask;
+                            }
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 2 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 2 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                var info = new AddAwaiterInfo()
+                                {
+                                    Value = message.Value,
+                                    Header = header,
+                                };
+
+                                awaitersGuids.TryAdd(header.MessageGuid, info);
+                                return Task.CompletedTask;
+                            }
+                            )
+                    }
+                    );
+
+            var requestsCount = 1000;
+            using (var reqAwaiterPrepare = new RequestAwaiterSimple())
+            {
+                reqAwaiterPrepare.Start(
+                reqAwaiterConfitg,
+                producerPool0: pool,
+                static (config) =>
+                {
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+
+                for (int i = 0; i < requestsCount; i++)
+                {
+                    _ = reqAwaiterPrepare.Produce($"{i}");
+                }
+
+                while(true)
+                {
+                    if(awaitersGuids.Count == requestsCount)
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(1000);
+                }
+
+                reqAwaiterPrepare.Stop();
+            }
+
+            using var reqAwaiter = new RequestAwaiterSimple();
+            reqAwaiter.Start(
+                reqAwaiterConfitg,
+                producerPool0: pool,
+                static (config) =>
+                {
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+
+            #region responders
+
+            var responder1 = new ResponderOneToOneSimple();
+            var responder1Config = CreateResponderConfig(
+                "RAResponder1",
+                "RAResponder1",
+                (input, s) =>
+                {
+                    var result = new ResponderOneToOneSimple.OutputMessage()
+                    {
+                        Value = $"{input.Value} Answer from 1"
+                    };
+
+                    return Task.FromResult(result);
+                });
+            responder1.Start(config: responder1Config, producerPool: pool);
+
+            var responder2 = new ResponderOneToOneSimple();
+            var responder2Config = CreateResponderConfig(
+                "RAResponder2",
+                "RAResponder2",
+                (input, s) =>
+                {
+                    var result = new ResponderOneToOneSimple.OutputMessage()
+                    {
+                        Value = $"{input.Value} Answer from 2"
+                    };
+
+                    return Task.FromResult(result);
+                });
+            responder2.Start(config: responder2Config, producerPool: pool);
+
+            #endregion
+
+            var answers = new List<Task<(BaseResponse[], CurrentState, string)>>(awaitersGuids.Count);
+            foreach (var pair in awaitersGuids)
+            {
+                answers.Add(AddAwaiter(pair.Value.Header, pair.Value.Value));
+
+                async Task<(BaseResponse[], CurrentState, string)> AddAwaiter(KafkaExchengerTests.RequestHeader header,  string value)
+                {
+                    using var result = 
+                        await reqAwaiter.AddAwaiter(
+                            header.MessageGuid,
+                            header.Bucket,
+                            header.TopicsForAnswer[0].Partitions.ToArray(),
+                            header.TopicsForAnswer[1].Partitions.ToArray()
+                            )
+                        .ConfigureAwait(false);
+                    var state = result.CurrentState;
+                    var response = result.Result;
+                    var requestValue = value;
+
+                    return (response, state, requestValue);
+                }
+            }
+
+            var unique1 = new HashSet<string>(requestsCount);
+            var unique2 = new HashSet<string>(requestsCount);
+
+            Task.WaitAll(answers.ToArray());
+            for (int i = 0; i < requestsCount; i++)
+            {
+                (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.result.Count, Is.EqualTo(2));
+                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                });
+
+                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
+                Assert.That(answerFrom1 != null, Is.True);
+                Assert.That(answerFrom1.Result != null, Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
+                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result} Answer from 1"));
+                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                });
+
+                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
+                Assert.That(answerFrom2 != null, Is.True);
+                Assert.That(answerFrom2.Result != null, Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
+                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result} Answer from 2"));
                     Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
                 });
             }

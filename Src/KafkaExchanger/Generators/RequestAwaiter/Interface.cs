@@ -124,7 +124,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void StopAsync();
+        public void Stop();
 ");
         }
 

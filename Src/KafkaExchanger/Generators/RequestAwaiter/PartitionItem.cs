@@ -21,6 +21,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StopPartitionItem(sb);
             TryProduce(sb, assemblyName, requestAwaiter);
             TryProduceDelay(sb, assemblyName, requestAwaiter);
+            TryAddAwaiter(sb, assemblyName, requestAwaiter);
             End(sb);
         }
 
@@ -285,6 +286,88 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
 
                 return new {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
+            }}
+");
+        }
+
+        private static void TryAddAwaiter(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public {requestAwaiter.Data.TypeSymbol.Name}.TryAddAwaiterResult TryAddAwaiter(
+                string messageGuid,
+                int bucket,
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                builder.Append($@"
+                int[] input{i}Partitions,
+");
+            }
+            builder.Append($@"
+                int waitResponseTimeout = 0
+                )
+            {{
+                for (int i = 0; i < _buckets.Length; i++)
+                {{
+                    var currentBucket = _buckets[i];
+                    if(currentBucket.BucketId != bucket)
+                    {{
+                        continue;
+                    }}
+
+                    var containAll = true;
+");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                builder.Append($@"
+                    for(int j = 0; j < input{i}Partitions.Length; j++)
+                    {{
+                        var containPartition = false;
+                        for (int z = 0; z < currentBucket.InputTopic{i}Partitions.Length; z++)
+                        {{
+                            containPartition = input{i}Partitions[j] == currentBucket.InputTopic{i}Partitions[z];
+                            if (containPartition)
+                            {{
+                                break;
+                            }}
+                        }}
+
+                        if(!containPartition)
+                        {{
+                            containAll = false;
+                            break;
+                        }}
+                    }}
+
+                    if(!containAll)
+                    {{
+                        //check next bucket
+                        continue;
+                    }}
+");
+            }
+            builder.Append($@"
+                    var result = currentBucket.AddAwaiter(
+                        messageGuid,
+                        waitResponseTimeout
+                        );
+                    
+                    return new TryAddAwaiterResult() 
+                    {{
+                        Succsess = true,
+                        Response = result
+                    }};
+                }}
+
+                return new {requestAwaiter.Data.TypeSymbol.Name}.TryAddAwaiterResult 
+                {{
+                    Succsess = false
+                }};
             }}
 ");
         }
