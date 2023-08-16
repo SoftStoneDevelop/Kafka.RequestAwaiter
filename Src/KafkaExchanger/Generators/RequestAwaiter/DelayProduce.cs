@@ -69,6 +69,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public async Task<{assemblyName}.Response> Produce()
             {{
+                if(_produced)
+                {{
+                    throw new System.Exception(""Produce can not be called twice"");
+                }}
+
+                _produced = true;
                 return 
                     await _tryDelay.Bucket.Produce(_tryDelay);
             }}
@@ -82,6 +88,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             private bool _disposedValue;
+            private bool _produced;
 
             public void Dispose()
             {{
@@ -89,11 +96,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 GC.SuppressFinalize(this);
             }}
 
-            protected void Dispose(bool produced)
+            protected void Dispose(bool disposed)
             {{
                 if (!_disposedValue)
                 {{
-                    if (!produced)
+                    if (!_produced)
                     {{
                         _tryDelay.Bucket.RemoveAwaiter(_tryDelay.Response.MessageGuid);
                     }}
