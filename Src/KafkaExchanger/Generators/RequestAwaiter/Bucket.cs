@@ -78,10 +78,28 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@",
                     int bucketId,
                     int maxInFly
-                    {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                    {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
-                    {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
 ");
+            if(requestAwaiter.Data.UseLogger)
+            {
+                builder.Append($@",
+                    ILogger logger
+");
+            }
+
+            if (consumerData.CheckCurrentState)
+            {
+                builder.Append($@",
+                    {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState
+");
+            }
+
+            if (consumerData.UseAfterCommit)
+            {
+                builder.Append($@",
+                    {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit
+");
+            }
+
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
@@ -98,13 +116,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@"{requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} loadOutput{i}Message
+                    builder.Append($@",
+                    {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
 ");
                 }
             }
             if (requestAwaiter.Data.AddAwaiterCheckStatus)
             {
-                builder.Append($@"{requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus;
+                builder.Append($@",
+                    {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus
 ");
             }
             builder.Append($@"
@@ -214,7 +234,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@"private readonly {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} _loadOutput{i}Message;
+                    builder.Append($@"private readonly {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} _loadOutput{i}Message;
 ");
                 }
             }
@@ -1108,7 +1128,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 )
                                 .ConfigureAwait(false);
 
-                    if(status < KafkaExchanger.Attributes.Enums.RAState.AnswerProcessed)
+                    if(status < KafkaExchanger.Attributes.Enums.RAState.Sended)
                     {{
                         var message = 
                             await _loadOutput{i}Message(
@@ -1162,7 +1182,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     if (requestAwaiter.Data.AfterSend)
                     {
                         builder.Append($@"
-                        await _afterSendOutput{i}(header, message.ConfigureAwait(false);
+                        await _afterSendOutput{i}(header, message).ConfigureAwait(false);
 ");
                     }
                     builder.Append($@"

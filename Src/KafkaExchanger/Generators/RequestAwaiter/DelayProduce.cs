@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
@@ -11,7 +12,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             StartClass(builder, requestAwaiter);
-            Fields(builder, requestAwaiter);
+            Fields(builder, assemblyName, requestAwaiter);
             Produce(builder, assemblyName);
             Dispose(builder, assemblyName);
             EndClass(builder);
@@ -45,6 +46,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Fields(
             StringBuilder builder,
+            string assemblyName,
             AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
@@ -58,6 +60,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var inputData = requestAwaiter.InputDatas;
                 builder.Append($@"
             public int[] InputTopic{i}Partitions => _tryDelay.Bucket.InputTopic{i}Partitions;
+");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+            public {assemblyName}.RequestHeader Output{i}Header => _tryDelay.Output{i}Header;
+            public Output{i}Message Output{i}Message => _tryDelay.Output{i}Message;
 ");
             }
         }

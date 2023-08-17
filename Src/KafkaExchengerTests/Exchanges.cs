@@ -3,7 +3,7 @@ using KafkaExchanger.Attributes;
 
 namespace KafkaExchengerTests
 {
-    [RequestAwaiter(useLogger: false, afterSend: true),
+    [RequestAwaiter(useLogger: false, afterSend: true, AddAwaiterCheckStatus: true),
         Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),
         Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder2" }),
         Output(keyType: typeof(Null), valueType: typeof(string))

@@ -84,7 +84,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if(requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",{requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} loadOutput{i}Message
+                    builder.Append($@",{requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
 ");
                 }
             }

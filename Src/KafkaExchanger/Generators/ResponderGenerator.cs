@@ -174,6 +174,11 @@ namespace {responder.Data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
         public async Task StopAsync()
         {{
+            if(_items == null)
+            {{
+                return;
+            }}
+            
             foreach (var item in _items)
             {{
                 await item.Stop();

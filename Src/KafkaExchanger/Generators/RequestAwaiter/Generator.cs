@@ -370,7 +370,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             for (var i = 0; i < _items.Length; i++ )
             {{
                 var taw =
-                    _items[i].TryAddAwaiter(
+                    {(requestAwaiter.Data.AddAwaiterCheckStatus ? "await " : "")}_items[i].TryAddAwaiter(
                         messageGuid,
                         bucket,
 ");

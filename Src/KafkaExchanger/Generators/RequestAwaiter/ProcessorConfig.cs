@@ -67,7 +67,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} loadOutput{i}Message
+                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
 ");
                 }
             }
@@ -86,10 +86,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 Buckets = buckets;
                 MaxInFly = maxInFly;
-
-                {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
-                {(consumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
 ");
+            if(consumerData.CheckCurrentState)
+            {
+                builder.Append($@"
+                GetCurrentState = getCurrentState;
+");
+            }
+
+            if (consumerData.UseAfterCommit)
+            {
+                builder.Append($@"
+                AfterCommit = afterCommit;
+");
+            }
+
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
@@ -102,7 +113,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",
+                    builder.Append($@"
                 LoadOutput{i}Message = loadOutput{i}Message;
 ");
                 }
@@ -161,8 +172,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",
-                public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} LoadOutput{i}Message {{ get; init; }}
+                    builder.Append($@"
+                public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} LoadOutput{i}Message {{ get; init; }}
 ");
                 }
             }

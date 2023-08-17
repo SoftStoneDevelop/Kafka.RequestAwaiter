@@ -60,7 +60,7 @@ namespace KafkaExchanger.AttributeDatas
             builder.Append($"Func<string, int,");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                builder.Append($@" int[] input{i}partitions,");
+                builder.Append($@" int[],");
             }
 
             builder.Append($" Task<KafkaExchanger.Attributes.Enums.RAState>>");
@@ -70,6 +70,7 @@ namespace KafkaExchanger.AttributeDatas
         public string LoadOutputMessageFunc(
             string assemblyName,
             OutputData outputData,
+            int outputIndex,
             List<InputData> inputDatas
             )
         {
@@ -77,10 +78,10 @@ namespace KafkaExchanger.AttributeDatas
             builder.Append($"Func<string, int,");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                builder.Append($@" int[] input{i}partitions,");
+                builder.Append($@" int[],");
             }
 
-            builder.Append($" Task<Confluent.Kafka.Message<{outputData.TypesPair}>>>");
+            builder.Append($" Task<Output{outputIndex}Message>>");
             return builder.ToString();
         }
 

@@ -25,6 +25,12 @@ namespace KafkaExchengerTests
         private static string _inputProtobuffTopic2 = "RAInputProtobuff2";
         private static string _outputProtobuffTopic = "RAOutputProtobuff";
 
+        private ResponderOneToOneSimple _responder1;
+        private ResponderOneToOneSimple.ConfigResponder _responder1Config;
+
+        private ResponderOneToOneSimple _responder2;
+        private ResponderOneToOneSimple.ConfigResponder _responder2Config;
+
         [SetUp]
         public async Task Setup()
         {
@@ -43,11 +49,51 @@ namespace KafkaExchengerTests
                 await CreateTopic(adminClient, _inputProtobuffTopic2);
                 await CreateTopic(adminClient, _outputProtobuffTopic);
             }
+
+            _responder1 = new ResponderOneToOneSimple();
+            _responder1Config = CreateResponderConfig(
+                "RAResponder1",
+                "RAResponder1",
+                (input, s) =>
+                {
+                    var result = new ResponderOneToOneSimple.OutputMessage()
+                    {
+                        Value = $"{input.Value} Answer from 1"
+                    };
+
+                    return Task.FromResult(result);
+                });
+
+            _responder2 = new ResponderOneToOneSimple();
+            _responder2Config = CreateResponderConfig(
+                "RAResponder2",
+                "RAResponder2",
+                (input, s) =>
+                {
+                    var result = new ResponderOneToOneSimple.OutputMessage()
+                    {
+                        Value = $"{input.Value} Answer from 2"
+                    };
+
+                    return Task.FromResult(result);
+                });
         }
 
         [TearDown]
         public async Task TearDown()
         {
+            if(_responder1 != null)
+            {
+                await _responder1.StopAsync();
+                _responder1 = null;
+            }
+
+            if (_responder2 != null)
+            {
+                await _responder2.StopAsync();
+                _responder2 = null;
+            }
+
             var config = new AdminClientConfig
             {
                 BootstrapServers = GlobalSetUp.Configuration["BootstrapServers"]
@@ -134,66 +180,9 @@ namespace KafkaExchengerTests
                 }
                 );
             await using var reqAwaiter = new RequestAwaiterSimple();
-            var reqAwaiterConfitg =
-                new RequestAwaiterSimple.Config(
-                    groupId: "SimpleProduce",
-                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                    processors: new RequestAwaiterSimple.ProcessorConfig[]
-                    {
-                        //From _inputSimpleTopic1
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 0 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 0 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
-                            afterSendOutput0: (header, message) =>
-                            {
-                                return Task.CompletedTask;
-                            }
-                            ),
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 1 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 1 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
-                            afterSendOutput0: (header, message) =>
-                            {
-                                return Task.CompletedTask;
-                            }
-                            ),
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 2 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 2 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
-                            afterSendOutput0: (header, message) =>
-                            {
-                                return Task.CompletedTask;
-                            }
-                            )
-                    }
-                    );
+            RequestAwaiterSimple.Config reqAwaiterConfitg;
+            CreateConfig();
+            
             reqAwaiter.Setup(
                 config: reqAwaiterConfitg,
                 producerPool0: pool
@@ -220,6 +209,76 @@ namespace KafkaExchengerTests
             {
                 Assert.ThrowsAsync<TaskCanceledException>(async () => { await task; });
             }
+
+            void CreateConfig()
+            {
+                reqAwaiterConfitg =
+                new RequestAwaiterSimple.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                    processors: new RequestAwaiterSimple.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 0 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 0 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 1 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 1 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 2 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 2 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 10,
+                            afterSendOutput0: (header, message) =>
+                            {
+                                return Task.CompletedTask;
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            )
+                    }
+                    );
+            }
         }
 
         [Test]
@@ -233,11 +292,88 @@ namespace KafkaExchengerTests
                     config.AllowAutoCreateTopics = false;
                 });
             await using var reqAwaiter = new RequestAwaiterSimple();
-            var reqAwaiterConfitg = 
+            RequestAwaiterSimple.Config reqAwaiterConfitg;
+            CreateConfig();
+
+            reqAwaiter.Setup(
+                config: reqAwaiterConfitg,
+                producerPool0: pool
+                );
+
+            reqAwaiter.Start(
+                static (config) =>
+                {
+                    config.MaxPollIntervalMs = 10_000;
+                    config.SessionTimeoutMs = 5_000;
+                    config.SocketKeepaliveEnable = true;
+                    config.AllowAutoCreateTopics = false;
+                }
+                );
+
+            _responder1.Start(config: _responder1Config, producerPool: pool);
+            _responder2.Start(config: _responder2Config, producerPool: pool);
+
+            var requestsCount = 1000;
+            var answers = new Task<(BaseResponse[], CurrentState, string)>[requestsCount];
+            for (int i = 0; i < requestsCount; i++)
+            {
+                var message = $"Hello{i}";
+                answers[i] = produce(message);
+
+                async Task<(BaseResponse[], CurrentState, string)> produce(string message)
+                {
+                    using var result = await reqAwaiter.Produce(message).ConfigureAwait(false);
+                    var state = result.CurrentState;
+                    var response = result.Result;
+
+                    return (response, state, message);
+                }
+            }
+
+            var unique1 = new HashSet<string>(requestsCount);
+            var unique2 = new HashSet<string>(requestsCount);
+
+            Task.WaitAll(answers);
+            for (int i = 0; i < requestsCount; i++)
+            {
+                (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.result.Count, Is.EqualTo(2));
+                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                });
+
+                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
+                Assert.That(answerFrom1 != null, Is.True);
+                Assert.That(answerFrom1.Result != null, Is.True);
+                Assert.Multiple(() => 
+                {
+                    Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
+                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                });
+
+                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
+                Assert.That(answerFrom2 != null, Is.True);
+                Assert.That(answerFrom2.Result != null, Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
+                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                });
+            }
+
+            Assert.That(unique1.Count, Is.EqualTo(requestsCount));
+            Assert.That(unique2.Count, Is.EqualTo(requestsCount));
+
+            void CreateConfig()
+            {
+                reqAwaiterConfitg =
                 new RequestAwaiterSimple.Config(
                     groupId: "SimpleProduce",
-                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"], 
-                    processors: new RequestAwaiterSimple.ProcessorConfig[] 
+                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                    processors: new RequestAwaiterSimple.ProcessorConfig[]
                     {
                         //From _inputSimpleTopic1
                         new RequestAwaiterSimple.ProcessorConfig(
@@ -255,7 +391,9 @@ namespace KafkaExchengerTests
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
-                            }
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -272,7 +410,9 @@ namespace KafkaExchengerTests
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
-                            }
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -289,112 +429,13 @@ namespace KafkaExchengerTests
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
-                            }
+                            },
+                            loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
+                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             )
                     }
                     );
-
-            reqAwaiter.Setup(
-                config: reqAwaiterConfitg,
-                producerPool0: pool
-                );
-
-            reqAwaiter.Start(
-                static (config) =>
-                {
-                    config.MaxPollIntervalMs = 10_000;
-                    config.SessionTimeoutMs = 5_000;
-                    config.SocketKeepaliveEnable = true;
-                    config.AllowAutoCreateTopics = false;
-                }
-                );
-
-            var responder1 = new ResponderOneToOneSimple();
-            var responder1Config = CreateResponderConfig(
-                "RAResponder1",
-                "RAResponder1",
-                (input, s) =>
-                {
-                    var result = new ResponderOneToOneSimple.OutputMessage()
-                    {
-                        Value = $"1: Answer {input.Value}"
-                    };
-
-                    return Task.FromResult(result);
-                });
-            responder1.Start(config: responder1Config, producerPool: pool);
-
-            var responder2 = new ResponderOneToOneSimple();
-            var responder2Config = CreateResponderConfig(
-                "RAResponder2",
-                "RAResponder2",
-                (input, s) =>
-                {
-                    var result = new ResponderOneToOneSimple.OutputMessage()
-                    {
-                        Value = $"2: Answer {input.Value}"
-                    };
-
-                    return Task.FromResult(result);
-                });
-            responder2.Start(config: responder2Config, producerPool: pool);
-
-            var requestsCount = 1000;
-            var answers = new Task<(BaseResponse[], CurrentState)>[requestsCount];
-            for (int i = 0; i < requestsCount; i++)
-            {
-                var message = $"Hello{i}";
-                answers[i] = produce(message);
-
-                async Task<(BaseResponse[], CurrentState)> produce(string message)
-                {
-                    using var result = await reqAwaiter.Produce(message).ConfigureAwait(false);
-                    var state = result.CurrentState;
-                    var response = result.Result;
-
-                    return (response, state);
-                }
             }
-
-            var unique1 = new HashSet<string>(requestsCount);
-            var unique2 = new HashSet<string>(requestsCount);
-
-            Task.WaitAll(answers);
-            for (int i = 0; i < requestsCount; i++)
-            {
-                (BaseResponse[] result, CurrentState state) result = await answers[i];
-                Assert.Multiple(() =>
-                {
-                    Assert.That(result.result.Count, Is.EqualTo(2));
-                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
-                });
-
-                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
-                Assert.That(answerFrom1 != null, Is.True);
-                Assert.That(answerFrom1.Result != null, Is.True);
-                Assert.Multiple(() => 
-                {
-                    Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
-                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"1: Answer Hello{i}"));
-                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
-                });
-
-                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
-                Assert.That(answerFrom2 != null, Is.True);
-                Assert.That(answerFrom2.Result != null, Is.True);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
-                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"2: Answer Hello{i}"));
-                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
-                });
-            }
-
-            Assert.That(unique1.Count, Is.EqualTo(requestsCount));
-            Assert.That(unique2.Count, Is.EqualTo(requestsCount));
-
-            await responder1.StopAsync();
-            await responder2.StopAsync();
         }
 
         private class AddAwaiterInfo
@@ -413,87 +454,11 @@ namespace KafkaExchengerTests
                     config.SocketKeepaliveEnable = true;
                     config.AllowAutoCreateTopics = false;
                 });
-            var awaitersGuids = new ConcurrentDictionary<string, AddAwaiterInfo>();
+            var sended = new ConcurrentDictionary<string, AddAwaiterInfo>();
+            var sendedFromAwaiter = new ConcurrentDictionary<string, AddAwaiterInfo>();
 
-            var reqAwaiterConfitg =
-                new RequestAwaiterSimple.Config(
-                    groupId: "SimpleProduce",
-                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                    processors: new RequestAwaiterSimple.ProcessorConfig[]
-                    {
-                        //From _inputSimpleTopic1
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 0 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 0 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50, 
-                            afterSendOutput0: (header, message) => 
-                            {
-                                var info = new AddAwaiterInfo()
-                                {
-                                    Value = message.Value,
-                                    Header = header,
-                                };
-                                awaitersGuids.TryAdd(header.MessageGuid, info);
-                                return Task.CompletedTask;
-                            }
-                            ),
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 1 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 1 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
-                            afterSendOutput0: (header, message) =>
-                            {
-                                var info = new AddAwaiterInfo()
-                                {
-                                    Value = message.Value,
-                                    Header = header,
-                                };
-                                awaitersGuids.TryAdd(header.MessageGuid, info);
-                                return Task.CompletedTask;
-                            }
-                            ),
-                        new RequestAwaiterSimple.ProcessorConfig(
-                            input0: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic1,
-                                partitions: new int[] { 2 }
-                                ),
-                            input1: new RequestAwaiterSimple.ConsumerInfo(
-                                topicName: _inputSimpleTopic2,
-                                partitions: new int[] { 2 }
-                                ),
-                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
-                            afterSendOutput0: (header, message) =>
-                            {
-                                var info = new AddAwaiterInfo()
-                                {
-                                    Value = message.Value,
-                                    Header = header,
-                                };
-
-                                awaitersGuids.TryAdd(header.MessageGuid, info);
-                                return Task.CompletedTask;
-                            }
-                            )
-                    }
-                    );
+            RequestAwaiterSimple.Config reqAwaiterConfitg;
+            CreateConfig();
 
             var requestsCount = 300;
             await using (var reqAwaiterPrepare = new RequestAwaiterSimple())
@@ -513,14 +478,29 @@ namespace KafkaExchengerTests
                     }
                     );
 
+                var sendedCount = 0;
                 for (int i = 0; i < requestsCount; i++)
                 {
-                    _ = reqAwaiterPrepare.Produce(i.ToString());
+                    using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString());
+                    if (i % 2 == 0)
+                    {
+                        sendedCount++;
+                        _ = delayProduce.Produce();
+                    }
+                    else
+                    {
+                        var info = new AddAwaiterInfo()
+                        {
+                            Value = delayProduce.Output0Message.Value + "LOM",
+                            Header = delayProduce.Output0Header,
+                        };
+                        sendedFromAwaiter.TryAdd(delayProduce.MessageGuid, info);
+                    }
                 }
 
-                while(true)
+                while (true)
                 {
-                    if(awaitersGuids.Count == requestsCount)
+                    if (sended.Count == sendedCount)
                     {
                         break;
                     }
@@ -529,43 +509,13 @@ namespace KafkaExchengerTests
                 }
 
                 await reqAwaiterPrepare.StopAsync();
+
+                Assert.That(sended.Count, Is.EqualTo(sendedCount));
             }
+            _responder1.Start(config: _responder1Config, producerPool: pool);
+            _responder2.Start(config: _responder2Config, producerPool: pool);
 
-            #region responders
-
-            var responder1 = new ResponderOneToOneSimple();
-            var responder1Config = CreateResponderConfig(
-                "RAResponder1",
-                "RAResponder1",
-                (input, s) =>
-                {
-                    var result = new ResponderOneToOneSimple.OutputMessage()
-                    {
-                        Value = $"{input.Value} Answer from 1"
-                    };
-
-                    return Task.FromResult(result);
-                });
-            responder1.Start(config: responder1Config, producerPool: pool);
-
-            var responder2 = new ResponderOneToOneSimple();
-            var responder2Config = CreateResponderConfig(
-                "RAResponder2",
-                "RAResponder2",
-                (input, s) =>
-                {
-                    var result = new ResponderOneToOneSimple.OutputMessage()
-                    {
-                        Value = $"{input.Value} Answer from 2"
-                    };
-
-                    return Task.FromResult(result);
-                });
-            responder2.Start(config: responder2Config, producerPool: pool);
-
-            #endregion
-
-            var answers = new List<Task<(BaseResponse[], CurrentState, string)>>(awaitersGuids.Count);
+            var answers = new List<Task<(string, BaseResponse[], CurrentState, string)>>(requestsCount);
             await using (var reqAwaiter = new RequestAwaiterSimple())
             {
                 reqAwaiter.Setup(
@@ -573,7 +523,7 @@ namespace KafkaExchengerTests
                     producerPool0: pool
                     );
 
-                foreach (var pair in awaitersGuids)
+                foreach (var pair in sended)
                 {
                     answers.Add(
                     AddAwaiter(
@@ -584,28 +534,41 @@ namespace KafkaExchengerTests
                             pair.Value.Value
                             )
                         );
+                }
 
-                    async Task<(BaseResponse[], CurrentState, string)> AddAwaiter(
+                foreach (var pair in sendedFromAwaiter)
+                {
+                    answers.Add(
+                    AddAwaiter(
+                            pair.Value.Header.MessageGuid,
+                            pair.Value.Header.Bucket,
+                            pair.Value.Header.TopicsForAnswer[0].Partitions.ToArray(),
+                            pair.Value.Header.TopicsForAnswer[1].Partitions.ToArray(),
+                            pair.Value.Value
+                            )
+                        );
+                }
+
+                async Task<(string, BaseResponse[], CurrentState, string)> AddAwaiter(
                         string messageGuid,
                         int bucket,
                         int[] input0Partitions,
                         int[] input1Partitions,
                         string requestValue
                         )
-                    {
-                        using var result =
-                            await reqAwaiter.AddAwaiter(
-                                messageGuid,
-                                bucket,
-                                input0Partitions,
-                                input1Partitions
-                                )
-                            .ConfigureAwait(false);
-                        var state = result.CurrentState;
-                        var response = result.Result;
+                {
+                    using var result =
+                        await reqAwaiter.AddAwaiter(
+                            messageGuid,
+                            bucket,
+                            input0Partitions,
+                            input1Partitions
+                            )
+                        .ConfigureAwait(false);
+                    var state = result.CurrentState;
+                    var response = result.Result;
 
-                        return (response, state, requestValue);
-                    }
+                    return (messageGuid, response, state, requestValue);
                 }
 
                 reqAwaiter.Start(
@@ -624,7 +587,7 @@ namespace KafkaExchengerTests
                 Task.WaitAll(answers.ToArray());
                 for (int i = 0; i < answers.Count; i++)
                 {
-                    (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                    (string messageGuid, BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
                     Assert.Multiple(() =>
                     {
                         Assert.That(result.result.Count, Is.EqualTo(2));
@@ -637,7 +600,14 @@ namespace KafkaExchengerTests
                     Assert.Multiple(() =>
                     {
                         Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
-                        Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                        if(sendedFromAwaiter.ContainsKey(result.messageGuid))
+                        {
+                            Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 1"));
+                        }
+                        else
+                        {
+                            Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                        }
                         Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
                     });
 
@@ -647,7 +617,14 @@ namespace KafkaExchengerTests
                     Assert.Multiple(() =>
                     {
                         Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
-                        Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                        if (sendedFromAwaiter.ContainsKey(result.messageGuid))
+                        {
+                            Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 2"));
+                        }
+                        else
+                        {
+                            Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                        }
                         Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
                     });
                 }
@@ -656,8 +633,105 @@ namespace KafkaExchengerTests
                 Assert.That(unique2.Count, Is.EqualTo(requestsCount));
             }
 
-            await responder1.StopAsync();
-            await responder2.StopAsync();
+            void CreateConfig()
+            {
+                reqAwaiterConfitg =
+                new RequestAwaiterSimple.Config(
+                    groupId: "SimpleProduce",
+                    bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                    processors: new RequestAwaiterSimple.ProcessorConfig[]
+                    {
+                        //From _inputSimpleTopic1
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 0 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 0 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50,
+                            afterSendOutput0: AfterSend,
+                            loadOutput0Message: LoadOutputMessage,
+                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 1 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 1 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50,
+                            afterSendOutput0: AfterSend,
+                            loadOutput0Message: LoadOutputMessage,
+                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            ),
+                        new RequestAwaiterSimple.ProcessorConfig(
+                            input0: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic1,
+                                partitions: new int[] { 2 }
+                                ),
+                            input1: new RequestAwaiterSimple.ConsumerInfo(
+                                topicName: _inputSimpleTopic2,
+                                partitions: new int[] { 2 }
+                                ),
+                            new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
+                            buckets: 2,
+                            maxInFly: 50,
+                            afterSendOutput0: AfterSend,
+                            loadOutput0Message: LoadOutputMessage,
+                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            )
+                    }
+                    );
+            }
+
+            Task AfterSend(KafkaExchengerTests.RequestHeader header, RequestAwaiterSimple.Output0Message message)
+            {
+                var info = new AddAwaiterInfo()
+                {
+                    Value = message.Value,
+                    Header = header,
+                };
+
+                if (!sendedFromAwaiter.ContainsKey(header.MessageGuid))
+                {
+                    sended.TryAdd(header.MessageGuid, info);
+                }
+
+                return Task.CompletedTask;
+            }
+
+            Task<RequestAwaiterSimple.Output0Message> LoadOutputMessage(string messageGuid, int bucket, int[] input0Partitions, int[] input1Partitions)
+            {
+                return Task.FromResult(new RequestAwaiterSimple.Output0Message() 
+                {
+                    Message = new Message<Null, string>() 
+                    {
+                        Value = sendedFromAwaiter[messageGuid].Value + "LOM",
+                    }
+                });
+            }
+
+            Task<KafkaExchanger.Attributes.Enums.RAState> AddAwaiterCheckStatus(string messageGuid, int bucket, int[] input0Partitions, int[] input1Partitions)
+            {
+                if(sended.ContainsKey(messageGuid))
+                {
+                    return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended);
+                }
+                else
+                {
+                    return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.NotSended);
+                }
+            }
         }
     }
 }
