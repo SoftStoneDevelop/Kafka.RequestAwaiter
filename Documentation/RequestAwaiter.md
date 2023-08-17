@@ -6,8 +6,8 @@ public RequestAwaiterAttribute(
   bool useLogger = true,
   bool checkCurrentState = false,
   bool useAfterCommit = false,
-  bool customOutcomeHeader = false,
-  bool customHeaders = false
+  bool afterSend = false,
+  bool AddAwaiterCheckStatus = false
 )
 
 ```
@@ -19,9 +19,9 @@ Usage:
 ```C#
 
 [RequestAwaiter(useLogger: false),
-        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder0" }),
-        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder1" }),
-        Output(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder0" }),//input0
+        Input(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue), new [] { "Responder1" }),//input1
+        Output(keyType: typeof(protobuff.SimpleKey), valueType: typeof(protobuff.SimpleValue))//output0
         ]
     public partial class RequestAwaiter
     {
@@ -85,7 +85,9 @@ var reqAwaiterConfitg =
     new protobuff.SimpleValue() { Id = 12, Message = "Hello" }
     );
     
-    //process answer.Result
+    //process answer
+    //answer.Input0Message
+    //answer.Input1Message
 ```
 
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter.svg)
@@ -104,5 +106,8 @@ We can also accept answers in one input topic from different services:
 
     }
 
+    //process answer
+    //answer.Input0Message0 - from Responder0
+    //answer.Input1Message1 - from Responder1
 ```
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter_one.svg)
