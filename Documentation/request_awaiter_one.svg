@@ -24,7 +24,7 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1.4142136"
-     inkscape:cx="688.72199"
+     inkscape:cx="689.42909"
      inkscape:cy="359.56379"
      inkscape:window-width="2560"
      inkscape:window-height="1361"
@@ -469,15 +469,10 @@
    style="fill:#fd1218;fill-opacity:1;stroke-width:0.250435"
    id="tspan30">&quot;Hello&quot;</tspan>);</tspan><tspan
          sodipodi:role="line"
-         style="fill:#008118;fill-opacity:1;stroke-width:0.250435"
-         x="1.3204296"
-         y="90.675453"
-         id="tspan26">//response.Result[0] response from Responder0</tspan><tspan
-         sodipodi:role="line"
          style="fill:#007202;fill-opacity:1;stroke-width:0.250435"
          x="1.3204296"
-         y="94.431992"
-         id="tspan27">//response.Result[1] response from Responder1</tspan></text>
+         y="90.675461"
+         id="tspan27" /></text>
     <text
        xml:space="preserve"
        style="font-size:5.68733px;line-height:1.25;font-family:sans-serif;stroke-width:0.473944"

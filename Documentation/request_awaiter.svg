@@ -24,8 +24,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1.4142136"
-     inkscape:cx="987.82817"
-     inkscape:cy="438.75976"
+     inkscape:cx="444.06305"
+     inkscape:cy="438.75975"
      inkscape:window-width="2560"
      inkscape:window-height="1361"
      inkscape:window-x="2551"
@@ -564,15 +564,10 @@
    style="fill:#fd1218;fill-opacity:1"
    id="tspan30">&quot;Hello&quot;</tspan>);</tspan><tspan
          sodipodi:role="line"
-         style="fill:#008118;fill-opacity:1;stroke-width:0.264583"
-         x="1.3229165"
-         y="91.016663"
-         id="tspan26">//response.Result[0] is response from Input0</tspan><tspan
-         sodipodi:role="line"
          style="fill:#007202;fill-opacity:1;stroke-width:0.264583"
          x="1.3229165"
-         y="94.985413"
-         id="tspan27">//response.Result[1] is response from Input1</tspan></text>
+         y="91.016663"
+         id="tspan27" /></text>
     <text
        xml:space="preserve"
        style="font-size:5.68733px;line-height:1.25;font-family:sans-serif;stroke-width:0.473944"
