@@ -54,15 +54,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
 ");
-            if(requestAwaiter.Data.AfterSend)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (requestAwaiter.Data.AfterSend)
                 {
-                    var outputData = requestAwaiter.OutputDatas[i];
-                    builder.Append($@",{requestAwaiter.Data.AfterSendFunc(assemblyName, outputData)} afterSendOutput{i}
+                    builder.Append($@",
+                {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} afterSendOutput{i}
+");
+                }
+
+                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@",
+                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} loadOutput{i}Message
 ");
                 }
             }
+
+            if (requestAwaiter.Data.AddAwaiterCheckStatus)
+            {
+                builder.Append($@",
+                {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus
+");
+            }
+
             builder.Append($@",
                 int buckets,
                 int maxInFly
@@ -74,14 +90,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {(consumerData.CheckCurrentState ? "GetCurrentState = getCurrentState;" : "")}
                 {(consumerData.UseAfterCommit ? "AfterCommit = afterCommit;" : "")}
 ");
-            if (requestAwaiter.Data.AfterSend)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
                 AfterSendOutput{i} = afterSendOutput{i};
 ");
                 }
+
+                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@",
+                LoadOutput{i}Message = loadOutput{i}Message;
+");
+                }
+            }
+
+            if (requestAwaiter.Data.AddAwaiterCheckStatus)
+            {
+                builder.Append($@"
+                AddAwaiterCheckStatus = addAwaiterCheckStatus;
+");
             }
 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -124,9 +155,23 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if(requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-            public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData)} AfterSendOutput{i} {{ get; init; }}
+            public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} AfterSendOutput{i} {{ get; init; }}
 ");
                 }
+
+                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@",
+                public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} LoadOutput{i}Message {{ get; init; }}
+");
+                }
+            }
+
+            if (requestAwaiter.Data.AddAwaiterCheckStatus)
+            {
+                builder.Append($@"
+            public {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} AddAwaiterCheckStatus {{ get; init; }}
+");
             }
 
             builder.Append($@"

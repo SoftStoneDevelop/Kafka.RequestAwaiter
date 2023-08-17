@@ -38,6 +38,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             ProducerInfo.Append(_builder);
 
             InputMessages.Append(_builder, assemblyName, requestAwaiter);
+            OutputMessages.Append(_builder, assemblyName, requestAwaiter);
             TopicResponse.Append(_builder, assemblyName, requestAwaiter);
             PartitionItem.Append(_builder, assemblyName, requestAwaiter);
 
@@ -166,13 +167,6 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         config.Processors[i].Input{i}.Partitions
 ");
             }
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                _builder.Append($@",
-                        config.Processors[i].Output{i}.TopicName,
-                        producerPool{i}
-");
-            }
             _builder.Append($@",
                         config.Processors[i].Buckets,
                         config.Processors[i].MaxInFly
@@ -180,15 +174,34 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                         {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
                         {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
 ");
-            if(requestAwaiter.Data.AfterSend)
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
-                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                _builder.Append($@",
+                        config.Processors[i].Output{i}.TopicName,
+                        producerPool{i}
+");
+                if (requestAwaiter.Data.AfterSend)
                 {
                     _builder.Append($@",
                         config.Processors[i].AfterSendOutput{i}
 ");
                 }
+
+                if(requestAwaiter.Data.AddAwaiterCheckStatus)
+                {
+                    _builder.Append($@",
+                        config.Processors[i].LoadOutput{i}Message
+");
+                }
             }
+
+            if (requestAwaiter.Data.AddAwaiterCheckStatus)
+            {
+                _builder.Append($@",
+                        config.Processors[i].AddAwaiterCheckStatus
+");
+            }
+
             _builder.Append($@"
                         );
             }}

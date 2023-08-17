@@ -29,24 +29,11 @@ namespace KafkaExchanger.AttributeDatas
 
         public string AfterSendFunc(
             string assemblyName,
-            OutputData outputData
+            OutputData outputData,
+            int outputIndex
             )
         {
-            var builder = new StringBuilder(200);
-            builder.Append($"Func<{assemblyName}.RequestHeader");
-
-            if(outputData.KeyType.IsProtobuffType())
-            {
-                builder.Append($",{outputData.KeyType.GetFullTypeName()}");
-            }
-
-            if (outputData.ValueType.IsProtobuffType())
-            {
-                builder.Append($",{outputData.ValueType.GetFullTypeName()}");
-            }
-
-            builder.Append($", Confluent.Kafka.Message<{outputData.TypesPair}>, Task>");
-            return builder.ToString();
+            return $"Func<{assemblyName}.RequestHeader, Output{outputIndex}Message, Task>";
         }
 
         internal bool SetAfterSend(TypedConstant argument)
@@ -62,13 +49,61 @@ namespace KafkaExchanger.AttributeDatas
             return true;
         }
 
+        public bool AddAwaiterCheckStatus { get; private set; }
+
+        public string AddAwaiterCheckStatusFunc(
+            string assemblyName,
+            List<InputData> inputDatas
+            )
+        {
+            var builder = new StringBuilder(200);
+            builder.Append($"Func<string, int,");
+            for (int i = 0; i < inputDatas.Count; i++)
+            {
+                builder.Append($@" int[] input{i}partitions,");
+            }
+
+            builder.Append($" Task<KafkaExchanger.Attributes.Enums.RAState>>");
+            return builder.ToString();
+        }
+
+        public string LoadOutputMessageFunc(
+            string assemblyName,
+            OutputData outputData,
+            List<InputData> inputDatas
+            )
+        {
+            var builder = new StringBuilder(200);
+            builder.Append($"Func<string, int,");
+            for (int i = 0; i < inputDatas.Count; i++)
+            {
+                builder.Append($@" int[] input{i}partitions,");
+            }
+
+            builder.Append($" Task<Confluent.Kafka.Message<{outputData.TypesPair}>>>");
+            return builder.ToString();
+        }
+
+        internal bool SetAddAwaiterCheckStatus(TypedConstant argument)
+        {
+            if (!(argument.Type is INamedTypeSymbol useLogger) ||
+                useLogger.Name != nameof(Boolean)
+                )
+            {
+                return false;
+            }
+
+            AddAwaiterCheckStatus = (bool)argument.Value;
+            return true;
+        }
+
         public static RequestAwaiterData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new RequestAwaiterData();
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 4)
+            if (namedArguments.Length != 5)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -91,6 +126,11 @@ namespace KafkaExchanger.AttributeDatas
             if (!result.SetAfterSend(namedArguments[3]))
             {
                 throw new Exception("Fail create RequestAwaiter data: AfterSend");
+            }
+
+            if (!result.SetAddAwaiterCheckStatus(namedArguments[4]))
+            {
+                throw new Exception("Fail create RequestAwaiter data: AddAwaiterCheckStatus");
             }
 
             return result;

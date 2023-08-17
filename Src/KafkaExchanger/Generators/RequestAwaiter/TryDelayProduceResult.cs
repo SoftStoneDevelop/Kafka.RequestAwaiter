@@ -24,22 +24,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            public {assemblyName}.RequestHeader Message{i}Header;
-            public Confluent.Kafka.Message<{outputData.TypesPair}> Message{i};
+            public {assemblyName}.RequestHeader Output{i}Header;
+            public Output{i}Message Output{i}Message;
 ");
-                if(outputData.KeyType.IsProtobuffType())
-                {
-                    builder.Append($@"
-            public {outputData.KeyType.GetFullTypeName()} Message{i}Key;
-");
-                }
-
-                if (outputData.ValueType.IsProtobuffType())
-                {
-                    builder.Append($@"
-            public {outputData.ValueType.GetFullTypeName()} Message{i}Value;
-");
-                }
             }
 
             builder.Append($@"
