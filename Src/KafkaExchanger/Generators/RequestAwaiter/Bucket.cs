@@ -701,7 +701,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                    await _afterSendOutput{i}(header{i}, message{i}).ConfigureAwait(false);
+                await _afterSendOutput{i}(header{i}");
+                    if(outputData.KeyType.IsProtobuffType())
+                    {
+                        builder.Append($@", key{i}");
+                    }
+
+                    if (outputData.ValueType.IsProtobuffType())
+                    {
+                        builder.Append($@", value{i}");
+                    }
+                    builder.Append($@", message{i}).ConfigureAwait(false);
 ");
                 }
             }
@@ -826,10 +836,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
                     Message{i} = message{i},
                     Message{i}Header = header{i}
 ");
+                if (outputData.KeyType.IsProtobuffType())
+                {
+                    builder.Append($@",
+                    Message{i}Key = key{i}
+");
+                }
+
+                if (outputData.ValueType.IsProtobuffType())
+                {
+                    builder.Append($@",
+                    Message{i}Value = value{i}
+");
+                }
             }
             builder.Append($@"
                 }};
@@ -885,7 +909,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                    await _afterSendOutput{i}(tryDelayProduce.Message{i}Header, tryDelayProduce.Message{i}).ConfigureAwait(false);
+                await _afterSendOutput{i}(tryDelayProduce.Message{i}Header");
+                    if (outputData.KeyType.IsProtobuffType())
+                    {
+                        builder.Append($@", tryDelayProduce.Message{i}Key");
+                    }
+
+                    if (outputData.ValueType.IsProtobuffType())
+                    {
+                        builder.Append($@", tryDelayProduce.Message{i}Value");
+                    }
+                    builder.Append($@", tryDelayProduce.Message{i}).ConfigureAwait(false);
 ");
                 }
             }
