@@ -51,6 +51,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
             public int Bucket => _tryDelay.Bucket.BucketId;
+            public string MessageGuid => _tryDelay.Response.MessageGuid;
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
