@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Enums;
+using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,21 @@ namespace KafkaExchanger.AttributeDatas
             OutputData outputData
             )
         {
-            return $"Func<{assemblyName}.RequestHeader, Confluent.Kafka.Message<{outputData.TypesPair}>, Task>";
+            var builder = new StringBuilder(200);
+            builder.Append($"Func<{assemblyName}.RequestHeader");
+
+            if(outputData.KeyType.IsProtobuffType())
+            {
+                builder.Append($",{outputData.KeyType.GetFullTypeName()}");
+            }
+
+            if (outputData.ValueType.IsProtobuffType())
+            {
+                builder.Append($",{outputData.ValueType.GetFullTypeName()}");
+            }
+
+            builder.Append($", Confluent.Kafka.Message<{outputData.TypesPair}>, Task>");
+            return builder.ToString();
         }
 
         internal bool SetAfterSend(TypedConstant argument)
