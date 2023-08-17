@@ -17,7 +17,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             StartInterface(builder, requestAwaiter);
-            InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
+            InterfaceProduceMethod(builder, requestAwaiter);
             InterfaceProduceDelayMethod(builder, assemblyName, requestAwaiter);
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
             InterfaceSetupMethod(builder, assemblyName, requestAwaiter);
@@ -40,12 +40,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void InterfaceProduceMethod(
             StringBuilder builder,
-            string assemblyName,
             AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask<{assemblyName}.Response> Produce(
+        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -138,7 +137,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask<{assemblyName}.Response> AddAwaiter(
+        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> AddAwaiter(
             string messageGuid,
             int bucket,
 ");

@@ -19,9 +19,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
             DisposeAsync(sb);
-            TryProduce(sb, assemblyName, requestAwaiter);
-            TryProduceDelay(sb, assemblyName, requestAwaiter);
-            TryAddAwaiter(sb, assemblyName, requestAwaiter);
+            TryProduce(sb, requestAwaiter);
+            TryProduceDelay(sb, requestAwaiter);
+            TryAddAwaiter(sb, requestAwaiter);
             End(sb);
         }
 
@@ -183,12 +183,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TryProduce(
             StringBuilder builder, 
-            string assemblyName, 
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public async ValueTask<{assemblyName}.TryProduceResult> TryProduce(
+            public async ValueTask<{requestAwaiter.TypeSymbol.Name}.TryProduceResult> TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -239,14 +238,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     Interlocked.CompareExchange(ref _current, nextIndex, index);
                 }}
 
-                return new {assemblyName}.TryProduceResult {{ Succsess = false }};
+                return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
             }}
 ");
         }
 
         private static void TryProduceDelay(
             StringBuilder builder,
-            string assemblyName,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
@@ -309,7 +307,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TryAddAwaiter(
             StringBuilder builder,
-            string assemblyName,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {

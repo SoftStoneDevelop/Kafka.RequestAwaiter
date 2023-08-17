@@ -13,7 +13,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             StartClass(builder, requestAwaiter);
             Fields(builder, assemblyName, requestAwaiter);
-            Produce(builder, assemblyName);
+            Produce(builder, requestAwaiter);
             Dispose(builder, assemblyName);
             EndClass(builder);
         }
@@ -75,11 +75,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Produce(
             StringBuilder builder,
-            string assemblyName
+            AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public async Task<{assemblyName}.Response> Produce()
+            public async Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce()
             {{
                 if(_produced)
                 {{

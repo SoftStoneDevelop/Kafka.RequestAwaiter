@@ -29,8 +29,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             //inner classes
             DelayProduce.Append(_builder, assemblyName, requestAwaiter);
 
+            TryProduceResult.Append(_builder, assemblyName, requestAwaiter);
             TryDelayProduceResult.Append(_builder, assemblyName, requestAwaiter);
             TryAddAwaiterResult.Append(_builder, requestAwaiter);
+            Response.Append(_builder, assemblyName, requestAwaiter);
 
             Config.Append(_builder);
             ProcessorConfig.Append(_builder, assemblyName, requestAwaiter);
@@ -45,9 +47,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             //methods
             StartMethod(requestAwaiter);
             Setup(requestAwaiter);
-            Produce(assemblyName, requestAwaiter);
+            Produce(requestAwaiter);
             ProduceDelay(assemblyName, requestAwaiter);
-            AddAwaiter(assemblyName, requestAwaiter);
+            AddAwaiter(requestAwaiter);
             StopAsync();
             DisposeAsync();
 
@@ -236,10 +238,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void Produce(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Produce(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
-        public async ValueTask<{assemblyName}.Response> Produce(
+        public async ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -349,10 +351,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void AddAwaiter(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
+        private void AddAwaiter(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
-        public async ValueTask<{assemblyName}.Response> AddAwaiter(
+        public async ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> AddAwaiter(
             string messageGuid,
             int bucket,
 ");

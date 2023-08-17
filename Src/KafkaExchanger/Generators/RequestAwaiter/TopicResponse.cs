@@ -18,7 +18,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             TCS(builder, requestAwaiter);
             Constructor(builder, requestAwaiter);
             CreateGetResponse(builder, assemblyName, requestAwaiter);
-            GetResponse(builder, assemblyName);
+            GetResponse(builder, requestAwaiter);
             TrySetResponse(builder, requestAwaiter);
             TrySetException(builder, requestAwaiter);
             Dispose(builder, requestAwaiter);
@@ -35,7 +35,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public class TopicResponse : IDisposable
         {{
             private TaskCompletionSource<bool> _responseProcess = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            public Task<{assemblyName}.Response> _response;
+            public Task<{requestAwaiter.TypeSymbol.Name}.Response> _response;
             private CancellationTokenSource _cts;
             private string _guid;
             public string MessageGuid => _guid;
@@ -53,7 +53,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if(inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-            private TaskCompletionSource<Input{i}Message> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<{inputData.MessageTypeName}> _responseTopic{i} = new(TaskCreationOptions.RunContinuationsAsynchronously);
 ");
                 }
                 else
@@ -61,7 +61,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-            private TaskCompletionSource<Input{i}Message> _responseTopic{i}{inputData.AcceptedService[j]} = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<{inputData.MessageTypeName}> _responseTopic{i}{inputData.AcceptedService[j]} = new(TaskCreationOptions.RunContinuationsAsynchronously);
 ");
                     }
                 }
@@ -74,18 +74,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             var consumerData = requestAwaiter.ConsumerData;
-
             builder.Append($@"
             public TopicResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-                string topic{i}Name,
-");
-            }
-
-            builder.Append($@"
                 {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState," : "")}
                 string guid,
                 Action<string> removeAction,
@@ -94,21 +84,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 _guid = guid;
                 _response = CreateGetResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                if (i != 0)
-                {
-                    builder.Append(',');
-                }
-
-                builder.Append($@"
-                    topic{i}Name
-");
-            }
-            builder.Append($@"
-                {(consumerData.CheckCurrentState ? ",getCurrentState" : "")}
-                );
+                                {(consumerData.CheckCurrentState ? "getCurrentState" : "")}
+                                );
 
                 _response.ContinueWith(task => 
                 {{
@@ -174,20 +151,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            private async Task<{assemblyName}.Response> CreateGetResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                if (i != 0)
-                {
-                    builder.Append(',');
-                }
-
-                builder.Append($@"
-                string topic{i}Name
-");
-            }
-            builder.Append($@"
+            private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse(
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 )
             {{
@@ -253,23 +217,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             else
             {
                 builder.Append($@"
-                var currentState = KafkaExchanger.Attributes.Enums.CurrentState.NewMessage;
+                var currentState = KafkaExchanger.Attributes.Enums.RAState.Sended;
 ");
             }
 
             builder.Append($@"
-                var response = new {assemblyName}.Response(
+                var response = new {requestAwaiter.TypeSymbol.Name}.Response(
                     currentState,
-                    new {assemblyName}.BaseResponse[]
-                    {{
+                    _responseProcess
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+");
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                        new ResponseItem<Input{i}Message>(topic{i}Name, topic{i})
+                        topic{i}
 ");
                 }
                 else
@@ -282,19 +247,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }
 
                         builder.Append($@"
-                        new ResponseItem<Input{i}Message>(topic{i}Name, topic{i}{inputData.AcceptedService[j]})
+                        topic{i}{inputData.AcceptedService[j]}
 ");
                     }
                 }
-
-                if (i != requestAwaiter.InputDatas.Count - 1)
-                {
-                    builder.Append(',');
-                }
             }
-            builder.Append($@"    
-                    }},
-                    _responseProcess
+            builder.Append($@"
                     );
                 
                 return response;
@@ -304,11 +262,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void GetResponse(
             StringBuilder builder,
-            string assemblyName
+            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public Task<{assemblyName}.Response> GetResponse()
+            public Task<{requestAwaiter.TypeSymbol.Name}.Response> GetResponse()
             {{
                 return _response;
             }}
@@ -334,7 +292,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     builder.Append($@"
                     case ({i}, 0):
                     {{
-                        return _responseTopic{i}.TrySetResult((Input{i}Message)response);
+                        return _responseTopic{i}.TrySetResult(({inputData.MessageTypeName})response);
                     }}
 ");
                 }
@@ -345,7 +303,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         builder.Append($@"
                     case ({i}, {j}):
                     {{
-                        return _responseTopic{i}{inputData.AcceptedService[j]}.TrySetResult((Input{i}Message)response);
+                        return _responseTopic{i}{inputData.AcceptedService[j]}.TrySetResult(({inputData.MessageTypeName})response);
                     }}
 ");
                     }

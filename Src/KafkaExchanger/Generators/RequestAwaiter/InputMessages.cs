@@ -23,6 +23,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public abstract class BaseInputMessage
         {{
+            public string TopicName {{ get; set; }}
             public Confluent.Kafka.Partition Partition {{ get; set; }}
         }}
 ");
@@ -38,7 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-        public class Input{i}Message : BaseInputMessage
+        public class {inputData.MessageTypeName} : BaseInputMessage
         {{
             public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 

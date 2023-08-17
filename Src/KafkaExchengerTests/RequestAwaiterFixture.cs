@@ -314,19 +314,18 @@ namespace KafkaExchengerTests
             _responder2.Start(config: _responder2Config, producerPool: pool);
 
             var requestsCount = 1000;
-            var answers = new Task<(BaseResponse[], CurrentState, string)>[requestsCount];
+            var answers = new Task<(RequestAwaiterSimple.Response, string)>[requestsCount];
             for (int i = 0; i < requestsCount; i++)
             {
                 var message = $"Hello{i}";
                 answers[i] = produce(message);
 
-                async Task<(BaseResponse[], CurrentState, string)> produce(string message)
+                async Task<(RequestAwaiterSimple.Response, string)> produce(string message)
                 {
                     using var result = await reqAwaiter.Produce(message).ConfigureAwait(false);
                     var state = result.CurrentState;
-                    var response = result.Result;
 
-                    return (response, state, message);
+                    return (result, message);
                 }
             }
 
@@ -336,31 +335,28 @@ namespace KafkaExchengerTests
             Task.WaitAll(answers);
             for (int i = 0; i < requestsCount; i++)
             {
-                (BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                (RequestAwaiterSimple.Response result, string requestValue) result = await answers[i];
                 Assert.Multiple(() =>
                 {
-                    Assert.That(result.result.Count, Is.EqualTo(2));
-                    Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                    Assert.That(result.result.CurrentState, Is.EqualTo(RAState.Sended));
                 });
 
-                var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
+                var answerFrom1 = result.result.Input0Message0;
                 Assert.That(answerFrom1 != null, Is.True);
-                Assert.That(answerFrom1.Result != null, Is.True);
                 Assert.Multiple(() => 
                 {
                     Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
-                    Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
-                    Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                    Assert.That(answerFrom1.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                    Assert.That(unique1.Add(answerFrom1.Value), Is.True);
                 });
 
-                var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
+                var answerFrom2 = result.result.Input1Message0;
                 Assert.That(answerFrom2 != null, Is.True);
-                Assert.That(answerFrom2.Result != null, Is.True);
                 Assert.Multiple(() =>
                 {
                     Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
-                    Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
-                    Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                    Assert.That(answerFrom2.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                    Assert.That(unique2.Add(answerFrom2.Value), Is.True);
                 });
             }
 
@@ -515,7 +511,7 @@ namespace KafkaExchengerTests
             _responder1.Start(config: _responder1Config, producerPool: pool);
             _responder2.Start(config: _responder2Config, producerPool: pool);
 
-            var answers = new List<Task<(string, BaseResponse[], CurrentState, string)>>(requestsCount);
+            var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
             await using (var reqAwaiter = new RequestAwaiterSimple())
             {
                 reqAwaiter.Setup(
@@ -549,7 +545,7 @@ namespace KafkaExchengerTests
                         );
                 }
 
-                async Task<(string, BaseResponse[], CurrentState, string)> AddAwaiter(
+                async Task<(string, RequestAwaiterSimple.Response, string)> AddAwaiter(
                         string messageGuid,
                         int bucket,
                         int[] input0Partitions,
@@ -566,9 +562,8 @@ namespace KafkaExchengerTests
                             )
                         .ConfigureAwait(false);
                     var state = result.CurrentState;
-                    var response = result.Result;
 
-                    return (messageGuid, response, state, requestValue);
+                    return (messageGuid, result, requestValue);
                 }
 
                 reqAwaiter.Start(
@@ -587,45 +582,42 @@ namespace KafkaExchengerTests
                 Task.WaitAll(answers.ToArray());
                 for (int i = 0; i < answers.Count; i++)
                 {
-                    (string messageGuid, BaseResponse[] result, CurrentState state, string requestValue) result = await answers[i];
+                    (string messageGuid, RequestAwaiterSimple.Response result, string requestValue) result = await answers[i];
                     Assert.Multiple(() =>
                     {
-                        Assert.That(result.result.Count, Is.EqualTo(2));
-                        Assert.That(result.state, Is.EqualTo(CurrentState.NewMessage));
+                        Assert.That(result.result.CurrentState, Is.EqualTo(RAState.Sended));
                     });
 
-                    var answerFrom1 = result.result[0] as ResponseItem<RequestAwaiterSimple.Input0Message>;
+                    var answerFrom1 = result.result.Input0Message0;
                     Assert.That(answerFrom1 != null, Is.True);
-                    Assert.That(answerFrom1.Result != null, Is.True);
                     Assert.Multiple(() =>
                     {
                         Assert.That(answerFrom1.TopicName, Is.EqualTo(_inputSimpleTopic1));
                         if(sendedFromAwaiter.ContainsKey(result.messageGuid))
                         {
-                            Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 1"));
+                            Assert.That(answerFrom1.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 1"));
                         }
                         else
                         {
-                            Assert.That(answerFrom1.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
+                            Assert.That(answerFrom1.Value, Is.EqualTo($"{result.requestValue} Answer from 1"));
                         }
-                        Assert.That(unique1.Add(answerFrom1.Result.Value), Is.True);
+                        Assert.That(unique1.Add(answerFrom1.Value), Is.True);
                     });
 
-                    var answerFrom2 = result.result[1] as ResponseItem<RequestAwaiterSimple.Input1Message>;
+                    var answerFrom2 = result.result.Input1Message0;
                     Assert.That(answerFrom2 != null, Is.True);
-                    Assert.That(answerFrom2.Result != null, Is.True);
                     Assert.Multiple(() =>
                     {
                         Assert.That(answerFrom2.TopicName, Is.EqualTo(_inputSimpleTopic2));
                         if (sendedFromAwaiter.ContainsKey(result.messageGuid))
                         {
-                            Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 2"));
+                            Assert.That(answerFrom2.Value, Is.EqualTo($"{result.requestValue}LOM Answer from 2"));
                         }
                         else
                         {
-                            Assert.That(answerFrom2.Result.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
+                            Assert.That(answerFrom2.Value, Is.EqualTo($"{result.requestValue} Answer from 2"));
                         }
-                        Assert.That(unique2.Add(answerFrom2.Result.Value), Is.True);
+                        Assert.That(unique2.Add(answerFrom2.Value), Is.True);
                     });
                 }
 

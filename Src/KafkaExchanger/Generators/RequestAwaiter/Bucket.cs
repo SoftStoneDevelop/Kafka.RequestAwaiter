@@ -21,9 +21,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             StartTopicConsume(sb, assemblyName, requestAwaiter);
             StopConsume(sb, requestAwaiter);
-            TryProduce(sb, assemblyName, requestAwaiter);
-            TryProduceDelay(sb, assemblyName, requestAwaiter);
-            Produce(sb, assemblyName, requestAwaiter);
+            TryProduce(sb, requestAwaiter);
+            TryProduceDelay(sb, requestAwaiter);
+            Produce(sb, requestAwaiter);
             AddAwaiter(sb, assemblyName, requestAwaiter);
             RemoveAwaiter(sb);
             CreateOutputHeader(sb, assemblyName, requestAwaiter);
@@ -389,7 +389,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             }}
                                             throw;
                                         }}
-                                        {requestAwaiter.Data.TypeSymbol.Name}.Input{i}Message inputMessage = null;
+                                        {requestAwaiter.Data.TypeSymbol.Name}.{inputData.MessageTypeName} inputMessage = null;
                                         if(consumeResult != null)
                                         {{
                                             if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
@@ -412,7 +412,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                 {(inputData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(inputData)},")}
                                                 Value = {GetResponseValue(inputData)},
                                                 Partition = consumeResult.Partition,
-                                                HeaderInfo = headerInfo
+                                                HeaderInfo = headerInfo,
+                                                TopicName = _inputTopic{i}Name
                                             }};
 
                                             {LogInputMessage(requestAwaiter, inputData, "LogInformation")}
@@ -628,14 +629,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TryProduce(
             StringBuilder builder,
-            string assemblyName,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public async ValueTask<{assemblyName}.TryProduceResult> TryProduce(
+            public async ValueTask<{requestAwaiter.TypeSymbol.Name}.TryProduceResult> TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -663,29 +663,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     if(_addedCount == _maxInFly)
                     {{
-                        return new {assemblyName}.TryProduceResult {{ Succsess = false }};
+                        return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
                     }}
                     else
                     {{
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-                        _inputTopic{i}Name,
-");
-            }
-            builder.Append($@"
-                        {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
-                        messageGuid,
-                        RemoveAwaiter, 
-                        waitResponseTimeout
-                        );
-");
+                                {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                messageGuid,
+                                RemoveAwaiter, 
+                                waitResponseTimeout
+                                );
 
-            builder.Append($@"
                         _lock.EnterWriteLock();
                         try
                         {{
@@ -712,7 +702,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if(needDispose)
                 {{
                     awaiter.Dispose(); 
-                    return new {assemblyName}.TryProduceResult {{Succsess = false}};
+                    return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{Succsess = false}};
                 }}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
@@ -794,14 +784,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@"
                 var response = await awaiter.GetResponse().ConfigureAwait(false);
-                return new {assemblyName}.TryProduceResult() {{Succsess = true, Response = response}};
+                return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult() 
+                {{
+                    Succsess = true,
+                    Response = response
+                }};
             }}
 ");
         }
 
         private static void TryProduceDelay(
             StringBuilder builder,
-            string assemblyName,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
@@ -843,22 +836,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-                        _inputTopic{i}Name,
-");
-            }
-            builder.Append($@"
-                        {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
-                        messageGuid,
-                        RemoveAwaiter, 
-                        waitResponseTimeout
-                        );
-");
+                                    {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                    messageGuid,
+                                    RemoveAwaiter, 
+                                    waitResponseTimeout
+                                    );
 
-            builder.Append($@"
                         _lock.EnterWriteLock();
                         try
                         {{
@@ -915,9 +898,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                    Output{i}Header = header{i},
-                    Output{i}Message = 
-                        new Output{i}Message(
+                    {outputData.NamePascalCase}Header = header{i},
+                    {outputData.MessageTypeName} = 
+                        new {outputData.MessageTypeName}(
                                 message{i}
 ");
                 if (outputData.KeyType.IsProtobuffType())
@@ -945,14 +928,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Produce(
             StringBuilder builder,
-            string assemblyName,
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
             var consumerData = requestAwaiter.Data.ConsumerData;
 
             builder.Append($@"
-            public async ValueTask<{assemblyName}.Response> Produce(
+            public async ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
                 {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult tryDelayProduce
                 )
             {{
@@ -965,7 +947,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {variable} = _producerPool{i}.Rent();
                 try
                 {{
-                    var deliveryResult = await producer.ProduceAsync(_outputTopic{i}Name, tryDelayProduce.Output{i}Message.Message).ConfigureAwait(false);
+                    var deliveryResult = await producer.ProduceAsync(_outputTopic{i}Name, tryDelayProduce.{outputData.MessageTypeName}.Message).ConfigureAwait(false);
                 }}
                 catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                 {{
@@ -992,8 +974,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {
                     builder.Append($@"
                 await _afterSendOutput{i}(
-                        tryDelayProduce.Output{i}Header,
-                        tryDelayProduce.Output{i}Message)
+                        tryDelayProduce.{outputData.NamePascalCase}Header,
+                        tryDelayProduce.{outputData.MessageTypeName})
                         .ConfigureAwait(false)
                         ;");
                 }
@@ -1062,18 +1044,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         awaiter =
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-                                _inputTopic{i}Name,
-");
-            }
-            builder.Append($@"
-                                messageGuid,
-                                RemoveAwaiter,
-                                waitResponseTimeout
-                                );
+                                    {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                    messageGuid,
+                                    RemoveAwaiter,
+                                    waitResponseTimeout
+                                    );
 
                         _lock.EnterWriteLock();
                         try

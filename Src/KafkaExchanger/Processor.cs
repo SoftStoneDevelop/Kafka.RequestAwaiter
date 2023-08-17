@@ -113,8 +113,7 @@ namespace KafkaExchanger
 
             var newRA = new RequestAwaiter();
             newRA.Data = requestAwaiterData;
-            newRA.InputDatas.AddRange(_inputsTemp);
-            newRA.OutputDatas.AddRange(_outputsTemp);
+            SetDatas(newRA);
 
             _requestAwaiters.Add(newRA);
             _inputsTemp.Clear();
@@ -132,12 +131,30 @@ namespace KafkaExchanger
 
             var newRes = new Responder();
             newRes.Data = responderData;
-            newRes.InputDatas.AddRange(_inputsTemp);
-            newRes.OutputDatas.AddRange(_outputsTemp);
+            SetDatas(newRes);
 
             _responders.Add(newRes);
             _inputsTemp.Clear();
             _outputsTemp.Clear();
+        }
+
+        private void SetDatas(Exchange exchange)
+        {
+            for (var i = 0; i < _inputsTemp.Count; i++)
+            {
+                var data = _inputsTemp[i];
+                data.SetName(i);
+                data.Hold();
+                exchange.InputDatas.Add(data);
+            }
+
+            for (var i = 0; i < _outputsTemp.Count; i++)
+            {
+                var data = _outputsTemp[i];
+                data.SetName(i);
+                data.Hold();
+                exchange.OutputDatas.Add(data);
+            }
         }
 
         public void Generate(

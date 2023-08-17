@@ -94,9 +94,6 @@ namespace KafkaExchanger
                 throw new System.NotSupportedException("Assembly don`t have name");
             }
 
-            var commonGenerator = new CommonGenarator();
-            commonGenerator.Generate(compilation.AssemblyName, context);
-
             var headerGenerator = new HeaderGenarator();
             headerGenerator.Generate(compilation.AssemblyName, context);
 

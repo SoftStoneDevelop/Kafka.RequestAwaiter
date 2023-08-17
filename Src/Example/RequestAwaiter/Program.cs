@@ -64,7 +64,8 @@ namespace RequestAwaiterConsole
                 requests = int.Parse(read);
                 Console.WriteLine($"Start {requests} reqests");
                 Stopwatch sw = Stopwatch.StartNew();
-                var tasks = new Task<(RequestAwaiterConsole.BaseResponse[], long)>[requests];
+                //var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
+                var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
                 for (int i = 0; i < requests; i++)
                 {
                     //tasks[i] = Produce(reqAwaiter);
@@ -80,14 +81,14 @@ namespace RequestAwaiterConsole
                 var hashSet = new Dictionary<long, int>();
                 foreach (var task in tasks)
                 {
-                    var result = task.Result.Item2;
-                    if(hashSet.TryGetValue(result, out var internalCount))
+                    var executedTime = task.Result.Item2;
+                    if(hashSet.TryGetValue(executedTime, out var internalCount))
                     {
-                        hashSet[result] = ++internalCount;
+                        hashSet[executedTime] = ++internalCount;
                     }
                     else
                     {
-                        hashSet[result] = 1;
+                        hashSet[executedTime] = 1;
                     }
                 }
                 Console.WriteLine($"Times:");
@@ -265,18 +266,18 @@ namespace RequestAwaiterConsole
             return reqAwaiter;
         }
 
-        private static async Task<(RequestAwaiterConsole.BaseResponse[], long)> Produce(RequestAwaiter reqAwaiter)
+        private static async Task<(RequestAwaiter.Response, long)> Produce(RequestAwaiter reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result.Result, sb.ElapsedMilliseconds);
+            return (result, sb.ElapsedMilliseconds);
         }
 
-        private static async Task<(RequestAwaiterConsole.BaseResponse[], long)> Produce2(RequestAwaiter2 reqAwaiter)
+        private static async Task<(RequestAwaiter2.Response, long)> Produce2(RequestAwaiter2 reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result.Result, sb.ElapsedMilliseconds);
+            return (result, sb.ElapsedMilliseconds);
         }
     }
 }

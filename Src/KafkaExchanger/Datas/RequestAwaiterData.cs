@@ -7,15 +7,13 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class RequestAwaiter
+    internal class RequestAwaiter : Exchange
     {
         public RequestAwaiterData Data { get; set; }
 
+        public override INamedTypeSymbol TypeSymbol => Data.TypeSymbol;
+
         public ConsumerData ConsumerData => Data.ConsumerData;
-
-        public List<InputData> InputDatas { get; } = new List<InputData>();
-
-        public List<OutputData> OutputDatas { get; } = new List<OutputData>();
 
         public bool IsEmpty()
         {

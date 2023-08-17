@@ -7,8 +7,10 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class BaseServiceData : BaseData
+    internal class BaseServiceData
     {
+        public INamedTypeSymbol TypeSymbol { get; set; }
+
         public ConsumerData ConsumerData { get; } = new ConsumerData();
 
         public bool UseLogger { get; set; }
@@ -25,10 +27,5 @@ namespace KafkaExchanger.AttributeDatas
             result.UseLogger = (bool)argument.Value;
             return true;
         }
-    }
-
-    internal abstract class BaseData
-    {
-        public INamedTypeSymbol TypeSymbol { get; set; }
     }
 }

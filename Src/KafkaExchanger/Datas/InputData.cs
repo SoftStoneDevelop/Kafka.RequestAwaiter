@@ -1,31 +1,30 @@
-﻿using KafkaExchanger.Helpers;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class InputData : BaseData
+    internal class InputData : BaseTopicData
     {
-        public ITypeSymbol KeyType { get; set; }
+        public string[] AcceptedService 
+        { 
+            get => _acceptedService;
+            private set 
+            {
+                if (_hold)
+                {
+                    return;
+                }
 
-        public ITypeSymbol ValueType { get; set; }
-
-        public string FullKeyTypeName => KeyType.IsProtobuffType() ? "byte[]" : KeyType.GetFullTypeName(true);
-
-        public string FullValueTypeName => ValueType.IsProtobuffType() ? "byte[]" : ValueType.GetFullTypeName(true);
-
-        public string TypesPair => $"{FullKeyTypeName}, {FullValueTypeName}";
-
-        public string[] AcceptedService { get; private set; }
+                _acceptedService = value; 
+            }
+        }
+        private string[] _acceptedService;
 
         public bool AcceptFromAny => AcceptedService == null || AcceptedService.Length == 0;
 
         public static InputData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new InputData();
-            result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
             if (namedArguments.Length != 3)
@@ -49,28 +48,6 @@ namespace KafkaExchanger.AttributeDatas
             }
 
             return result;
-        }
-
-        private static bool SetKeyType(TypedConstant argument, InputData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol keyType))
-            {
-                return false;
-            }
-
-            result.KeyType = keyType;
-            return true;
-        }
-
-        private static bool SetValueType(TypedConstant argument, InputData result)
-        {
-            if (!(argument.Value is INamedTypeSymbol valueType))
-            {
-                return false;
-            }
-
-            result.ValueType = valueType;
-            return true;
         }
 
         internal static bool SetAcceptedService(TypedConstant argument, InputData result)
@@ -103,6 +80,17 @@ namespace KafkaExchanger.AttributeDatas
 
             result.AcceptedService = tempArr;
             return true;
+        }
+
+        public override void SetName(int index)
+        {
+            if (_hold)
+            {
+                return;
+            }
+
+            _namePascalCase = $"Input{index}";
+            _nameCamelCase = $"{char.ToLowerInvariant(_namePascalCase[0])}{_namePascalCase.Substring(1)}";
         }
     }
 }

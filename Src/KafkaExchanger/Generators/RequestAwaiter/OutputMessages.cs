@@ -1,4 +1,5 @@
-﻿using KafkaExchanger.Helpers;
+﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Helpers;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -15,11 +16,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-        public class Output{i}Message
+        public class {outputData.MessageTypeName}
         {{
-            private Output{i}Message() {{ }}
+            private {outputData.MessageTypeName}() {{ }}
 
-            public Output{i}Message(
+            public {outputData.MessageTypeName}(
                 Confluent.Kafka.Message<{outputData.TypesPair}> message
 ");
                 if (outputData.KeyType.IsProtobuffType())

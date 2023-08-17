@@ -22,7 +22,7 @@ namespace KafkaExchanger.AttributeDatas
             {
                 tempSb.Append($"Input{i}Message,");
             }
-            tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.CurrentState>>");
+            tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.RAState>>");
 
             return tempSb.ToString();
         }

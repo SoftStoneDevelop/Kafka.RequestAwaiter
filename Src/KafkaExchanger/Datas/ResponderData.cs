@@ -5,17 +5,25 @@ using System.Text;
 
 namespace KafkaExchanger.AttributeDatas
 {
-    internal class Responder
+    internal class Responder : Exchange
     {
         public ResponderData Data { get; set; }
-        public List<InputData> InputDatas { get; } = new List<InputData>();
 
-        public List<OutputData> OutputDatas { get; } = new List<OutputData>();
+        public override INamedTypeSymbol TypeSymbol => Data.TypeSymbol;
 
         public bool IsEmpty()
         {
             return Data == null && OutputDatas.Count == 0 && InputDatas.Count == 0;
         }
+    }
+
+    internal abstract class Exchange
+    {
+        public abstract INamedTypeSymbol TypeSymbol { get; }
+
+        public List<InputData> InputDatas { get; } = new List<InputData>();
+
+        public List<OutputData> OutputDatas { get; } = new List<OutputData>();
     }
 
     internal class ResponderData : BaseServiceData
