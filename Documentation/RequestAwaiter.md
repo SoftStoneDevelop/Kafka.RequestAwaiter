@@ -80,14 +80,14 @@ var reqAwaiterConfitg =
                 producerPool0: pool
                 );
   
-  using var answer = await reqAwaiter.Produce(
+  using var response = await reqAwaiter.Produce(
     new protobuff.SimpleKey() { Id = 12  },
     new protobuff.SimpleValue() { Id = 12, Message = "Hello" }
     );
     
-    //process answer
-    //answer.Input0Message
-    //answer.Input1Message
+    //process response
+    //response.Input0Message
+    //response.Input1Message
 ```
 
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter.svg)
@@ -106,8 +106,8 @@ We can also accept answers in one input topic from different services:
 
     }
 
-    //process answer
-    //answer.Input0Message0 - from Responder0
-    //answer.Input1Message1 - from Responder1
+    //process response
+    //response.Input0Message0 - from Responder0
+    //response.Input1Message1 - from Responder1
 ```
 ![Request awaiter shema](https://github.com/SoftStoneDevelop/KafkaExchanger/blob/main/Documentation/request_awaiter_one.svg)
