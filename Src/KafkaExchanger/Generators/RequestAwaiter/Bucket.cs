@@ -768,25 +768,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     builder.Append($@"
                 await _afterSendOutput{i}(
                         header{i},
-                        new Output{i}Message()
-                        {{
-                            Message = message{i}
+                        new Output{i}Message(
+                                message{i}
 ");
                     if (outputData.KeyType.IsProtobuffType())
                     {
                         builder.Append($@",
-                            Key = key{i}
+                                key{i}
 ");
                     }
 
                     if (outputData.ValueType.IsProtobuffType())
                     {
                         builder.Append($@",
-                            Value = value{i}
+                                value{i}
 ");
                     }
                     builder.Append($@"
-                        }}
+                                )
                         )
                         .ConfigureAwait(false)
                         ;
@@ -917,25 +916,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
                     Output{i}Header = header{i},
-                    Output{i}Message = new Output{i}Message()
-                    {{
-                        Message = message{i}
+                    Output{i}Message = 
+                        new Output{i}Message(
+                                message{i}
 ");
                 if (outputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@",
-                        Key = key{i}
+                                key{i}
 ");
                 }
 
                 if (outputData.ValueType.IsProtobuffType())
                 {
                     builder.Append($@",
-                        Value = value{i}
+                                value{i}
 ");
                 }
                 builder.Append($@"
-                    }}
+                                )
 ");
             }
             builder.Append($@"

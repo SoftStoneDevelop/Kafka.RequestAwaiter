@@ -712,13 +712,13 @@ namespace KafkaExchengerTests
 
             Task<RequestAwaiterSimple.Output0Message> LoadOutputMessage(string messageGuid, int bucket, int[] input0Partitions, int[] input1Partitions)
             {
-                return Task.FromResult(new RequestAwaiterSimple.Output0Message() 
-                {
-                    Message = new Message<Null, string>() 
+
+                return Task.FromResult(new RequestAwaiterSimple.Output0Message(
+                    new Message<Null, string>()
                     {
                         Value = sendedFromAwaiter[messageGuid].Value + "LOM",
                     }
-                });
+                    ));
             }
 
             Task<KafkaExchanger.Attributes.Enums.RAState> AddAwaiterCheckStatus(string messageGuid, int bucket, int[] input0Partitions, int[] input1Partitions)
