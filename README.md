@@ -79,10 +79,9 @@ using var response = await awaitService.Produce(
   new protobuff.SimpleKey() { Id = 459  },
   new protobuff.SimpleValue() { Id = 459, Priority = protobuff.Priority.Unspecified, Message = "Hello world!" }
   );
-var responseInput0 = (ResponseItem<TestProtobuffAwaiter.Input0Message>)response.Result[0];
-//responseInput0.Result is TestProtobuffAwaiter.Input0Message
-//where responseInput0.Result.Key is protobuff.SimpleKey
-//and responseInput0.Result.Value is protobuff.SimpleValue
+//response.Input0Message is TestProtobuffAwaiter.Input0Message
+//where response.Input0Message.Key is protobuff.SimpleKey
+//and response.Input0Message.Value is protobuff.SimpleValue
             
 ```
 
@@ -116,9 +115,6 @@ using var response = await awaitService.Produce(
   new protobuff.SimpleValue() { Id = 123, Priority = protobuff.Priority.Unspecified, Message = "Hello world! 2" }
   );
 
-var responseInput0 = (ResponseItem<TestProtobuffAwaiter.Input0Message>)response.Result[0];
-//responseInput0.Result is TestProtobuffAwaiter.Input0Message
-
-var responseInput1 = (ResponseItem<TestProtobuffAwaiter.Input1Message>)response.Result[1];
-//responseInput1.Result is TestProtobuffAwaiter.Input1Message
+//response.Input0Message is TestProtobuffAwaiter.Input0Message
+//response.Input1Message is TestProtobuffAwaiter.Input1Message
 ```
