@@ -296,7 +296,7 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         private void ProduceDelay(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
-        public async ValueTask<{requestAwaiter.Data.TypeSymbol.Name}.DelayProduce> ProduceDelay(
+        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -321,24 +321,24 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
                 var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
                 var item = _items[index];
                 var tp =
-                    await item.TryProduceDelay(
+                    item.TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
-                    key{i},
+                        key{i},
 ");
                 }
 
                 _builder.Append($@"
-                    value{i},
+                        value{i},
 ");
             }
             _builder.Append($@"
-                    waitResponseTimeout
-                ).ConfigureAwait(false);
+                        waitResponseTimeout
+                );
 
                 if(tp.Succsess)
                 {{
