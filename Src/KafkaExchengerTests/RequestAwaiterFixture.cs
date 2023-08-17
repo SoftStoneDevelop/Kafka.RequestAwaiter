@@ -194,9 +194,12 @@ namespace KafkaExchengerTests
                             )
                     }
                     );
+            reqAwaiter.Setup(
+                config: reqAwaiterConfitg,
+                producerPool0: pool
+                );
+
             reqAwaiter.Start(
-                reqAwaiterConfitg, 
-                producerPool0: pool,
                 static (config) =>
                 {
                     config.MaxPollIntervalMs = 10_000;
@@ -290,9 +293,13 @@ namespace KafkaExchengerTests
                             )
                     }
                     );
+
+            reqAwaiter.Setup(
+                config: reqAwaiterConfitg,
+                producerPool0: pool
+                );
+
             reqAwaiter.Start(
-                reqAwaiterConfitg, 
-                producerPool0: pool,
                 static (config) =>
                 {
                     config.MaxPollIntervalMs = 10_000;
@@ -491,17 +498,20 @@ namespace KafkaExchengerTests
             var requestsCount = 300;
             await using (var reqAwaiterPrepare = new RequestAwaiterSimple())
             {
+                reqAwaiterPrepare.Setup(
+                    config: reqAwaiterConfitg,
+                    producerPool0: pool
+                    );
+
                 reqAwaiterPrepare.Start(
-                reqAwaiterConfitg,
-                producerPool0: pool,
-                static (config) =>
-                {
-                    config.MaxPollIntervalMs = 10_000;
-                    config.SessionTimeoutMs = 5_000;
-                    config.SocketKeepaliveEnable = true;
-                    config.AllowAutoCreateTopics = false;
-                }
-                );
+                    static (config) =>
+                    {
+                        config.MaxPollIntervalMs = 10_000;
+                        config.SessionTimeoutMs = 5_000;
+                        config.SocketKeepaliveEnable = true;
+                        config.AllowAutoCreateTopics = false;
+                    }
+                    );
 
                 for (int i = 0; i < requestsCount; i++)
                 {
@@ -558,17 +568,11 @@ namespace KafkaExchengerTests
             var answers = new List<Task<(BaseResponse[], CurrentState, string)>>(awaitersGuids.Count);
             await using (var reqAwaiter = new RequestAwaiterSimple())
             {
-                reqAwaiter.Start(
-                reqAwaiterConfitg,
-                producerPool0: pool,
-                static (config) =>
-                {
-                    config.MaxPollIntervalMs = 10_000;
-                    config.SessionTimeoutMs = 5_000;
-                    config.SocketKeepaliveEnable = true;
-                    config.AllowAutoCreateTopics = false;
-                }
-                );
+                reqAwaiter.Setup(
+                    config: reqAwaiterConfitg,
+                    producerPool0: pool
+                    );
+
                 foreach (var pair in awaitersGuids)
                 {
                     answers.Add(
@@ -603,6 +607,16 @@ namespace KafkaExchengerTests
                         return (response, state, requestValue);
                     }
                 }
+
+                reqAwaiter.Start(
+                    static (config) =>
+                    {
+                        config.MaxPollIntervalMs = 10_000;
+                        config.SessionTimeoutMs = 5_000;
+                        config.SocketKeepaliveEnable = true;
+                        config.AllowAutoCreateTopics = false;
+                    }
+                    );
 
                 var unique1 = new HashSet<string>(requestsCount);
                 var unique2 = new HashSet<string>(requestsCount);

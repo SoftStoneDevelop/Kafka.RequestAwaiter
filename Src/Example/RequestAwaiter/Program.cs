@@ -182,9 +182,12 @@ namespace RequestAwaiterConsole
                     }
                     );
             Console.WriteLine("Start ReqAwaiter");
-            reqAwaiter.Start(
+            reqAwaiter.Setup(
                 reqAwaiterConfitg,
-                producerPool0: pool,
+                producerPool0: pool
+                );
+
+            reqAwaiter.Start(
                 static (config) =>
                 {
                     //config.MaxPollIntervalMs = 5_000;
@@ -243,9 +246,12 @@ namespace RequestAwaiterConsole
                     }
                     );
             Console.WriteLine("Start ReqAwaiter");
-            reqAwaiter.Start(
+            reqAwaiter.Setup(
                 reqAwaiterConfitg,
-                producerPool0: pool,
+                producerPool0: pool
+                );
+
+            reqAwaiter.Start(
                 static (config) =>
                 {
                     //config.MaxPollIntervalMs = 5_000;

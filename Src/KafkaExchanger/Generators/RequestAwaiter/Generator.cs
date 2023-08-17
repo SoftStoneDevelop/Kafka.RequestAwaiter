@@ -43,7 +43,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             //methods
             StartMethod(requestAwaiter);
-            BuildPartitionItems(requestAwaiter);
+            Setup(requestAwaiter);
             Produce(assemblyName, requestAwaiter);
             ProduceDelay(assemblyName, requestAwaiter);
             AddAwaiter(assemblyName, requestAwaiter);
@@ -83,6 +83,9 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
     {{
         {(requestAwaiter.Data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
         private PartitionItem[] _items;
+        private string _bootstrapServers;
+        private string _groupId;
+        private volatile bool _isRun;
 
         public {requestAwaiter.Data.TypeSymbol.Name}({(requestAwaiter.Data.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
@@ -95,35 +98,20 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
         {
             _builder.Append($@"
         public void Start(
-            {requestAwaiter.Data.TypeSymbol.Name}.Config config
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                _builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
-            }
-            _builder.Append($@",
             Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
             )
         {{
-            BuildPartitionItems(
-                config
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                _builder.Append($@",
-                producerPool{i}
-");
-            }
-            _builder.Append($@"
-                );
+            if(_isRun)
+            {{
+                throw new System.Exception(""Before starting, you need to stop the previous run: call StopAsync"");
+            }}
 
+            _isRun = true;
             foreach (var item in _items)
             {{
                 item.Start(
-                    config.BootstrapServers,
-                    config.GroupId,
+                    _bootstrapServers,
+                    _groupId,
                     changeConfig
                     );
             }}
@@ -138,10 +126,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
         }
 
-        private void BuildPartitionItems(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Setup(AttributeDatas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
-        private void BuildPartitionItems(
+        public void Setup(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
@@ -153,7 +141,14 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             _builder.Append($@"
             )
         {{
+            if(_items != null)
+            {{
+                throw new System.Exception(""Before setup new configuration, you need to stop the previous: call StopAsync"");
+            }}
+
             _items = new PartitionItem[config.Processors.Length];
+            _bootstrapServers = config.BootstrapServers;
+            _groupId = config.GroupId;
             for (int i = 0; i < config.Processors.Length; i++)
             {{
                 _items[i] =
@@ -213,6 +208,10 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
             }}
 
             _items = null;
+            _bootstrapServers = null;
+            _groupId = null;
+            _isRun = false;
+
             var disposeTasks = new Task[items.Length];
             for (var i = 0; i < items.Length; i++)
             {{

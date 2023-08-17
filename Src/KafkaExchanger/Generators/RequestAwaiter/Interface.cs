@@ -20,6 +20,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             InterfaceProduceMethod(builder, assemblyName, requestAwaiter);
             InterfaceProduceDelayMethod(builder, assemblyName, requestAwaiter);
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
+            InterfaceSetupMethod(builder, assemblyName, requestAwaiter);
             InterfaceStopMethod(builder);
 
             EndInterfaceOrClass(builder);
@@ -103,7 +104,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Start(
+        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);
+");
+        }
+
+        private static void InterfaceSetupMethod(
+            StringBuilder builder,
+            string assemblyName,
+            AttributeDatas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+        public void Setup(
             {requestAwaiter.Data.TypeSymbol.Name}.Config config
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
@@ -112,8 +124,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
             }
-            builder.Append($@",
-            Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
+            builder.Append($@"
             )
             ;
 ");
