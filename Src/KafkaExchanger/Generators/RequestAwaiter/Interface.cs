@@ -21,6 +21,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             InterfaceProduceDelayMethod(builder, assemblyName, requestAwaiter);
             InterfaceStartMethod(builder, assemblyName, requestAwaiter);
             InterfaceSetupMethod(builder, assemblyName, requestAwaiter);
+            AddAwaiter(builder, assemblyName, requestAwaiter);
             InterfaceStopMethod(builder);
 
             EndInterfaceOrClass(builder);
@@ -127,6 +128,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             )
             ;
+");
+        }
+
+        private static void AddAwaiter(
+            StringBuilder builder, 
+            string assemblyName, 
+            AttributeDatas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+        public ValueTask<{assemblyName}.Response> AddAwaiter(
+            string messageGuid,
+            int bucket,
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                builder.Append($@"
+            int[] input{i}partitions,
+");
+            }
+            builder.Append($@"
+            int waitResponseTimeout = 0
+            );
 ");
         }
 
