@@ -33,7 +33,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
+    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
     {{
 ");
         }
