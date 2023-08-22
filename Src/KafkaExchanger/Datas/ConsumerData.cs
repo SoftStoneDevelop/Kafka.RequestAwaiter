@@ -17,10 +17,10 @@ namespace KafkaExchanger.AttributeDatas
         public string GetCurrentStateFunc(List<InputData> inputDatas)
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<");
+            tempSb.Append("Func<int,");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($"Input{i}Message,");
+                tempSb.Append($" int[], Input{i}Message,");
             }
             tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.RAState>>");
 

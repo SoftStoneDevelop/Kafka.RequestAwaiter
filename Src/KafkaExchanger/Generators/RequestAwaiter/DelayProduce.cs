@@ -57,9 +57,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                var inputData = requestAwaiter.InputDatas;
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] InputTopic{i}Partitions => _tryDelay.Bucket.InputTopic{i}Partitions;
+            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{inputData.NamePascalCase}Partitions;
 ");
             }
 

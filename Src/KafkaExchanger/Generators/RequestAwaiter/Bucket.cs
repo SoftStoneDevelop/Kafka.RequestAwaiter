@@ -63,14 +63,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 if(i != 0)
                 {
                     builder.Append(',');
                 }
 
                 builder.Append($@"
-                    string inputTopic{i}Name,
-                    int[] inputTopic{i}Partitions
+                    string {inputData.NameCamelCase}Name,
+                    int[] {inputData.NameCamelCase}Partitions
 ");
             }
 
@@ -140,9 +141,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                    _inputTopic{i}Name = inputTopic{i}Name;
-                    _inputTopic{i}Partitions = inputTopic{i}Partitions;
+                    _{inputData.NameCamelCase}Name = {inputData.NameCamelCase}Name;
+                    _{inputData.NameCamelCase}Partitions = {inputData.NameCamelCase}Partitions;
 ");
             }
 
@@ -214,9 +216,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     private bool _consume{i}Canceled;
                     private TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>> _tcsPartitions{i};
 
-                    private readonly string _inputTopic{i}Name;
-                    private readonly int[] _inputTopic{i}Partitions;
-                    public int[] InputTopic{i}Partitions => _inputTopic{i}Partitions;
+                    private readonly string _{inputData.NameCamelCase}Name;
+                    private readonly int[] _{inputData.NameCamelCase}Partitions;
+                    public int[] {inputData.NamePascalCase}Partitions => _{inputData.NameCamelCase}Partitions;
 ");
             }
 
@@ -343,7 +345,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 .Build()
                                 ;
 
-                            consumer.Assign(_inputTopic{i}Partitions.Select(sel => new TopicPartition(_inputTopic{i}Name, sel)));
+                            consumer.Assign(_{inputData.NameCamelCase}Partitions.Select(sel => new TopicPartition(_{inputData.NameCamelCase}Name, sel)));
                             try
                             {{
                                 var offsets = new Dictionary<Partition, TopicPartitionOffset>();
@@ -413,7 +415,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                 Value = {GetResponseValue(inputData)},
                                                 Partition = consumeResult.Partition,
                                                 HeaderInfo = headerInfo,
-                                                TopicName = _inputTopic{i}Name
+                                                TopicName = _{inputData.NameCamelCase}Name
                                             }};
 
                                             {LogInputMessage(requestAwaiter, inputData, "LogInformation")}
@@ -670,9 +672,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
+                                _bucketId,
                                 {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
                                 messageGuid,
-                                RemoveAwaiter, 
+                                RemoveAwaiter
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                                _{inputData.NameCamelCase}Partitions
+");
+            }
+            builder.Append($@",
                                 waitResponseTimeout
                                 );
 
@@ -836,9 +848,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
+                                    _bucketId,
                                     {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
                                     messageGuid,
-                                    RemoveAwaiter, 
+                                    RemoveAwaiter
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                                _{inputData.NameCamelCase}Partitions
+");
+            }
+            builder.Append($@",
                                     waitResponseTimeout
                                     );
 
@@ -1044,9 +1066,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         awaiter =
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
+                                    _bucketId,
                                     {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
                                     messageGuid,
-                                    RemoveAwaiter,
+                                    RemoveAwaiter
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                                _{inputData.NameCamelCase}Partitions
+");
+            }
+            builder.Append($@",
                                     waitResponseTimeout
                                     );
 
@@ -1078,9 +1110,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     awaiter.Dispose();
                     throw new InvalidOperationException(""Duplicate awaiter key"");
                 }}
-
 ");
-            if(requestAwaiter.Data.AddAwaiterCheckStatus)
+            if (requestAwaiter.Data.AddAwaiterCheckStatus)
             {
                 for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
                 {
@@ -1094,8 +1125,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                     {
+                        var inputData = requestAwaiter.InputDatas[j];
                         builder.Append($@",
-                                _inputTopic{j}Partitions
+                                _{inputData.NameCamelCase}Partitions
 ");
                     }
                     builder.Append($@"
@@ -1111,8 +1143,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                     {
+                        var inputData = requestAwaiter.InputDatas[j];
                         builder.Append($@",
-                                    _inputTopic{j}Partitions
+                                    _{inputData.NameCamelCase}Partitions
 ");
                     }
                     builder.Append($@"
@@ -1215,9 +1248,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                 {variable} = new {assemblyName}.Topic()
                 {{
-                    Name = _inputTopic{i}Name
+                    Name = _{inputData.NameCamelCase}Name
                 }};
-                topic.Partitions.Add(_inputTopic{i}Partitions);
+                topic.Partitions.Add(_{inputData.NameCamelCase}Partitions);
 ");
                 if (!inputData.AcceptFromAny)
                 {

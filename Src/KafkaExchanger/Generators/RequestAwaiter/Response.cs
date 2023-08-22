@@ -42,6 +42,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             public Response(
+                int bucket,
                 KafkaExchanger.Attributes.Enums.RAState currentState,
                 TaskCompletionSource<bool> responseProcess
 ");
@@ -49,10 +50,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
+                int[] {inputData.NameCamelCase}Partitions
 ");
                 if (inputData.AcceptFromAny)
                 {
-                    builder.Append($@"
+                    builder.Append($@",
                 {inputData.MessageTypeName} {inputData.MessageTypeNameCamel}
 ");
                 }
@@ -60,12 +62,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
-                        if (j != 0)
-                        {
-                            builder.Append(',');
-                        }
-
-                        builder.Append($@"
+                        builder.Append($@",
                 {inputData.MessageTypeName} {inputData.MessageTypeNameCamel}{j}
 ");
                     }
@@ -75,12 +72,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 )
             {{
+                Bucket = bucket;
                 CurrentState = currentState;
                 _responseProcess = responseProcess;
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                {inputData.NamePascalCase}Partitions = {inputData.NameCamelCase}Partitions;
+");
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
@@ -111,11 +112,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private TaskCompletionSource<bool> _responseProcess;
 
+            public int Bucket {{ get; init; }}
+
             public KafkaExchanger.Attributes.Enums.RAState CurrentState {{ get; init; }}
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                public int[] {inputData.NamePascalCase}Partitions {{ get; init; }}
+");
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"

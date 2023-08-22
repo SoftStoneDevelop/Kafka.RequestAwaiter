@@ -343,13 +343,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                     for(int j = 0; j < input{i}Partitions.Length; j++)
                     {{
                         var containPartition = false;
-                        for (int z = 0; z < currentBucket.InputTopic{i}Partitions.Length; z++)
+                        for (int z = 0; z < currentBucket.{inputData.NamePascalCase}Partitions.Length; z++)
                         {{
-                            containPartition = input{i}Partitions[j] == currentBucket.InputTopic{i}Partitions[z];
+                            containPartition = input{i}Partitions[j] == currentBucket.{inputData.NamePascalCase}Partitions[z];
                             if (containPartition)
                             {{
                                 break;

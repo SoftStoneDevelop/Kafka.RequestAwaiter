@@ -76,15 +76,36 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var consumerData = requestAwaiter.ConsumerData;
             builder.Append($@"
             public TopicResponse(
+                int bucket,
                 {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState," : "")}
                 string guid,
-                Action<string> removeAction,
+                Action<string> removeAction
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                int[] {inputData.NameCamelCase}Partitions
+");
+            }
+            
+            builder.Append($@",
                 int waitResponseTimeout = 0
                 )
             {{
                 _guid = guid;
                 _response = CreateGetResponse(
-                                {(consumerData.CheckCurrentState ? "getCurrentState" : "")}
+                                bucket
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                                {inputData.NameCamelCase}Partitions
+");
+            }
+            builder.Append($@"
+                                {(consumerData.CheckCurrentState ? ",getCurrentState" : "")}
                                 );
 
                 _response.ContinueWith(task => 
@@ -152,6 +173,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
             private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse(
+                int bucket
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@",
+                int[] {inputData.NameCamelCase}Partitions
+");
+            }
+            builder.Append($@"
                 {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 )
             {{
@@ -189,6 +220,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {
                         builder.Append(',');
                     }
+
+                    builder.Append($@"
+                    {inputData.NameCamelCase}Partitions
+");
+
                     if (inputData.AcceptFromAny)
                     {
                         builder.Append($@"
@@ -223,6 +259,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                 var response = new {requestAwaiter.TypeSymbol.Name}.Response(
+                    bucket,
                     currentState,
                     _responseProcess
 ");
@@ -230,10 +267,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
+                    {inputData.NameCamelCase}Partitions
 ");
                 if (inputData.AcceptFromAny)
                 {
-                    builder.Append($@"
+                    builder.Append($@",
                         topic{i}
 ");
                 }
@@ -241,12 +279,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
-                        if(j != 0)
-                        {
-                            builder.Append(',');
-                        }
-
-                        builder.Append($@"
+                        builder.Append($@",
                         topic{i}{inputData.AcceptedService[j]}
 ");
                     }
