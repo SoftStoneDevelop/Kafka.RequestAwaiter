@@ -34,9 +34,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class PartitionItem : IAsyncDisposable
         {{
-            private readonly Bucket[] _buckets;
-            private uint _current;
+            private readonly Bucket[] {Buckets()};
+            private uint {Current()};
 ");
+        }
+
+        private static string Buckets()
+        {
+            return "_buckets";
+        }
+
+        private static string Current()
+        {
+            return "_current";
         }
 
         private static void Constructor(
@@ -45,6 +55,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
             )
         {
+            var bucketsParametr = "buckets";
             builder.Append($@"
             public PartitionItem(
 ");
@@ -62,46 +73,42 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             var consumerData = requestAwaiter.Data.ConsumerData;
             builder.Append($@",
-                int buckets,
-                int maxInFly
+                int {bucketsParametr},
+                int {ProcessorConfig.MaxInFlyNameCamel()}
                 {(requestAwaiter.Data.UseLogger ? @",ILogger logger" : "")}
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {ProcessorConfig.CurrentStateFuncNameCamel()}" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {ProcessorConfig.AfterCommitFuncNameCamel()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                string outputTopic{i}Name,
+                string {outputData.NameCamelCase}Name,
                 {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
 
                 if (requestAwaiter.Data.AfterSend)
                 {
-                    builder.Append($@",{requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} afterSendOutput{i}
+                    builder.Append($@",{requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {ProcessorConfig.AfterSendFuncNameCamel(outputData)}
 ");
                 }
 
                 if(requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",{requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
+                    builder.Append($@",
+                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {ProcessorConfig.LoadOutputFuncNameCamel(outputData)},
+                {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)}
 ");
                 }
-            }
-
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@",{requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus
-");
             }
 
             builder.Append($@"
                 )
             {{
-                _buckets = new Bucket[buckets];
-                for (int bucketId = 0; bucketId < buckets; bucketId++)
+                {Buckets()} = new Bucket[{bucketsParametr}];
+                for (int bucketId = 0; bucketId < {bucketsParametr}; bucketId++)
                 {{
-                    _buckets[bucketId] = new Bucket(
+                    {Buckets()}[bucketId] = new Bucket(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -113,35 +120,34 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         bucketId,
-                        maxInFly
+                        {ProcessorConfig.MaxInFlyNameCamel()}
                         {(requestAwaiter.Data.UseLogger ? @",logger" : "")}
-                        {(consumerData.CheckCurrentState ? $",getCurrentState" : "")}
-                        {(consumerData.UseAfterCommit ? $",afterCommit" : "")}
+                        {(consumerData.CheckCurrentState ? $",{ProcessorConfig.CurrentStateFuncNameCamel()}" : "")}
+                        {(consumerData.UseAfterCommit ? $",{ProcessorConfig.AfterCommitFuncNameCamel()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                        outputTopic{i}Name,
+                        {outputData.NameCamelCase}Name,
                         producerPool{i}
 ");
 
                 if (requestAwaiter.Data.AfterSend)
                 {
-                    builder.Append($@",afterSendOutput{i}
+                    builder.Append($@",{ProcessorConfig.AfterSendFuncNameCamel(outputData)}
 ");
                 }
+
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",loadOutput{i}Message
+                    builder.Append($@",
+                        {ProcessorConfig.LoadOutputFuncNameCamel(outputData)},
+                        {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)}
 ");
                 }
             }
 
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@",addAwaiterCheckStatus
-");
-            }
             builder.Append($@"
                         );
                 }}
@@ -160,9 +166,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
-                for (int i = 0; i < _buckets.Length; i++)
+                for (int i = 0; i < {Buckets()}.Length; i++)
                 {{
-                    _buckets[i].Start(bootstrapServers, groupId, changeConfig);
+                    {Buckets()}[i].Start(bootstrapServers, groupId, changeConfig);
                 }}
             }}
 ");
@@ -173,9 +179,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public async ValueTask DisposeAsync()
             {{
-                for (int i = 0; i < _buckets.Length; i++)
+                for (int i = 0; i < {Buckets()}.Length; i++)
                 {{
-                    await _buckets[i].DisposeAsync();
+                    await {Buckets()}[i].DisposeAsync();
                 }}
             }}
 ");
@@ -207,10 +213,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < _buckets.Length; i++)
+                for (int i = 0; i < {Buckets()}.Length; i++)
                 {{
-                    var index = _current;
-                    var tp = await _buckets[index].TryProduce(
+                    var index = {Current()};
+                    var tp = await {Buckets()}[index].TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -234,8 +240,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         return tp;
                     }}
 
-                    uint nextIndex = (index + 1) % (uint)_buckets.Length;
-                    Interlocked.CompareExchange(ref _current, nextIndex, index);
+                    uint nextIndex = (index + 1) % (uint){Buckets()}.Length;
+                    Interlocked.CompareExchange(ref {Current()}, nextIndex, index);
                 }}
 
                 return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
@@ -269,10 +275,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < _buckets.Length; i++)
+                for (int i = 0; i < {Buckets()}.Length; i++)
                 {{
-                    var index = _current;
-                    var tp = _buckets[index].TryProduceDelay(
+                    var index = {Current()};
+                    var tp = {Buckets()}[index].TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -296,8 +302,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         return tp;
                     }}
 
-                    uint nextIndex = (index + 1) % (uint)_buckets.Length;
-                    Interlocked.CompareExchange(ref _current, nextIndex, index);
+                    uint nextIndex = (index + 1) % (uint){Buckets()}.Length;
+                    Interlocked.CompareExchange(ref {Current()}, nextIndex, index);
                 }}
 
                 return new {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
@@ -330,9 +336,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < _buckets.Length; i++)
+                for (int i = 0; i < {Buckets()}.Length; i++)
                 {{
-                    var currentBucket = _buckets[i];
+                    var currentBucket = {Buckets()}[i];
                     if(currentBucket.BucketId != bucket)
                     {{
                         continue;

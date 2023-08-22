@@ -236,7 +236,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -255,7 +255,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -274,7 +274,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             )
                     }
                     );
@@ -389,7 +389,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -408,7 +408,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -427,7 +427,7 @@ namespace KafkaExchengerTests
                                 return Task.CompletedTask;
                             },
                             loadOutput0Message: static (_, _, _, _) => { return Task.FromResult((RequestAwaiterSimple.Output0Message)null); },
-                            addAwaiterCheckStatus: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
+                            checkOutput0Status: static (_, _, _, _) => { return Task.FromResult(KafkaExchanger.Attributes.Enums.RAState.Sended); }
                             )
                     }
                     );
@@ -648,7 +648,7 @@ namespace KafkaExchengerTests
                             maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
-                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            checkOutput0Status: AddAwaiterCheckStatus
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -664,7 +664,7 @@ namespace KafkaExchengerTests
                             maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
-                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            checkOutput0Status: AddAwaiterCheckStatus
                             ),
                         new RequestAwaiterSimple.ProcessorConfig(
                             input0: new RequestAwaiterSimple.ConsumerInfo(
@@ -680,7 +680,7 @@ namespace KafkaExchengerTests
                             maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
-                            addAwaiterCheckStatus: AddAwaiterCheckStatus
+                            checkOutput0Status: AddAwaiterCheckStatus
                             )
                     }
                     );

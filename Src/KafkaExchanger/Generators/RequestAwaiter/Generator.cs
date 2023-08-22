@@ -158,49 +158,45 @@ namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 if (i != 0)
                 {
                     _builder.Append(',');
                 }
 
                 _builder.Append($@"
-                        config.Processors[i].Input{i}.TopicName,
-                        config.Processors[i].Input{i}.Partitions
+                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.TopicName,
+                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.Partitions
 ");
             }
             _builder.Append($@",
-                        config.Processors[i].Buckets,
-                        config.Processors[i].MaxInFly
+                        config.Processors[i].{ProcessorConfig.BucketsName()},
+                        config.Processors[i].{ProcessorConfig.MaxInFlyName()}
                         {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
-                        {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? @",config.Processors[i].GetCurrentState" : "")}
-                        {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? @",config.Processors[i].AfterCommit" : "")}
+                        {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? $@",config.Processors[i].{ProcessorConfig.CurrentStateFuncName()}" : "")}
+                        {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? $@",config.Processors[i].{ProcessorConfig.AfterCommitFuncName()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 _builder.Append($@",
-                        config.Processors[i].Output{i}.TopicName,
+                        config.Processors[i].{ProcessorConfig.ProducerInfoName(outputData)}.TopicName,
                         producerPool{i}
 ");
                 if (requestAwaiter.Data.AfterSend)
                 {
                     _builder.Append($@",
-                        config.Processors[i].AfterSendOutput{i}
+                        config.Processors[i].{ProcessorConfig.AfterSendFuncName(outputData)}
 ");
                 }
 
                 if(requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     _builder.Append($@",
-                        config.Processors[i].LoadOutput{i}Message
+                        config.Processors[i].{ProcessorConfig.LoadOutputFuncName(outputData)},
+                        config.Processors[i].{ProcessorConfig.CheckOutputStatusFuncName(outputData)}
 ");
                 }
-            }
-
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                _builder.Append($@",
-                        config.Processors[i].AddAwaiterCheckStatus
-");
             }
 
             _builder.Append($@"

@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -24,13 +25,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 if(i != 0)
                 {
                     builder.Append(',');
                 }
 
                 builder.Append($@"
-                ConsumerInfo input{i}
+                ConsumerInfo {ConsumerInfoNameCamel(inputData)}
 ");
             }
 
@@ -40,19 +42,20 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 if (i != 0)
                 {
                     builder.Append(',');
                 }
 
                 builder.Append($@"
-                ProducerInfo output{i}
+                ProducerInfo {ProducerInfoNameCamel(outputData)}
 ");
             }
 
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit" : "")}
+                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncNameCamel()}" : "")}
+                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncNameCamel()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -60,44 +63,38 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@",
-                {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} afterSendOutput{i}
+                {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncNameCamel(outputData)}
 ");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
+                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncNameCamel(outputData)},
+                {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncNameCamel(outputData)}
 ");
                 }
             }
 
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@",
-                {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus
-");
-            }
-
             builder.Append($@",
-                int buckets,
-                int maxInFly
+                int {BucketsNameCamel()},
+                int {MaxInFlyNameCamel()}
                 )
             {{
-                Buckets = buckets;
-                MaxInFly = maxInFly;
+                {BucketsName()} = {BucketsNameCamel()};
+                {MaxInFlyName()} = {MaxInFlyNameCamel()};
 ");
             if(consumerData.CheckCurrentState)
             {
                 builder.Append($@"
-                GetCurrentState = getCurrentState;
+                {CurrentStateFuncName()} = {CurrentStateFuncNameCamel()};
 ");
             }
 
             if (consumerData.UseAfterCommit)
             {
                 builder.Append($@"
-                AfterCommit = afterCommit;
+                {AfterCommitFuncName()} = {AfterCommitFuncNameCamel()};
 ");
             }
 
@@ -107,53 +104,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                AfterSendOutput{i} = afterSendOutput{i};
+                {AfterSendFuncName(outputData)} = {AfterSendFuncNameCamel(outputData)};
 ");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
-                LoadOutput{i}Message = loadOutput{i}Message;
+                {LoadOutputFuncName(outputData)} = {LoadOutputFuncNameCamel(outputData)};
+                {CheckOutputStatusFuncName(outputData)} = {CheckOutputStatusFuncNameCamel(outputData)};
 ");
                 }
             }
 
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@"
-                AddAwaiterCheckStatus = addAwaiterCheckStatus;
-");
-            }
-
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                Input{i} = input{i};
-");
-            }
-
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                builder.Append($@"
-                Output{i} = output{i};
-");
-            }
-
-            builder.Append($@"
-            }}
-
-            public int Buckets {{ get; init; }}
-            
-            public int MaxInFly {{ get; init; }}
-
-            {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} GetCurrentState {{ get; init; }}" : "")}
-            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} AfterCommit {{ get; init; }}" : "")}
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-            public ConsumerInfo Input{i} {{ get; init; }}
+                {ConsumerInfoName(inputData)} = {ConsumerInfoNameCamel(inputData)};
 ");
             }
 
@@ -161,33 +129,143 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            public ProducerInfo Output{i} {{ get; init; }}
+                {ProducerInfoName(outputData)} = {ProducerInfoNameCamel(outputData)};
+");
+            }
+
+            builder.Append($@"
+            }}
+
+            public int {BucketsName()} {{ get; init; }}
+            
+            public int {MaxInFlyName()} {{ get; init; }}
+
+            {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncName()} {{ get; init; }}" : "")}
+            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncName()} {{ get; init; }}" : "")}
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+            public ConsumerInfo {ConsumerInfoName(inputData)} {{ get; init; }}
+");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+            public ProducerInfo {ProducerInfoName(outputData)} {{ get; init; }}
 ");
                 if(requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-            public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} AfterSendOutput{i} {{ get; init; }}
+            public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncName(outputData)} {{ get; init; }}
 ");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
-                public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} LoadOutput{i}Message {{ get; init; }}
+            public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncName(outputData)} {{ get; init; }}
+            public {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncName(outputData)} {{ get; init; }}
 ");
                 }
-            }
-
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@"
-            public {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} AddAwaiterCheckStatus {{ get; init; }}
-");
             }
 
             builder.Append($@"
         }}
 ");
+        }
+
+        public static string ConsumerInfoName(InputData inputData)
+        {
+            return inputData.NamePascalCase;
+        }
+
+        public static string ConsumerInfoNameCamel(InputData inputData)
+        {
+            return ConsumerInfoName(inputData).ToCamel();
+        }
+
+        public static string ProducerInfoName(OutputData outputData)
+        {
+            return outputData.NamePascalCase;
+        }
+
+        public static string ProducerInfoNameCamel(OutputData outputData)
+        {
+            return ProducerInfoName(outputData).ToCamel();
+        }
+
+        public static string LoadOutputFuncName(OutputData outputData)
+        {
+            return $"Load{outputData.MessageTypeName}";
+        }
+
+        public static string LoadOutputFuncNameCamel(OutputData outputData)
+        {
+            return LoadOutputFuncName(outputData).ToCamel();
+        }
+
+        public static string CheckOutputStatusFuncName(OutputData outputData)
+        {
+            return $"Check{outputData.NamePascalCase}Status";
+        }
+
+        public static string CheckOutputStatusFuncNameCamel(OutputData outputData)
+        {
+            return CheckOutputStatusFuncName(outputData).ToCamel();
+        }
+
+        public static string AfterSendFuncName(OutputData outputData)
+        {
+            return $"AfterSend{outputData.NamePascalCase}";
+        }
+
+        public static string AfterSendFuncNameCamel(OutputData outputData)
+        {
+            return AfterSendFuncName(outputData).ToCamel();
+        }
+
+        public static string BucketsName()
+        {
+            return $"Buckets";
+        }
+
+        public static string BucketsNameCamel()
+        {
+            return BucketsName().ToCamel();
+        }
+
+        public static string MaxInFlyName()
+        {
+            return $"MaxInFly";
+        }
+
+        public static string MaxInFlyNameCamel()
+        {
+            return MaxInFlyName().ToCamel();
+        }
+
+        public static string AfterCommitFuncName()
+        {
+            return $"AfterCommit";
+        }
+
+        public static string AfterCommitFuncNameCamel()
+        {
+            return AfterCommitFuncName().ToCamel();
+        }
+
+        public static string CurrentStateFuncName()
+        {
+            return $"CurrentState";
+        }
+
+        public static string CurrentStateFuncNameCamel()
+        {
+            return CurrentStateFuncName().ToCamel();
         }
     }
 }

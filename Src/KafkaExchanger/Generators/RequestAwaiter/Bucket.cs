@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Generators.RequestAwaiter.Names;
 using KafkaExchanger.Helpers;
 using System.Reflection;
 using System.Text;
@@ -40,9 +41,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public class Bucket : IAsyncDisposable
             {{
-                private readonly int _bucketId;
-                public int BucketId => _bucketId;
-                private readonly int _maxInFly;
+                private readonly int {BucketNames.PBucketId()};
+                public int {BucketNames.BucketId()} => {BucketNames.PBucketId()};
+                private readonly int {BucketNames.PMaxInFly()};
                 private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
                 private int _addedCount;
                 private readonly Dictionary<string, {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
@@ -77,8 +78,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             var consumerData = requestAwaiter.Data.ConsumerData;
             builder.Append($@",
-                    int bucketId,
-                    int maxInFly
+                    int {BucketNames.BucketId().ToCamel()},
+                    int {ProcessorConfig.MaxInFlyNameCamel()}
 ");
             if(requestAwaiter.Data.UseLogger)
             {
@@ -90,14 +91,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             if (consumerData.CheckCurrentState)
             {
                 builder.Append($@",
-                    {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState
+                    {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {ProcessorConfig.CurrentStateFuncNameCamel()}
 ");
             }
 
             if (consumerData.UseAfterCommit)
             {
                 builder.Append($@",
-                    {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} afterCommit
+                    {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {ProcessorConfig.AfterCommitFuncNameCamel()}
 ");
             }
 
@@ -105,75 +106,65 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                    string outputTopic{i}Name,
+                    string {BucketNames.OutputTopicName(outputData).ToCamel()},
                     {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
 ");
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@",
-                    {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} afterSendOutput{i}
+                    {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {ProcessorConfig.AfterSendFuncNameCamel(outputData)}
 ");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                    {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} loadOutput{i}Message
+                    {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {ProcessorConfig.LoadOutputFuncNameCamel(outputData)},
+                    {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)}
 ");
                 }
-            }
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@",
-                    {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} addAwaiterCheckStatus
-");
             }
             builder.Append($@"
                     )
                 {{
-                    _bucketId = bucketId;
-                    _maxInFly = maxInFly;
-                    _responseAwaiters = new(_maxInFly);
+                    {BucketNames.PBucketId()} = {BucketNames.BucketId().ToCamel()};
+                    {BucketNames.PMaxInFly()} = {ProcessorConfig.MaxInFlyNameCamel()};
+                    _responseAwaiters = new({BucketNames.PMaxInFly()});
 
                     {(requestAwaiter.Data.UseLogger ? @"_logger = logger;" : "")}
-                    {(consumerData.CheckCurrentState ? $"_getCurrentState = getCurrentState;" : "")}
-                    {(consumerData.UseAfterCommit ? $"_afterCommit = afterCommit;" : "")}
+                    {(consumerData.CheckCurrentState ? $"{BucketNames.PCurrentStateFunc()} = {ProcessorConfig.CurrentStateFuncNameCamel()};" : "")}
+                    {(consumerData.UseAfterCommit ? $"{BucketNames.PAfterCommitFunc()} = {ProcessorConfig.AfterCommitFuncNameCamel()};" : "")}
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                     _{inputData.NameCamelCase}Name = {inputData.NameCamelCase}Name;
-                    _{inputData.NameCamelCase}Partitions = {inputData.NameCamelCase}Partitions;
+                    {BucketNames.Partitions(inputData)} = {inputData.NameCamelCase}Partitions;
 ");
             }
 
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-                    _outputTopic{i}Name = outputTopic{i}Name;
+                    {BucketNames.POutputTopicName(outputData)} = {BucketNames.OutputTopicName(outputData).ToCamel()};
                     _producerPool{i} = producerPool{i};
 ");
                 if(requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                    _afterSendOutput{i} = afterSendOutput{i};
+                    {BucketNames.PAfterSendFunc(outputData)} = {ProcessorConfig.AfterSendFuncNameCamel(outputData)};
 ");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
-                    _loadOutput{i}Message = loadOutput{i}Message;
+                    {BucketNames.PLoadOutputFunc(outputData)} = {ProcessorConfig.LoadOutputFuncNameCamel(outputData)};
+                    {BucketNames.PCheckOutputStatusFunc(outputData)} = {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)};
 ");
                 }
-            }
-
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@"
-                    _addAwaiterCheckStatus = addAwaiterCheckStatus;
-");
             }
 
             builder.Append($@"
@@ -198,14 +189,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             if (consumerData.CheckCurrentState)
             {
                 builder.Append($@"
-                private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} _getCurrentState;
+                private readonly {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {BucketNames.PCurrentStateFunc()};
 ");
             }
 
             if (consumerData.UseAfterCommit)
             {
                 builder.Append($@"
-                private readonly {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} _afterCommit;
+                private readonly {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {BucketNames.PAfterCommitFunc()};
 ");
             }
 
@@ -213,12 +204,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                    private bool _consume{i}Canceled;
-                    private TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>> _tcsPartitions{i};
+                    private bool {BucketNames.PConsumeCanceledName(inputData)};
+                    private TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>> {BucketNames.PTCSPartitionsName(inputData)};
 
                     private readonly string _{inputData.NameCamelCase}Name;
-                    private readonly int[] _{inputData.NameCamelCase}Partitions;
-                    public int[] {inputData.NamePascalCase}Partitions => _{inputData.NameCamelCase}Partitions;
+                    public int[] {BucketNames.Partitions(inputData)} {{ get; init; }}
 ");
             }
 
@@ -226,25 +216,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-                    private readonly string _outputTopic{i}Name;
+                    private readonly string {BucketNames.POutputTopicName(outputData)};
                     private readonly {outputData.FullPoolInterfaceName} _producerPool{i};
 ");
                 if (requestAwaiter.Data.AfterSend)
                 {
-                    builder.Append($@"private readonly {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} _afterSendOutput{i};");
+                    builder.Append($@"private readonly {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {BucketNames.PAfterSendFunc(outputData)};");
                 }
 
                 if (requestAwaiter.Data.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@"private readonly {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, i, requestAwaiter.InputDatas)} _loadOutput{i}Message;
+                    builder.Append($@"
+                    private readonly {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {BucketNames.PLoadOutputFunc(outputData)};
+                    private readonly {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {BucketNames.PCheckOutputStatusFunc(outputData)};
 ");
                 }
-            }
-
-            if (requestAwaiter.Data.AddAwaiterCheckStatus)
-            {
-                builder.Append($@"private readonly {requestAwaiter.Data.AddAwaiterCheckStatusFunc(assemblyName, requestAwaiter.InputDatas)} _addAwaiterCheckStatus;
-");
             }
         }
 
@@ -295,11 +281,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                 _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId, changeConfig);
                 _consumeRoutines[{i}].Start();
-                _consume{i}Canceled = false;
-                _tcsPartitions{i} = new();
+                {BucketNames.PConsumeCanceledName(inputData)} = false;
+                {BucketNames.PTCSPartitionsName(inputData)} = new();
 ");
             }
             builder.Append($@"
@@ -334,7 +321,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 changeConfig(conf);
                             }}
 
-                            conf.GroupId = $""{{groupId}}Bucket{{_bucketId}}"";
+                            conf.GroupId = $""{{groupId}}Bucket{{{BucketNames.PBucketId()}}}"";
                             conf.BootstrapServers = bootstrapServers;
                             conf.AutoOffsetReset = AutoOffsetReset.Earliest;
                             conf.AllowAutoCreateTopics = false;
@@ -345,7 +332,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 .Build()
                                 ;
 
-                            consumer.Assign(_{inputData.NameCamelCase}Partitions.Select(sel => new TopicPartition(_{inputData.NameCamelCase}Name, sel)));
+                            consumer.Assign({BucketNames.Partitions(inputData)}.Select(sel => new TopicPartition(_{inputData.NameCamelCase}Name, sel)));
                             try
                             {{
                                 var offsets = new Dictionary<Partition, TopicPartitionOffset>();
@@ -353,14 +340,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 {{
                                     try
                                     {{
-                                        ConsumeResult<{inputData.TypesPair}> consumeResult = consumer.Consume(50);
+                                        ConsumeResult<{inputData.TypesPair}> consumeResult = consumer.Consume(30);
                                         try
                                         {{
                                             _ctsConsume.Token.ThrowIfCancellationRequested();
                                         }}
                                         catch (OperationCanceledException oce)
                                         {{
-                                            Volatile.Read(ref _tcsPartitions{i})?.TrySetCanceled();
+                                            Volatile.Read(ref {BucketNames.PTCSPartitionsName(inputData)})?.TrySetCanceled();
                                             _lock.EnterReadLock();
                                             try
                                             {{
@@ -402,7 +389,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             }}
 
                                             var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
-                                            if(headerInfo.Bucket != _bucketId)
+                                            if(headerInfo.Bucket != {BucketNames.PBucketId()})
                                             {{
                                                 offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
                                                 continue;
@@ -422,7 +409,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         }}
                                         while (true) 
                                         {{
-                                            var locked = _lock.TryEnterUpgradeableReadLock(50);
+                                            var locked = _lock.TryEnterUpgradeableReadLock(15);
                                             if(locked)
                                             {{
                                                 {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse topicResponse = null;
@@ -433,7 +420,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                         _responseAwaiters.TryGetValue(inputMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse);
                                                     }}
 
-                                                    if (_addedCount == _maxInFly && _responseAwaiters.Count == 0)
+                                                    if (_addedCount == {BucketNames.PMaxInFly()} && _responseAwaiters.Count == 0)
                                                     {{
                                                         _lock.EnterWriteLock();
                                                         try
@@ -447,10 +434,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         continue;
                     }
 
+                    var inputDataNotSelf = requestAwaiter.InputDatas[j];
                     builder.Append($@"
                                                             var tcsPartitions{j} = new TaskCompletionSource<List<Confluent.Kafka.TopicPartitionOffset>>();
-                                                            Volatile.Write(ref _tcsPartitions{j}, tcsPartitions{j});
-                                                            Volatile.Write(ref _consume{j}Canceled, true);
+                                                            Volatile.Write(ref {BucketNames.PTCSPartitionsName(inputDataNotSelf)}, tcsPartitions{j});
+                                                            Volatile.Write(ref {BucketNames.PConsumeCanceledName(inputDataNotSelf)}, true);
                                                             var partitions{j} = tcsPartitions{j}.Task.Result;
                                                             allPartitions.AddRange(partitions{j});
 ");
@@ -463,8 +451,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if(consumerData.UseAfterCommit)
                 {
                     builder.Append($@"
-                                                            _afterCommit(
-                                                                _bucketId,
+                                                            {BucketNames.PAfterCommitFunc()}(
+                                                                {BucketNames.PBucketId()},
                                                                 offsets.Keys.ToHashSet()
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
@@ -537,10 +525,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             
                                                 break;
                                             }}
-                                            else if(Volatile.Read(ref _consume{i}Canceled))
+                                            else if(Volatile.Read(ref {BucketNames.PConsumeCanceledName(inputData)}))
                                             {{
-                                                Volatile.Write(ref _consume{i}Canceled, false);
-                                                Volatile.Read(ref _tcsPartitions{i}).SetResult(offsets.Values.ToList());
+                                                Volatile.Write(ref {BucketNames.PConsumeCanceledName(inputData)}, false);
+                                                Volatile.Read(ref {BucketNames.PTCSPartitionsName(inputData)}).SetResult(offsets.Values.ToList());
                                             }}
                                         }}
 
@@ -557,7 +545,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             }}
                             catch (OperationCanceledException)
                             {{
-                                // Ensure the consumer leaves the group cleanly and final offsets are committed.
                                 consumer.Close();
                             }}
                             finally
@@ -581,7 +568,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         IsBackground = true,
                         Priority = ThreadPriority.AboveNormal,
-                        Name = $""{{groupId}}Bucket{{_bucketId}}Topic{i}""
+                        Name = $""{{groupId}}Bucket{{{BucketNames.PBucketId()}}}Topic{i}""
                     }};
                 }}
 ");
@@ -605,8 +592,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        Volatile.Write(ref _consume{i}Canceled, true);
+                        Volatile.Write(ref {BucketNames.PConsumeCanceledName(inputData)}, true);
 ");
             }
             builder.Append($@"
@@ -663,7 +651,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 _lock.EnterUpgradeableReadLock();
                 try
                 {{
-                    if(_addedCount == _maxInFly)
+                    if(_addedCount == {BucketNames.PMaxInFly()})
                     {{
                         return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
                     }}
@@ -672,8 +660,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-                                _bucketId,
-                                {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                {BucketNames.PBucketId()},
+                                {(consumerData.CheckCurrentState ? $"{BucketNames.PCurrentStateFunc()}," : "")}
                                 messageGuid,
                                 RemoveAwaiter
 ");
@@ -681,7 +669,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                                _{inputData.NameCamelCase}Partitions
+                                {BucketNames.Partitions(inputData)}
 ");
             }
             builder.Append($@",
@@ -742,7 +730,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {variable} = _producerPool{i}.Rent();
                 try
                 {{
-                    var deliveryResult = await producer.ProduceAsync(_outputTopic{i}Name, message{i}).ConfigureAwait(false);
+                    var deliveryResult = await producer.ProduceAsync({BucketNames.POutputTopicName(outputData)}, message{i}).ConfigureAwait(false);
                 }}
                 catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                 {{
@@ -768,9 +756,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                await _afterSendOutput{i}(
+                await {BucketNames.PAfterSendFunc(outputData)}(
                         header{i},
-                        new Output{i}Message(
+                        new {outputData.MessageTypeName}(
                                 message{i}
 ");
                     if (outputData.KeyType.IsProtobuffType())
@@ -839,7 +827,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 _lock.EnterUpgradeableReadLock();
                 try
                 {{
-                    if(_addedCount == _maxInFly)
+                    if(_addedCount == {BucketNames.PMaxInFly()})
                     {{
                         return new {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
                     }}
@@ -848,8 +836,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         messageGuid = Guid.NewGuid().ToString(""D"");
                         awaiter = 
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-                                    _bucketId,
-                                    {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                    {BucketNames.PBucketId()},
+                                    {(consumerData.CheckCurrentState ? $"{BucketNames.PCurrentStateFunc()}," : "")}
                                     messageGuid,
                                     RemoveAwaiter
 ");
@@ -857,7 +845,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                                _{inputData.NameCamelCase}Partitions
+                                {BucketNames.Partitions(inputData)}
 ");
             }
             builder.Append($@",
@@ -969,7 +957,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {variable} = _producerPool{i}.Rent();
                 try
                 {{
-                    var deliveryResult = await producer.ProduceAsync(_outputTopic{i}Name, tryDelayProduce.{outputData.MessageTypeName}.Message).ConfigureAwait(false);
+                    var deliveryResult = await producer.ProduceAsync({BucketNames.POutputTopicName(outputData)}, tryDelayProduce.{outputData.MessageTypeName}.Message).ConfigureAwait(false);
                 }}
                 catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                 {{
@@ -995,7 +983,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.Data.AfterSend)
                 {
                     builder.Append($@"
-                await _afterSendOutput{i}(
+                await {BucketNames.PAfterSendFunc(outputData)}(
                         tryDelayProduce.{outputData.NamePascalCase}Header,
                         tryDelayProduce.{outputData.MessageTypeName})
                         .ConfigureAwait(false)
@@ -1058,7 +1046,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 _lock.EnterUpgradeableReadLock();
                 try
                 {{
-                    if (_addedCount == _maxInFly)
+                    if (_addedCount == {BucketNames.PMaxInFly()})
                     {{
                         throw new InvalidOperationException(""Expect awaiter's limit exceeded"");
                     }}
@@ -1066,8 +1054,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         awaiter =
                             new {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse(
-                                    _bucketId,
-                                    {(consumerData.CheckCurrentState ? $"_getCurrentState," : "")}
+                                    {BucketNames.PBucketId()},
+                                    {(consumerData.CheckCurrentState ? $"{BucketNames.PCurrentStateFunc()}," : "")}
                                     messageGuid,
                                     RemoveAwaiter
 ");
@@ -1075,7 +1063,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                                _{inputData.NameCamelCase}Partitions
+                                {BucketNames.Partitions(inputData)}
 ");
             }
             builder.Append($@",
@@ -1119,15 +1107,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     builder.Append($@"
                 {{
                     var status = 
-                        await _addAwaiterCheckStatus(
+                        await {BucketNames.PCheckOutputStatusFunc(outputData)}(
                                 messageGuid,
-                                _bucketId
+                                {BucketNames.PBucketId()}
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                     {
                         var inputData = requestAwaiter.InputDatas[j];
                         builder.Append($@",
-                                _{inputData.NameCamelCase}Partitions
+                                {BucketNames.Partitions(inputData)}
 ");
                     }
                     builder.Append($@"
@@ -1137,15 +1125,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     if(status < KafkaExchanger.Attributes.Enums.RAState.Sended)
                     {{
                         var message = 
-                            await _loadOutput{i}Message(
+                            await {BucketNames.PLoadOutputFunc(outputData)}(
                                     messageGuid,
-                                    _bucketId
+                                    {BucketNames.PBucketId()}
 ");
                     for (int j = 0; j < requestAwaiter.InputDatas.Count; j++)
                     {
                         var inputData = requestAwaiter.InputDatas[j];
                         builder.Append($@",
-                                    _{inputData.NameCamelCase}Partitions
+                                    {BucketNames.Partitions(inputData)}
 ");
                     }
                     builder.Append($@"
@@ -1163,7 +1151,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         var producer = _producerPool{i}.Rent();
                         try
                         {{
-                            var deliveryResult = await producer.ProduceAsync(_outputTopic{i}Name, message.Message).ConfigureAwait(false);
+                            var deliveryResult = await producer.ProduceAsync({BucketNames.POutputTopicName(outputData)}, message.Message).ConfigureAwait(false);
                         }}
                         catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.Data.UseLogger ? "e" : "")})
                         {{
@@ -1189,7 +1177,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     if (requestAwaiter.Data.AfterSend)
                     {
                         builder.Append($@"
-                        await _afterSendOutput{i}(header, message).ConfigureAwait(false);
+                        await {BucketNames.PAfterSendFunc(outputData)}(header, message).ConfigureAwait(false);
 ");
                     }
                     builder.Append($@"
@@ -1238,7 +1226,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 var headerInfo = new {assemblyName}.RequestHeader()
                 {{
-                    Bucket = _bucketId
+                    Bucket = {BucketNames.PBucketId()}
                 }};
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -1250,7 +1238,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     Name = _{inputData.NameCamelCase}Name
                 }};
-                topic.Partitions.Add(_{inputData.NameCamelCase}Partitions);
+                topic.Partitions.Add({BucketNames.Partitions(inputData)});
 ");
                 if (!inputData.AcceptFromAny)
                 {

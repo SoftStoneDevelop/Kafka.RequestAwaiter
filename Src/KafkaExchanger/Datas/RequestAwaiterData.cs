@@ -49,7 +49,7 @@ namespace KafkaExchanger.AttributeDatas
 
         public bool AddAwaiterCheckStatus { get; private set; }
 
-        public string AddAwaiterCheckStatusFunc(
+        public string AddAwaiterStatusFunc(
             string assemblyName,
             List<InputData> inputDatas
             )
@@ -68,7 +68,6 @@ namespace KafkaExchanger.AttributeDatas
         public string LoadOutputMessageFunc(
             string assemblyName,
             OutputData outputData,
-            int outputIndex,
             List<InputData> inputDatas
             )
         {
@@ -79,7 +78,7 @@ namespace KafkaExchanger.AttributeDatas
                 builder.Append($@" int[],");
             }
 
-            builder.Append($" Task<Output{outputIndex}Message>>");
+            builder.Append($" Task<{outputData.MessageTypeName}>>");
             return builder.ToString();
         }
 

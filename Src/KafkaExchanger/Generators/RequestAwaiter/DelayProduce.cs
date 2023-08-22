@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using KafkaExchanger.AttributeDatas;
+using KafkaExchanger.Generators.RequestAwaiter.Names;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -52,14 +54,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             private {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
-            public int Bucket => _tryDelay.Bucket.BucketId;
+            public int Bucket => _tryDelay.Bucket.{BucketNames.BucketId()};
             public string MessageGuid => _tryDelay.Response.MessageGuid;
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{inputData.NamePascalCase}Partitions;
+            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{BucketNames.Partitions(inputData)};
 ");
             }
 
