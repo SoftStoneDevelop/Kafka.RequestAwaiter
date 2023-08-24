@@ -21,4 +21,13 @@ namespace KafkaExchengerTests
     {
 
     }
+
+    //[Responder(useLogger: false),
+    //    Input(keyType: typeof(Null), valueType: typeof(string)),
+    //    Output(keyType: typeof(Null), valueType: typeof(string))
+    //    ]
+    //public partial class ResponderNew
+    //{
+
+    //}
 }
