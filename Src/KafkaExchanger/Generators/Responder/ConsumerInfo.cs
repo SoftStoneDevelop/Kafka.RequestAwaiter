@@ -3,20 +3,21 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KafkaExchanger.Generators.RequestAwaiter
+namespace KafkaExchanger.Generators.Responder
 {
     internal static class ConsumerInfo
     {
         public static void Append(
-            StringBuilder builder
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
             )
         {
             builder.Append($@"
-        public class ConsumerInfo
+        public class {TypeName()}
         {{
-            private ConsumerInfo() {{ }}
+            private {TypeName()}() {{ }}
 
-            public ConsumerInfo(
+            public {TypeName()}(
                 string topicName,
                 int[] partitions
                 )
@@ -30,6 +31,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public int[] Partitions {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeName()
+        {
+            return "ConsumerInfo";
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
         }
     }
 }

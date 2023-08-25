@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
 using System.Text;
 
@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)

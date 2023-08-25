@@ -9,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             Start(builder, assemblyName, requestAwaiter);
@@ -25,7 +25,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Start(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -37,7 +37,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Constructor(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -106,7 +106,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void PropertiesAndFields(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -143,7 +143,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Dispose(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -187,7 +187,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Finalizer(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -201,7 +201,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void End(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

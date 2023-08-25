@@ -1,5 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
-using KafkaExchanger.Generators.RequestAwaiter.Names;
+﻿using KafkaExchanger.Datas;
 using System.Reflection;
 using System.Text;
 
@@ -10,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             StartClass(builder, requestAwaiter);
@@ -22,7 +21,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartClass(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -30,7 +29,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{
             private DelayProduce(){{}}
             public DelayProduce(
-                {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult tryDelay)
+                {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult tryDelay)
             {{
                 _tryDelay = tryDelay;
             }}
@@ -49,11 +48,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void Fields(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            private {requestAwaiter.Data.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
+            private {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
             public int Bucket => _tryDelay.Bucket.{BucketNames.BucketId()};
             public string MessageGuid => _tryDelay.Response.MessageGuid;
 ");
@@ -77,7 +76,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Produce(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

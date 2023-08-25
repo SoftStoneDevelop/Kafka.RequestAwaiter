@@ -10,15 +10,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
         public class TryDelayProduceResult
         {{
             public bool Succsess;
-            public {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse Response;
-            public {requestAwaiter.Data.TypeSymbol.Name}.PartitionItem.Bucket Bucket;
+            public {requestAwaiter.TypeSymbol.Name}.TopicResponse Response;
+            public {requestAwaiter.TypeSymbol.Name}.PartitionItem.Bucket Bucket;
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {

@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Enums;
 using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
@@ -13,7 +13,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             StartInterface(builder, requestAwaiter);
@@ -29,18 +29,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartInterface(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial interface I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
+    {requestAwaiter.TypeSymbol.DeclaredAccessibility.ToName()} partial interface I{requestAwaiter.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
     {{
 ");
         }
 
         private static void InterfaceProduceMethod(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -70,11 +70,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceProduceDelayMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
+        public {requestAwaiter.TypeSymbol.Name}.DelayProduce ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -100,7 +100,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceStartMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -111,12 +111,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void InterfaceSetupMethod(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
         public void Setup(
-            {requestAwaiter.Data.TypeSymbol.Name}.Config config
+            {requestAwaiter.TypeSymbol.Name}.Config config
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -133,7 +133,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void AddAwaiter(
             StringBuilder builder, 
             string assemblyName, 
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"

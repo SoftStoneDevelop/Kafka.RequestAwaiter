@@ -4,18 +4,18 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KafkaExchanger.Generators.RequestAwaiter
+namespace KafkaExchanger.Generators.Responder
 {
     internal static class InputMessages
     {
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            Datas.RequestAwaiter requestAwaiter
+            Datas.Responder responder
             )
         {
             BaseInputMessage(builder);
-            AppendInputMessages(builder, assemblyName, requestAwaiter);
+            AppendInputMessages(builder, assemblyName, responder);
         }
 
         private static void BaseInputMessage(StringBuilder builder)
@@ -23,8 +23,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public abstract class BaseInputMessage
         {{
-            public string TopicName {{ get; set; }}
-            public Confluent.Kafka.Partition Partition {{ get; set; }}
+            public long HorizonId {{ get; set; }}
+
+            public Confluent.Kafka.TopicPartitionOffset TopicPartitionOffset {{ get; set; }}
         }}
 ");
         }
@@ -32,16 +33,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void AppendInputMessages(
             StringBuilder builder,
             string assemblyName,
-            Datas.RequestAwaiter requestAwaiter
+            Datas.Responder responder
             )
         {
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            for (int i = 0; i < responder.InputDatas.Count; i++)
             {
-                var inputData = requestAwaiter.InputDatas[i];
+                var inputData = responder.InputDatas[i];
                 builder.Append($@"
-        public class {inputData.MessageTypeName} : BaseInputMessage
+        public class {inputData.MessageTypeName} : {responder.TypeSymbol.Name}.BaseInputMessage
         {{
-            public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
+            public {assemblyName}.RequestHeader Header {{ get; set; }}
 
             public Message<{inputData.TypesPair}> OriginalMessage {{ get; set; }}
 ");

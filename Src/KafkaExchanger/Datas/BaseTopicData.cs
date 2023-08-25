@@ -1,7 +1,7 @@
 ﻿using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 
-namespace KafkaExchanger.AttributeDatas
+namespace KafkaExchanger.Datas
 {
     internal abstract class BaseTopicData
     {

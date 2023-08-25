@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Generators;
 using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
@@ -32,8 +32,8 @@ namespace KafkaExchanger
 
                 _inputsTemp.Clear();
                 _outputsTemp.Clear();
-                ResponderData responderData = null;
-                RequestAwaiterData requestAwaiterData = null;
+                Responder responder = null;
+                RequestAwaiter requestAwaiter = null;
 
                 foreach (var attributeSyntax in attributeListSyntax.Attributes)
                 {
@@ -53,13 +53,13 @@ namespace KafkaExchanger
 
                     if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "RequestAwaiterAttribute"))
                     {
-                        requestAwaiterData = RequestAwaiterData.Create(type, attributeData);
+                        requestAwaiter = RequestAwaiter.Create(type, attributeData);
                         continue;
                     }
 
                     if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "ResponderAttribute"))
                     {
-                        responderData = ResponderData.Create(type, attributeData);
+                        responder = Responder.Create(type, attributeData);
                         continue;
                     }
 
@@ -70,8 +70,8 @@ namespace KafkaExchanger
                     }
                 }
 
-                TryAddResponder(responderData);
-                TryAddRequestAwaiter(requestAwaiterData);
+                TryAddResponder(responder);
+                TryAddRequestAwaiter(requestAwaiter);
             }
         }
 
@@ -103,37 +103,33 @@ namespace KafkaExchanger
         }
 
         private void TryAddRequestAwaiter(
-            RequestAwaiterData requestAwaiterData
+            RequestAwaiter requestAwaiter
             )
         {
-            if (requestAwaiterData == null)
+            if (requestAwaiter == null)
             {
                 return;
             }
 
-            var newRA = new RequestAwaiter();
-            newRA.Data = requestAwaiterData;
-            SetDatas(newRA);
+            SetDatas(requestAwaiter);
 
-            _requestAwaiters.Add(newRA);
+            _requestAwaiters.Add(requestAwaiter);
             _inputsTemp.Clear();
             _outputsTemp.Clear();
         }
 
         private void TryAddResponder(
-            ResponderData responderData
+            Responder responder
             )
         {
-            if (responderData == null)
+            if (responder == null)
             {
                 return;
             }
 
-            var newRes = new Responder();
-            newRes.Data = responderData;
-            SetDatas(newRes);
+            SetDatas(responder);
 
-            _responders.Add(newRes);
+            _responders.Add(responder);
             _inputsTemp.Clear();
             _outputsTemp.Clear();
         }
@@ -173,7 +169,7 @@ namespace KafkaExchanger
             }
             _requestAwaiters.Clear();
 
-            var responderGenerator = new ResponderGenerator();
+            var responderGenerator = new KafkaExchanger.Generators.Responder.Generator();
             foreach (var responder in _responders)
             {
                 responderGenerator.GenerateResponder(assemblyName, responder, context);

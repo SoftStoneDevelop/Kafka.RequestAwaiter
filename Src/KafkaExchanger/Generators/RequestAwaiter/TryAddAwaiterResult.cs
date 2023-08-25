@@ -8,14 +8,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
     {
         public static void Append(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
         public class TryAddAwaiterResult
         {{
             public bool Succsess;
-            public {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse Response;
+            public {requestAwaiter.TypeSymbol.Name}.TopicResponse Response;
         }}
 ");
         }

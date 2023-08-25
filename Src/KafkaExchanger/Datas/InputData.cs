@@ -1,7 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using System;
 
-namespace KafkaExchanger.AttributeDatas
+namespace KafkaExchanger.Datas
 {
     internal class InputData : BaseTopicData
     {

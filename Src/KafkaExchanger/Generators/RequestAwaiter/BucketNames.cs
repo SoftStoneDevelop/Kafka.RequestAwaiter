@@ -1,10 +1,10 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KafkaExchanger.Generators.RequestAwaiter.Names
+namespace KafkaExchanger.Generators.RequestAwaiter
 {
     internal static class BucketNames
     {

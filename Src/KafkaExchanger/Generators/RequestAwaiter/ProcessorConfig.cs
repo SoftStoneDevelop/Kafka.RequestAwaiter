@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
 using System;
 using System.Collections.Generic;
@@ -11,11 +11,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
-            var consumerData = requestAwaiter.Data.ConsumerData;
-
             builder.Append($@"
         public class ProcessorConfig
         {{
@@ -54,24 +52,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncNameCamel()}" : "")}
-                {(consumerData.UseAfterCommit ? $",{consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncNameCamel()}" : "")}
+                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncNameCamel()}" : "")}
+                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncNameCamel()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
-                if (requestAwaiter.Data.AfterSend)
+                if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@",
-                {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncNameCamel(outputData)}
+                {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncNameCamel(outputData)}
 ");
                 }
 
-                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncNameCamel(outputData)},
-                {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncNameCamel(outputData)}
+                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncNameCamel(outputData)},
+                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncNameCamel(outputData)}
 ");
                 }
             }
@@ -84,14 +82,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {BucketsName()} = {BucketsNameCamel()};
                 {MaxInFlyName()} = {MaxInFlyNameCamel()};
 ");
-            if(consumerData.CheckCurrentState)
+            if(requestAwaiter.CheckCurrentState)
             {
                 builder.Append($@"
                 {CurrentStateFuncName()} = {CurrentStateFuncNameCamel()};
 ");
             }
 
-            if (consumerData.UseAfterCommit)
+            if (requestAwaiter.AfterCommit)
             {
                 builder.Append($@"
                 {AfterCommitFuncName()} = {AfterCommitFuncNameCamel()};
@@ -101,14 +99,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
-                if (requestAwaiter.Data.AfterSend)
+                if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@"
                 {AfterSendFuncName(outputData)} = {AfterSendFuncNameCamel(outputData)};
 ");
                 }
 
-                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
                 {LoadOutputFuncName(outputData)} = {LoadOutputFuncNameCamel(outputData)};
@@ -140,8 +138,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             
             public int {MaxInFlyName()} {{ get; init; }}
 
-            {(consumerData.CheckCurrentState ? $"public {consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncName()} {{ get; init; }}" : "")}
-            {(consumerData.UseAfterCommit ? $"public {consumerData.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncName()} {{ get; init; }}" : "")}
+            {(requestAwaiter.CheckCurrentState ? $"public {requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {CurrentStateFuncName()} {{ get; init; }}" : "")}
+            {(requestAwaiter.AfterCommit ? $"public {requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {AfterCommitFuncName()} {{ get; init; }}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -157,18 +155,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
             public ProducerInfo {ProducerInfoName(outputData)} {{ get; init; }}
 ");
-                if(requestAwaiter.Data.AfterSend)
+                if(requestAwaiter.AfterSend)
                 {
                     builder.Append($@"
-            public {requestAwaiter.Data.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncName(outputData)} {{ get; init; }}
+            public {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFuncName(outputData)} {{ get; init; }}
 ");
                 }
 
-                if (requestAwaiter.Data.AddAwaiterCheckStatus)
+                if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
-            public {requestAwaiter.Data.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncName(outputData)} {{ get; init; }}
-            public {requestAwaiter.Data.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncName(outputData)} {{ get; init; }}
+            public {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutputFuncName(outputData)} {{ get; init; }}
+            public {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatusFuncName(outputData)} {{ get; init; }}
 ");
                 }
             }

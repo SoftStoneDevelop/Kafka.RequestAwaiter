@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
-    internal static class TopicResponse
+    internal static class ResponseProcess
     {
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             StartClass(builder, requestAwaiter, assemblyName);
@@ -27,7 +27,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void StartClass(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
             string assemblyName
             )
         {
@@ -44,7 +44,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TCS(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -70,14 +70,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Constructor(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
-            var consumerData = requestAwaiter.ConsumerData;
             builder.Append($@"
             public TopicResponse(
                 int bucket,
-                {(consumerData.CheckCurrentState ? $"{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState," : "")}
+                {(requestAwaiter.CheckCurrentState ? $"{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState," : "")}
                 string guid,
                 Action<string> removeAction
 ");
@@ -105,7 +104,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                                {(consumerData.CheckCurrentState ? ",getCurrentState" : "")}
+                                {(requestAwaiter.CheckCurrentState ? ",getCurrentState" : "")}
                                 );
 
                 _response.ContinueWith(task => 
@@ -166,11 +165,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void CreateGetResponse(
             StringBuilder builder,
             string assemblyName,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
-            var consumerData = requestAwaiter.Data.ConsumerData;
-
             builder.Append($@"
             private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse(
                 int bucket
@@ -183,7 +180,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
             builder.Append($@"
-                {(consumerData.CheckCurrentState ? $",{consumerData.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
+                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
                 )
             {{
 ");
@@ -207,7 +204,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
             }
 
-            if (consumerData.CheckCurrentState)
+            if (requestAwaiter.CheckCurrentState)
             {
                 builder.Append($@"
                 var currentState = await getCurrentState(
@@ -295,7 +292,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void GetResponse(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -308,7 +305,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TrySetResponse(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -355,7 +352,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void TrySetException(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -402,7 +399,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Dispose(
             StringBuilder builder,
-            KafkaExchanger.AttributeDatas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
