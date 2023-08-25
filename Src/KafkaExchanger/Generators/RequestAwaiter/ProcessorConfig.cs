@@ -15,11 +15,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class ProcessorConfig
+        public class {TypeName()}
         {{
-            private ProcessorConfig() {{ }}
+            private {TypeName()}() {{ }}
 
-            public ProcessorConfig(
+            public {TypeName()}(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -174,6 +174,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "ProcessorConfig";
         }
 
         public static string ConsumerInfoName(InputData inputData)

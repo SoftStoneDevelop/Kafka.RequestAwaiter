@@ -12,11 +12,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class ConsumerInfo
+        public class {TypeName()}
         {{
-            private ConsumerInfo() {{ }}
+            private {TypeName()}() {{ }}
 
-            public ConsumerInfo(
+            public {TypeName()}(
                 string topicName,
                 int[] partitions
                 )
@@ -30,6 +30,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public int[] Partitions {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "ConsumerInfo";
         }
     }
 }

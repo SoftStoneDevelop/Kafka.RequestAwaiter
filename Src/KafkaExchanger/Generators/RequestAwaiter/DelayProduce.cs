@@ -19,16 +19,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             EndClass(builder);
         }
 
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "DelayProduce";
+        }
+
         private static void StartClass(
             StringBuilder builder,
             Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-        public class DelayProduce : IDisposable
+        public class {TypeName()} : IDisposable
         {{
-            private DelayProduce(){{}}
-            public DelayProduce(
+            private {TypeName()}(){{}}
+            public {TypeName()}(
                 {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult tryDelay)
             {{
                 _tryDelay = tryDelay;

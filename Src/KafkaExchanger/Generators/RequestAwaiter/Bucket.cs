@@ -31,6 +31,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             End(sb);
         }
 
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "Bucket";
+        }
+
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
@@ -38,7 +48,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public class Bucket : IAsyncDisposable
+            public class {TypeName()} : IAsyncDisposable
             {{
                 private readonly int {BucketNames.PBucketId()};
                 public int {BucketNames.BucketId()} => {BucketNames.PBucketId()};
@@ -59,7 +69,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-                public Bucket(
+                public {TypeName()}(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {

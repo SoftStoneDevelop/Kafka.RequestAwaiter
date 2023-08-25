@@ -39,7 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-        public class {inputData.MessageTypeName} : BaseInputMessage
+        public class {inputData.MessageTypeName} : {requestAwaiter.TypeSymbol.Name}.BaseInputMessage
         {{
             public {assemblyName}.ResponseHeader HeaderInfo {{ get; set; }}
 

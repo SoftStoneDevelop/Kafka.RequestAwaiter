@@ -25,6 +25,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             End(sb);
         }
 
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "PartitionItem";
+        }
+
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
@@ -32,7 +42,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class PartitionItem : IAsyncDisposable
+        public class {TypeName()} : IAsyncDisposable
         {{
             private readonly Bucket[] {Buckets()};
             private uint {Current()};
@@ -57,7 +67,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             var bucketsParametr = "buckets";
             builder.Append($@"
-            public PartitionItem(
+            public {TypeName()}(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {

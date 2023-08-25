@@ -14,7 +14,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class TryDelayProduceResult
+        public class {TypeName()}
         {{
             public bool Succsess;
             public {requestAwaiter.TypeSymbol.Name}.TopicResponse Response;
@@ -32,6 +32,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "TryDelayProduceResult";
         }
     }
 }

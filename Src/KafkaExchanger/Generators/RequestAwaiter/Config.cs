@@ -9,9 +9,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(StringBuilder builder)
         {
             builder.Append($@"
-        public class Config
+        public class {TypeName()}
         {{
-            public Config(
+            public {TypeName()}(
                 string groupId,
                 string bootstrapServers,
                 ProcessorConfig[] processors
@@ -29,6 +29,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public ProcessorConfig[] Processors {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "Config";
         }
     }
 }

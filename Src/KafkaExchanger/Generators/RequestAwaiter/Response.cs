@@ -22,6 +22,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             End(builder, assemblyName, requestAwaiter);
         }
 
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "Response";
+        }
+
         private static void Start(
             StringBuilder builder,
             string assemblyName,
@@ -29,7 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class Response : IDisposable
+        public class {TypeName()} : IDisposable
         {{
 ");
         }
@@ -41,7 +51,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public Response(
+            public {TypeName()}(
                 int bucket,
                 KafkaExchanger.Attributes.Enums.RAState currentState,
                 TaskCompletionSource<bool> responseProcess

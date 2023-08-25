@@ -12,12 +12,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class TryAddAwaiterResult
+        public class {TypeName()}
         {{
             public bool Succsess;
             public {requestAwaiter.TypeSymbol.Name}.TopicResponse Response;
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "TryAddAwaiterResult";
         }
     }
 }

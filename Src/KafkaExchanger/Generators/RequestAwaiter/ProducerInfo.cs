@@ -11,9 +11,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class ProducerInfo
+        public class {TypeName()}
         {{
-            private ProducerInfo() {{ }}
+            private {TypeName()}() {{ }}
 
             public ProducerInfo(
                 string topicName
@@ -25,6 +25,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public string TopicName {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "ProducerInfo";
         }
     }
 }
