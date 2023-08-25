@@ -1,14 +1,13 @@
 ﻿
 using Confluent.Kafka;
 using Google.Protobuf;
-
-using System.Collections.Generic;
+using KafkaExchanger;
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Channels;
-using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace KafkaExchengerTests
 {
@@ -142,10 +141,17 @@ namespace KafkaExchengerTests
 
         public abstract class BaseInputMessage
         {
+            public long HorizonId { get; set; }
+
             public Confluent.Kafka.TopicPartitionOffset TopicPartitionOffset { get; set; }
         }
 
         public class OutputMessage
+        {
+            public Output0Message Output0Message { get; set; }
+        }
+
+        public class Output0Message
         {
             public Confluent.Kafka.Null Key { get; set; }
             public System.String Value { get; set; }
@@ -156,18 +162,20 @@ namespace KafkaExchengerTests
             private Task _response;
             private TaskCompletionSource<Input0Message> _input0 = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            public long HorizonId { get; init; }
+
             public ResponseProcess(
                 string guid,
                 long horizonId,
                 Func<ResponderNew.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderNew.OutputMessage>> createAnswer,
                 Func<ResponderNew.OutputMessage, ResponderNew.InputMessage, Task> produce,
                 Action<string> removeAction,
-                ChannelWriter<(int, long, Confluent.Kafka.TopicPartitionOffset)> writer
+                ChannelWriter<ChannelInfo> writer
                 )
             {
+                HorizonId = horizonId;
                 _response = Response(
                     guid,
-                    horizonId,
                     createAnswer,
                     produce,
                     removeAction,
@@ -177,11 +185,10 @@ namespace KafkaExchengerTests
 
             private async Task Response(
                 string guid,
-                long horizonId,
                 Func<ResponderNew.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderNew.OutputMessage>> createAnswer,
                 Func<ResponderNew.OutputMessage, ResponderNew.InputMessage, Task> produce,
                 Action<string> removeAction,
-                ChannelWriter<(int, long, Confluent.Kafka.TopicPartitionOffset)> writer
+                ChannelWriter<ChannelInfo> writer
                 )
             {
                 var input0 = await _input0.Task.ConfigureAwait(false);
@@ -198,7 +205,13 @@ namespace KafkaExchengerTests
 
                 var answer = await createAnswer(input, currentState).ConfigureAwait(false);
                 await produce(answer, input).ConfigureAwait(false);
-                await writer.WriteAsync((0, horizonId, input.Input0Message.TopicPartitionOffset)).ConfigureAwait(false);
+                var endResponse = new EndResponse() 
+                { 
+                    HorizonId = this.HorizonId,
+                    Input0 = input0.TopicPartitionOffset
+                };
+
+                await writer.WriteAsync(endResponse).ConfigureAwait(false);
 
                 removeAction(guid);
             }
@@ -236,6 +249,20 @@ namespace KafkaExchengerTests
             }
         }
 
+        private abstract class ChannelInfo
+        {
+            public long HorizonId { get; set; }
+        }
+
+        private class StartResponse : ChannelInfo
+        {
+        }
+
+        private class EndResponse : ChannelInfo
+        {
+            public Confluent.Kafka.TopicPartitionOffset Input0 { get; set; }
+        }
+
         private class PartitionItem
         {
             public PartitionItem(
@@ -263,13 +290,14 @@ namespace KafkaExchengerTests
 
             private long _horizonId;
             private int _needCommit;
-            private TaskCompletionSource _tcsCommit;
+            private HorizonInfo _horizonCommitInfo = new(-1);
+            private TaskCompletionSource _tcsCommit = new();
 
             private readonly string _inputTopicName;
             private readonly string _serviceName;
             private readonly Func<InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<OutputMessage>> _createAnswer;
             private readonly ConcurrentDictionary<string, ResponderNew.ResponseProcess> _responseProcesses;
-            private readonly Channel<(int, long, Confluent.Kafka.TopicPartitionOffset)> _channel = Channel.CreateUnbounded<(int, long, Confluent.Kafka.TopicPartitionOffset)>(
+            private readonly Channel<ChannelInfo> _channel = Channel.CreateUnbounded<ChannelInfo>(
                 new UnboundedChannelOptions() 
                 {
                     AllowSynchronousContinuations = false, 
@@ -343,19 +371,30 @@ namespace KafkaExchengerTests
                                 var needCommit = Interlocked.CompareExchange(ref _needCommit, 0, 1);
                                 if (needCommit == 1)
                                 {
-                                    
+                                    var info = Volatile.Read(ref _horizonCommitInfo);
+                                    if(info.HorizonId == -1)
+                                    {
+                                        throw new Exception("Concurrency error");
+                                    }
+
+                                    consumer.Commit(info.TopicPartitionOffset);
+
+                                    //after commit delegate
+
+                                    info.TopicPartitionOffset.Clear();
+                                    Volatile.Read(ref _tcsCommit).SetResult();
                                 }
 
                                 if (consumeResult == null)
                                 {
                                     continue;
                                 }
+
                                 var inputMessage = new Input0Message();
                                 inputMessage.TopicPartitionOffset = consumeResult.TopicPartitionOffset;
                                 inputMessage.OriginalMessage = consumeResult.Message;
                                 inputMessage.Key = consumeResult.Message.Key;
                                 inputMessage.Value = consumeResult.Message.Value;
-
 
                                 if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
                                 {
@@ -384,7 +423,12 @@ namespace KafkaExchengerTests
                                             ); 
                                     }
                                     );
-
+                                
+                                var startResponse = new StartResponse()
+                                {
+                                    HorizonId = responseProcess.HorizonId
+                                };
+                                _channel.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
                                 responseProcess.TrySetResponse(0, inputMessage);
                             }
                             catch (ConsumeException)
@@ -416,26 +460,36 @@ namespace KafkaExchengerTests
                 _horizonRoutine = Task.Factory.StartNew(async () => 
                 {
                     var reader = _channel.Reader;
-                    var completedResponse = 0;
+                    var storage = new HorizonStorage();
                     try
                     {
                         while (!_cts.Token.IsCancellationRequested)
                         {
-                            (int inputId, long horizonId, TopicPartitionOffset offset) = await reader.ReadAsync(_cts.Token).ConfigureAwait(false);
-                            //TODO DO DO DO
-                            //calculate completedResponse
-
-                            if (completedResponse < 100)
+                            var info = await reader.ReadAsync(_cts.Token).ConfigureAwait(false);
+                            if (info is StartResponse startResponse)
                             {
-                                continue;
+                                storage.Add(new HorizonInfo(startResponse.HorizonId));
+                            }
+                            else if (info is EndResponse endResponse)
+                            {
+                                var index = storage.Find(endResponse.HorizonId);
+                                var horizonInfo = storage[index];
+                                horizonInfo.TopicPartitionOffset.Add(endResponse.Input0);
+                                if (storage.CanFree(index) < 100)//100 in afterCommit parametr
+                                {
+                                    continue;
+                                }
+
+                                var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                                Interlocked.Exchange(ref _horizonCommitInfo, horizonInfo);
+                                Interlocked.Exchange(ref _tcsCommit, commit);
+                                Interlocked.Exchange(ref _needCommit, 1);
+
+                                await commit.Task.ConfigureAwait(false);
+                                storage.Clear(index);
                             }
 
-                            var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                            //TODO write info for commit
-                            Volatile.Write(ref _tcsCommit, commit);
-                            Volatile.Write(ref _needCommit, 1);
-
-                            await commit.Task.ConfigureAwait(false);
+                            throw new Exception("Unknown info type");
                         }
                     }
                     catch (OperationCanceledException)
@@ -461,6 +515,10 @@ namespace KafkaExchengerTests
                     }
                 }
 
+                _tcsCommit.TrySetCanceled();
+                _channel.Writer.Complete();
+                await _horizonRoutine;
+
                 _cts?.Dispose();
             }
 
@@ -481,8 +539,8 @@ namespace KafkaExchengerTests
 
                 var message = new Message<Confluent.Kafka.Null, System.String>()
                 {
-                    Key = outputMessage.Key,
-                    Value = outputMessage.Value
+                    Key = outputMessage.Output0Message.Key,
+                    Value = outputMessage.Output0Message.Value
                 };
 
                 var header = CreateOutputHeader(inputMessage);
