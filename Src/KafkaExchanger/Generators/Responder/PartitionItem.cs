@@ -208,8 +208,9 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
             
+            private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
-            private readonly ConcurrentDictionary<string, {ResponseProcess.TypeFullName(responder)}> {_responseProcesses()};
+            private readonly ConcurrentDictionary<string, {ResponseProcess.TypeFullName(responder)}> {_responseProcesses()} = new();
             private readonly Channel<{ChannelInfo.TypeFullName(responder)}> {_channel()} = Channel.CreateUnbounded<{ChannelInfo.TypeFullName(responder)}>(
                 new UnboundedChannelOptions() 
                 {{
@@ -291,7 +292,7 @@ namespace KafkaExchanger.Generators.Responder
                 }
                 builder.Append($@"
                     {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
-                    {_consumeRoutines()}.Start();
+                    {_consumeRoutines()}[{i}].Start();
 ");
             }
             builder.Append($@"
@@ -499,7 +500,7 @@ namespace KafkaExchanger.Generators.Responder
                 {{
                     IsBackground = true,
                     Priority = ThreadPriority.AboveNormal,
-                    Name = $""{{{responder.TypeSymbol.Name}}}{{groupId}}{_inputTopicName(inputData)}""
+                    Name = $""{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}""
                 }};
             }}
 ");

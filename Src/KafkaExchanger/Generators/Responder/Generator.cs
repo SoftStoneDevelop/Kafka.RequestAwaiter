@@ -32,10 +32,11 @@ namespace KafkaExchanger.Generators.Responder
 using Confluent.Kafka;
 using Google.Protobuf;
 {(responder.UseLogger ? @"using Microsoft.Extensions.Logging;" : "")}
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace {responder.TypeSymbol.ContainingNamespace}

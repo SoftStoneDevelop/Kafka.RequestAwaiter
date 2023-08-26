@@ -26,10 +26,10 @@ namespace KafkaExchengerTests
         private static string _outputProtobuffTopic = "RAOutputProtobuff";
 
         private ResponderOneToOneSimple _responder1;
-        private ResponderOneToOneSimple.ConfigResponder _responder1Config;
+        private ResponderOneToOneSimple.Config _responder1Config;
 
         private ResponderOneToOneSimple _responder2;
-        private ResponderOneToOneSimple.ConfigResponder _responder2Config;
+        private ResponderOneToOneSimple.Config _responder2Config;
 
         [SetUp]
         public async Task Setup()
@@ -52,31 +52,41 @@ namespace KafkaExchengerTests
 
             _responder1 = new ResponderOneToOneSimple();
             _responder1Config = CreateResponderConfig(
-                "RAResponder1",
-                "RAResponder1",
-                (input, s) =>
+                groupId: "RAResponder1",
+                serviceName: "RAResponder1",
+                createAnswer: static (input, s) =>
                 {
                     var result = new ResponderOneToOneSimple.OutputMessage()
                     {
-                        Value = $"{input.Value} Answer from 1"
+                        Output0Message = new ResponderOneToOneSimple.Output0Message() 
+                        { 
+                            Value = $"{input.Input0Message.Value} Answer from 1" 
+                        }
                     };
 
                     return Task.FromResult(result);
-                });
+                },
+                loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(1L); }
+                );
 
             _responder2 = new ResponderOneToOneSimple();
             _responder2Config = CreateResponderConfig(
-                "RAResponder2",
-                "RAResponder2",
-                (input, s) =>
+                groupId: "RAResponder2",
+                serviceName: "RAResponder2",
+                createAnswer: static (input, s) =>
                 {
                     var result = new ResponderOneToOneSimple.OutputMessage()
                     {
-                        Value = $"{input.Value} Answer from 2"
+                        Output0Message = new ResponderOneToOneSimple.Output0Message()
+                        {
+                            Value = $"{input.Input0Message.Value} Answer from 2"
+                        }
                     };
 
                     return Task.FromResult(result);
-                });
+                },
+                loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(1L); }
+                );
         }
 
         [TearDown]
@@ -146,23 +156,27 @@ namespace KafkaExchengerTests
             }
         }
 
-        private ResponderOneToOneSimple.ConfigResponder CreateResponderConfig(
+        private ResponderOneToOneSimple.Config CreateResponderConfig(
             string groupId,
             string serviceName,
-            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer
+            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer,
+            Func<int[], ValueTask<long>> loadCurrentHorizon
             )
         {
             return
-                new ResponderOneToOneSimple.ConfigResponder(
+                new ResponderOneToOneSimple.Config(
                 groupId: groupId,
                 serviceName: serviceName,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+                processors: new ResponderOneToOneSimple.ProcessorConfig[]
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
-                        createAnswer: createAnswer,
-                        inputTopicName: _outputSimpleTopic,
-                        partitions: new int[] { 0, 1, 2 }
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        createAnswer: createAnswer, 
+                        loadCurrentHorizon: loadCurrentHorizon, 
+                        new ResponderOneToOneSimple.ConsumerInfo(
+                            _outputSimpleTopic, 
+                            new int[] { 0, 1, 2 }
+                            )
                         )
                 }
                 );
@@ -310,8 +324,8 @@ namespace KafkaExchengerTests
                 }
                 );
 
-            _responder1.Start(config: _responder1Config, producerPool: pool);
-            _responder2.Start(config: _responder2Config, producerPool: pool);
+            await _responder1.Start(config: _responder1Config, output0Pool: pool);
+            await _responder2.Start(config: _responder2Config, output0Pool: pool);
 
             var requestsCount = 1000;
             var answers = new Task<(RequestAwaiterSimple.Response, string)>[requestsCount];
@@ -508,8 +522,8 @@ namespace KafkaExchengerTests
 
                 Assert.That(sended.Count, Is.EqualTo(sendedCount));
             }
-            _responder1.Start(config: _responder1Config, producerPool: pool);
-            _responder2.Start(config: _responder2Config, producerPool: pool);
+            await _responder1.Start(config: _responder1Config, output0Pool: pool);
+            await _responder2.Start(config: _responder2Config, output0Pool: pool);
 
             var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
             await using (var reqAwaiter = new RequestAwaiterSimple())

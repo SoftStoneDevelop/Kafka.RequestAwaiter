@@ -22,6 +22,16 @@ namespace KafkaExchanger.Generators.Responder
             return "ProcessorConfig";
         }
 
+        public static string CreateAnswer()
+        {
+            return "CreateAnswer";
+        }
+
+        public static string LoadCurrentHorizon()
+        {
+            return "LoadCurrentHorizon";
+        }
+
         public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
         {
             return $"{responder.TypeSymbol.Name}.{TypeName()}";
@@ -50,8 +60,8 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 )
             {{
-                CreateAnswer = createAnswer;
-                LoadCurrentHorizon = loadCurrentHorizon;
+                {CreateAnswer()} = createAnswer;
+                {LoadCurrentHorizon()} = loadCurrentHorizon;
 ");
             for (var i = 0; i < responder.InputDatas.Count; i++)
             {
@@ -63,9 +73,9 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             }}
 
-            public {CreateAnswerFuncType(responder)} CreateAnswer {{ get; init; }}
+            public {CreateAnswerFuncType(responder)} {CreateAnswer()} {{ get; init; }}
 
-            public {LoadCurrentHorizonFuncType(responder)} LoadCurrentHorizon {{ get; init; }}
+            public {LoadCurrentHorizonFuncType(responder)} {LoadCurrentHorizon()} {{ get; init; }}
 ");
             for (var i = 0; i < responder.InputDatas.Count; i++)
             {
@@ -98,7 +108,7 @@ namespace KafkaExchanger.Generators.Responder
             return builder.ToString();
         }
 
-        private static string ConsumerInfoName(InputData inputData)
+        public static string ConsumerInfoName(InputData inputData)
         {
             return inputData.NamePascalCase;
         }

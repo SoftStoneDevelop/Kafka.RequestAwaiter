@@ -179,6 +179,7 @@ namespace KafkaExchanger.Generators.Responder
 
                 await writer.WriteAsync(endResponse).ConfigureAwait(false);
                 removeAction(guid);
+            }}
 ");
         }
 

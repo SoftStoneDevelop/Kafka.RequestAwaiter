@@ -12,7 +12,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        private class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
+        public class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
         {{
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)

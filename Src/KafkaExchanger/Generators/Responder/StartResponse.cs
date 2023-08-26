@@ -11,7 +11,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        private class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
+        public class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
         {{
         }}
 ");

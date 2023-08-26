@@ -171,7 +171,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@",
-                    int bucketId(),
+                    int bucketId,
                     int maxInFly
 ");
             if(requestAwaiter.UseLogger)

@@ -17,6 +17,7 @@ namespace KafkaExchanger.Generators.Responder
 
             Config.Append(builder, responder);
             ProcessorConfig.Append(builder, assemblyName, responder);
+            ConsumerInfo.Append(builder, responder);
 
             InputMessage.Append(builder, assemblyName, responder);
             BaseInputMessage.Append(builder, assemblyName, responder);
@@ -63,7 +64,7 @@ namespace KafkaExchanger.Generators.Responder
         {
             builder.Append($@"
         public async Task Start(
-            {responder.TypeSymbol.Name}.Config config
+            {Config.TypeFullName(responder)} config
 ");
             for (int i = 0; i < responder.OutputDatas.Count; i++)
             {
@@ -75,22 +76,37 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             )
         {{
-            _items = new PartitionItem[config.ConsumerConfigs.Length];
-            for (int i = 0; i < config.ConsumerConfigs.Length; i++)
+            _items = new PartitionItem[config.{Config.Processors()}.Length];
+            for (int i = 0; i < config.{Config.Processors()}.Length; i++)
             {{
+                var processorConfig = config.{Config.Processors()}[i];
                 _items[i] =
                     new PartitionItem(
-                        config.ServiceName,
-                        config.ConsumerConfigs[i].InputTopicName,
-                        config.ConsumerConfigs[i].CreateAnswer,
-                        config.ConsumerConfigs[i].Partitions,
-                        producerPool
+                        config.{Config.ServiceName()},
+");
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                var inputData = responder.InputDatas[i];
+                builder.Append($@"
+                        processorConfig.{ProcessorConfig.ConsumerInfoName(inputData)}.{ConsumerInfo.TopicName()},
+                        processorConfig.{ProcessorConfig.ConsumerInfoName(inputData)}.{ConsumerInfo.Partitions()},
+");
+            }
+            for (int i = 0; i < responder.OutputDatas.Count; i++)
+            {
+                var outputData = responder.OutputDatas[i];
+                builder.Append($@"
+                        {outputData.NameCamelCase}Pool,
+");
+            }
+            builder.Append($@"
+                        processorConfig.{ProcessorConfig.CreateAnswer()}
                         );
 
                 await _items[i].Start(
                     config.BootstrapServers,
                     config.GroupId,
-                    config.ConsumerConfigs[i].LoadCurrentHorizon
+                    processorConfig.{ProcessorConfig.LoadCurrentHorizon()}
                     );
             }}
         }}

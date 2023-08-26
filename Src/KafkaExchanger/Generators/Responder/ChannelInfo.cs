@@ -11,7 +11,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        private abstract class {TypeName()}
+        public abstract class {TypeName()}
         {{
             public long {HorizonId()} {{ get; set; }}
         }}
