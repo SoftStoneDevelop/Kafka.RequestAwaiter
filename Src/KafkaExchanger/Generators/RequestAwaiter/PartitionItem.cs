@@ -59,6 +59,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "_current";
         }
 
+        private static string loadOutputFunc(OutputData outputData)
+        {
+            return $"load{outputData.MessageTypeName}";
+        }
+
+        private static string afterSendFunc(OutputData outputData)
+        {
+            return $"afterSend{outputData.NamePascalCase}";
+        }
+
+        private static string currentStateFunc()
+        {
+            return $"currentState";
+        }
+
+        private static string afterCommitFunc()
+        {
+            return $"afterCommit";
+        }
+
+        private static string checkOutputStatusFunc(OutputData outputData)
+        {
+            return $"check{outputData.NamePascalCase}Status";
+        }
+
         private static void Constructor(
             StringBuilder builder,
             string assemblyName,
@@ -66,6 +91,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             var bucketsParametr = "buckets";
+            var msxInFlyParametr = "maxInFly";
             builder.Append($@"
             public {TypeName()}(
 ");
@@ -83,10 +109,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@",
                 int {bucketsParametr},
-                int {ProcessorConfig.MaxInFlyNameCamel()}
+                int {msxInFlyParametr}
                 {(requestAwaiter.UseLogger ? @",ILogger logger" : "")}
-                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {ProcessorConfig.CurrentStateFuncNameCamel()}" : "")}
-                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {ProcessorConfig.AfterCommitFuncNameCamel()}" : "")}
+                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {currentStateFunc()}" : "")}
+                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {afterCommitFunc()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -98,15 +124,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.AfterSend)
                 {
-                    builder.Append($@",{requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {ProcessorConfig.AfterSendFuncNameCamel(outputData)}
+                    builder.Append($@",{requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {afterSendFunc(outputData)}
 ");
                 }
 
                 if(requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {ProcessorConfig.LoadOutputFuncNameCamel(outputData)},
-                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)}
+                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {loadOutputFunc(outputData)},
+                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {checkOutputStatusFunc(outputData)}
 ");
                 }
             }
@@ -129,10 +155,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         bucketId,
-                        {ProcessorConfig.MaxInFlyNameCamel()}
+                        {msxInFlyParametr}
                         {(requestAwaiter.UseLogger ? @",logger" : "")}
-                        {(requestAwaiter.CheckCurrentState ? $",{ProcessorConfig.CurrentStateFuncNameCamel()}" : "")}
-                        {(requestAwaiter.AfterCommit ? $",{ProcessorConfig.AfterCommitFuncNameCamel()}" : "")}
+                        {(requestAwaiter.CheckCurrentState ? $",{currentStateFunc()}" : "")}
+                        {(requestAwaiter.AfterCommit ? $",{afterCommitFunc()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -144,15 +170,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 if (requestAwaiter.AfterSend)
                 {
-                    builder.Append($@",{ProcessorConfig.AfterSendFuncNameCamel(outputData)}
+                    builder.Append($@",{afterSendFunc(outputData)}
 ");
                 }
 
                 if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                        {ProcessorConfig.LoadOutputFuncNameCamel(outputData)},
-                        {ProcessorConfig.CheckOutputStatusFuncNameCamel(outputData)}
+                        {loadOutputFunc(outputData)},
+                        {checkOutputStatusFunc(outputData)}
 ");
                 }
             }

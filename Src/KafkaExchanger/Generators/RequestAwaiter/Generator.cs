@@ -165,36 +165,36 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
                 }
 
                 _builder.Append($@"
-                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.TopicName,
-                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.Partitions
+                        config.Processors[i].{ProcessorConfig.ConsumerInfo(inputData)}.TopicName,
+                        config.Processors[i].{ProcessorConfig.ConsumerInfo(inputData)}.Partitions
 ");
             }
             _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.BucketsName()},
-                        config.Processors[i].{ProcessorConfig.MaxInFlyName()}
+                        config.Processors[i].{ProcessorConfig.Buckets()},
+                        config.Processors[i].{ProcessorConfig.MaxInFly()}
                         {(requestAwaiter.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
-                        {(requestAwaiter.CheckCurrentState ? $@",config.Processors[i].{ProcessorConfig.CurrentStateFuncName()}" : "")}
-                        {(requestAwaiter.AfterCommit ? $@",config.Processors[i].{ProcessorConfig.AfterCommitFuncName()}" : "")}
+                        {(requestAwaiter.CheckCurrentState ? $@",config.Processors[i].{ProcessorConfig.CurrentStateFunc()}" : "")}
+                        {(requestAwaiter.AfterCommit ? $@",config.Processors[i].{ProcessorConfig.AfterCommitFunc()}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.ProducerInfoName(outputData)}.TopicName,
+                        config.Processors[i].{ProcessorConfig.ProducerInfo(outputData)}.TopicName,
                         producerPool{i}
 ");
                 if (requestAwaiter.AfterSend)
                 {
                     _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.AfterSendFuncName(outputData)}
+                        config.Processors[i].{ProcessorConfig.AfterSendFunc(outputData)}
 ");
                 }
 
                 if(requestAwaiter.AddAwaiterCheckStatus)
                 {
                     _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.LoadOutputFuncName(outputData)},
-                        config.Processors[i].{ProcessorConfig.CheckOutputStatusFuncName(outputData)}
+                        config.Processors[i].{ProcessorConfig.LoadOutputFunc(outputData)},
+                        config.Processors[i].{ProcessorConfig.CheckOutputStatusFunc(outputData)}
 ");
                 }
             }

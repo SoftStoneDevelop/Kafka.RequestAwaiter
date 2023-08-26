@@ -63,14 +63,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             private {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
-            public int Bucket => _tryDelay.Bucket.{BucketNames.BucketId()};
+            public int Bucket => _tryDelay.Bucket.{Bucket.BucketId()};
             public string MessageGuid => _tryDelay.Response.MessageGuid;
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{BucketNames.Partitions(inputData)};
+            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{Bucket.Partitions(inputData)};
 ");
             }
 
