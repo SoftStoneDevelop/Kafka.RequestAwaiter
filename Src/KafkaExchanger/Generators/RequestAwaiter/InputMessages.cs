@@ -60,7 +60,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-            public {inputData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
         }}
 ");
             }
