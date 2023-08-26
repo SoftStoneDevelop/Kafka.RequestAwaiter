@@ -323,32 +323,35 @@ namespace KafkaExchanger.Generators.Responder
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
-                                var index = storage.Find(endResponse.{ChannelInfo.HorizonId()});
-                                var horizonInfo = storage[index];
+                                var offsets = new Confluent.Kafka.TopicPartitionOffset[{responder.InputDatas.Count}];
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-                                horizonInfo.TopicPartitionOffset.Add(endResponse.{EndResponse.Offset(inputData)});
+                                offsets[{i}] = endResponse.{EndResponse.Offset(inputData)};
 ");
             }
             builder.Append($@"
-                                if (storage.CanFree(index) < 100)//100 in afterCommit parametr
+                                storage.Finish(endResponse.{ChannelInfo.HorizonId()}, offsets);
+
+                                if (storage.CanFree() < 100)//100 in afterCommit parametr
                                 {{
                                     continue;
                                 }}
 
+                                var seniorСleared = storage.ClearFinished();
                                 var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                Interlocked.Exchange(ref {_horizonCommitInfo()}, horizonInfo);
+                                Interlocked.Exchange(ref {_horizonCommitInfo()}, seniorСleared);
                                 Interlocked.Exchange(ref {_tcsCommit()}, commit);
                                 Interlocked.Exchange(ref {_needCommit()}, 1);
 
                                 await commit.Task.ConfigureAwait(false);
-                                storage.Clear(index);
                             }}
-
-                            throw new Exception(""Unknown info type"");
+                            else
+                            {{
+                                throw new Exception(""Unknown info type"");
+                            }}
                         }}
                     }}
                     catch (OperationCanceledException)
@@ -418,7 +421,6 @@ namespace KafkaExchanger.Generators.Responder
 
                                     //after commit delegate
 
-                                    info.TopicPartitionOffset.Clear();
                                     Volatile.Read(ref {_tcsCommit()}).SetResult();
                                 }}
 
