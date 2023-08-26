@@ -22,12 +22,14 @@ namespace KafkaExchanger.Generators.Responder
                 string groupId,
                 string serviceName,
                 string bootstrapServers,
+                int commitAtLeastAfter,
                 {ProcessorConfig.TypeFullName(responder)}[] processors
                 )
             {{
                 {GroupId()} = groupId;
                 {ServiceName()} = serviceName;
                 {BootstrapServers()} = bootstrapServers;
+                {CommitAtLeastAfter()} = commitAtLeastAfter;
                 {Processors()} = processors;
             }}
 
@@ -36,6 +38,8 @@ namespace KafkaExchanger.Generators.Responder
             public string {ServiceName()} {{ get; init; }}
 
             public string {BootstrapServers()} {{ get; init; }}
+
+            public int {CommitAtLeastAfter()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
         }}
@@ -70,6 +74,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string GroupId()
         {
             return "GroupId";
+        }
+
+        public static string CommitAtLeastAfter()
+        {
+            return "CommitAtLeastAfter";
         }
     }
 }

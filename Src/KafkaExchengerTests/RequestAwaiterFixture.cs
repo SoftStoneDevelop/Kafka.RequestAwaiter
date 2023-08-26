@@ -167,6 +167,7 @@ namespace KafkaExchengerTests
                 new ResponderOneToOneSimple.Config(
                 groupId: groupId,
                 serviceName: serviceName,
+                commitAtLeastAfter: 100,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
                 processors: new ResponderOneToOneSimple.ProcessorConfig[]
                 {

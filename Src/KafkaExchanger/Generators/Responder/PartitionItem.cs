@@ -47,6 +47,11 @@ namespace KafkaExchanger.Generators.Responder
             return "_serviceName";
         }
 
+        private static string _commitAtLeastAfter()
+        {
+            return "_commitAtLeastAfter";
+        }
+
         private static string _createAnswer()
         {
             return "_createAnswer";
@@ -98,6 +103,7 @@ namespace KafkaExchanger.Generators.Responder
             }
 
             var serviceNameParam = "serviceName";
+            var commitAtLeastAfterParam = "commitAtLeastAfter";
             builder.Append($@"
             private {TypeName()}()
             {{
@@ -105,6 +111,7 @@ namespace KafkaExchanger.Generators.Responder
 
             public {TypeName()}(
                 string {serviceNameParam},
+                int {commitAtLeastAfterParam},
 ");
             var createAnswerParam = "createAnswer";
             for (int i = 0; i < responder.InputDatas.Count; i++)
@@ -127,6 +134,7 @@ namespace KafkaExchanger.Generators.Responder
                 )
             {{
                 {_serviceName()} = {serviceNameParam};
+                {_commitAtLeastAfter()} = {commitAtLeastAfterParam};
                 {_createAnswer()} = {createAnswerParam};
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
@@ -203,6 +211,7 @@ namespace KafkaExchanger.Generators.Responder
             private long {_horizonId()};
             private int {_needCommit()};
             private KafkaExchanger.HorizonInfo {_horizonCommitInfo()} = new(-1);
+            private int {_commitAtLeastAfter()};
             private System.Threading.Tasks.TaskCompletionSource {_tcsCommit()} = new();
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
@@ -335,7 +344,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                                 storage.Finish(endResponse.{ChannelInfo.HorizonId()}, offsets);
 
-                                if (storage.CanFree() < 100)//100 in afterCommit parametr
+                                if (storage.CanFree() < {_commitAtLeastAfter()})
                                 {{
                                     continue;
                                 }}
@@ -350,7 +359,8 @@ namespace KafkaExchanger.Generators.Responder
                             }}
                             else
                             {{
-                                throw new Exception(""Unknown info type"");
+                                //TODO log error
+                                //throw new Exception(""Unknown info type"");
                             }}
                         }}
                     }}
@@ -361,6 +371,11 @@ namespace KafkaExchanger.Generators.Responder
                     catch (ChannelClosedException)
                     {{
                         //ignore
+                    }}
+                    catch (Exception ex)
+                    {{
+                        //TODO log
+                        throw;
                     }}
                 }});
             }}

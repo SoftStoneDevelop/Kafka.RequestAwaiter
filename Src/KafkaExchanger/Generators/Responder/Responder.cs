@@ -48,7 +48,7 @@ namespace KafkaExchanger.Generators.Responder
     {responder.TypeSymbol.DeclaredAccessibility.ToName()} partial class {responder.TypeSymbol.Name} : I{responder.TypeSymbol.Name}Responder
     {{
         {(responder.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
-        private PartitionItem[] _items;
+        private {PartitionItem.TypeFullName(responder)}[] _items;
         
         public {responder.TypeSymbol.Name}({(responder.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
@@ -76,13 +76,14 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             )
         {{
-            _items = new PartitionItem[config.{Config.Processors()}.Length];
+            _items = new {PartitionItem.TypeFullName(responder)}[config.{Config.Processors()}.Length];
             for (int i = 0; i < config.{Config.Processors()}.Length; i++)
             {{
                 var processorConfig = config.{Config.Processors()}[i];
                 _items[i] =
-                    new PartitionItem(
+                    new {PartitionItem.TypeFullName(responder)}(
                         config.{Config.ServiceName()},
+                        config.{Config.CommitAtLeastAfter()},
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {

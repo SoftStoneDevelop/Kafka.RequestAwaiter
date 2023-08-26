@@ -28,6 +28,7 @@ namespace Responder0Console
                 groupId: responderName,
                 serviceName: responderName,
                 bootstrapServers: bootstrapServers,
+                commitAtLeastAfter: 1000,
                 new ResponderOneToOneSimple.ProcessorConfig[]
                 {
                     new ResponderOneToOneSimple.ProcessorConfig(
