@@ -19,6 +19,7 @@ namespace KafkaExchanger.Generators.Responder
             ProcessorConfig.Append(builder, assemblyName, responder);
 
             InputMessage.Append(builder, assemblyName, responder);
+            BaseInputMessage.Append(builder, assemblyName, responder);
             InputMessages.Append(builder, assemblyName, responder);
 
             OutputMessage.Append(builder, assemblyName, responder);
@@ -29,6 +30,7 @@ namespace KafkaExchanger.Generators.Responder
             EndResponse.Append(builder, assemblyName, responder);
 
             ResponseProcess.Append(builder, assemblyName, responder);
+            PartitionItem.Append(builder, assemblyName, responder);
 
             StartMethod(builder, responder);
             StopAsync(builder);

@@ -39,6 +39,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             ConsumerInfo.Append(_builder);
             ProducerInfo.Append(_builder);
 
+            BaseInputMessage.Append(_builder, assemblyName, requestAwaiter);
             InputMessages.Append(_builder, assemblyName, requestAwaiter);
             OutputMessages.Append(_builder, assemblyName, requestAwaiter);
             ResponseProcess.Append(_builder, assemblyName, requestAwaiter);

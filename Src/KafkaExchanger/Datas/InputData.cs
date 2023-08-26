@@ -89,6 +89,7 @@ namespace KafkaExchanger.Datas
                 return;
             }
 
+            _id = index;
             _namePascalCase = $"Input{index}";
             _nameCamelCase = $"{char.ToLowerInvariant(_namePascalCase[0])}{_namePascalCase.Substring(1)}";
         }

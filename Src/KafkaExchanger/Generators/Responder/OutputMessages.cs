@@ -27,21 +27,41 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-        public class {outputData.MessageTypeName}
+        public class {TypeName(outputData)}
         {{
 ");
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            public {outputData.KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {outputData.KeyType.GetFullTypeName(true)} {Key()} {{ get; set; }}
 ");
                 }
 
                 builder.Append($@"
-            public {outputData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
+            public {outputData.ValueType.GetFullTypeName(true)} {Value()} {{ get; set; }}
         }}
 ");
             }
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder, OutputData outputData)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName(outputData)}";
+        }
+
+        public static string TypeName(OutputData outputData)
+        {
+            return outputData.MessageTypeName;
+        }
+
+        public static string Key()
+        {
+            return "Key";
+        }
+
+        public static string Value()
+        {
+            return "Value";
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using KafkaExchanger.Datas;
+using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
 {
@@ -18,7 +19,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-            public {inputData.MessageTypeName} {inputData.MessageTypeName} {{ get; set; }}
+            public {inputData.MessageTypeName} {Message(inputData)} {{ get; set; }}
 ");
             }
             builder.Append($@"
@@ -34,6 +35,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "InputMessage";
+        }
+
+        public static string Message(InputData inputData)
+        {
+            return inputData.MessageTypeName;
         }
     }
 }

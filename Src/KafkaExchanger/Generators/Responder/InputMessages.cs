@@ -14,20 +14,7 @@ namespace KafkaExchanger.Generators.Responder
             Datas.Responder responder
             )
         {
-            BaseInputMessage(builder);
             AppendInputMessages(builder, assemblyName, responder);
-        }
-
-        private static void BaseInputMessage(StringBuilder builder)
-        {
-            builder.Append($@"
-        public abstract class BaseInputMessage
-        {{
-            public long HorizonId {{ get; set; }}
-
-            public Confluent.Kafka.TopicPartitionOffset TopicPartitionOffset {{ get; set; }}
-        }}
-");
         }
 
         private static void AppendInputMessages(
@@ -40,24 +27,72 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-        public class {inputData.MessageTypeName} : {responder.TypeSymbol.Name}.BaseInputMessage
+        public class {TypeName(inputData)} : {BaseInputMessage.TypeFullName(responder)}
         {{
-            public {assemblyName}.RequestHeader Header {{ get; set; }}
+            public {assemblyName}.RequestHeader {Header()} {{ get; set; }}
 
-            public Message<{inputData.TypesPair}> OriginalMessage {{ get; set; }}
+            public Message<{inputData.TypesPair}> {OriginalMessage()} {{ get; set; }}
 ");
-                if (!inputData.KeyType.IsKafkaNull())
+                if (inputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@"
-            public {inputData.KeyType.GetFullTypeName(true)} Key {{ get; set; }}
+            public {inputData.KeyType.GetFullTypeName(true)} {Key()} {{ get; set; }}
+");
+                }
+                else
+                {
+                    builder.Append($@"
+            public {inputData.KeyType.GetFullTypeName(true)} {Key()} => {OriginalMessage()}.Key;
+");
+                }
+
+                if (inputData.ValueType.IsProtobuffType())
+                {
+                    builder.Append($@"
+            public {inputData.ValueType.GetFullTypeName(true)} {Value()} {{ get; set; }}
+");
+                }
+                else
+                {
+                    builder.Append($@"
+            public {inputData.ValueType.GetFullTypeName(true)} {Value()} => {OriginalMessage()}.Value;
 ");
                 }
 
                 builder.Append($@"
-            public {inputData.ValueType.GetFullTypeName(true)} Value {{ get; set; }}
         }}
 ");
             }
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder, InputData inputData)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName(inputData)}";
+        }
+
+        public static string TypeName(InputData inputData)
+        {
+            return inputData.MessageTypeName;
+        }
+
+        public static string OriginalMessage()
+        {
+            return "OriginalMessage";
+        }
+
+        public static string Key()
+        {
+            return "Key";
+        }
+
+        public static string Value()
+        {
+            return "Value";
+        }
+
+        public static string Header()
+        {
+            return "Header";
         }
     }
 }

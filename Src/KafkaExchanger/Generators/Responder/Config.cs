@@ -25,19 +25,19 @@ namespace KafkaExchanger.Generators.Responder
                 {ProcessorConfig.TypeFullName(responder)}[] processors
                 )
             {{
-                GroupId = groupId;
-                ServiceName = serviceName;
-                BootstrapServers = bootstrapServers;
-                Processors = processors;
+                {GroupId()} = groupId;
+                {ServiceName()} = serviceName;
+                {BootstrapServers()} = bootstrapServers;
+                {Processors()} = processors;
             }}
 
-            public string GroupId {{ get; init; }}
+            public string {GroupId()} {{ get; init; }}
 
-            public string ServiceName {{ get; init; }}
+            public string {ServiceName()} {{ get; init; }}
 
-            public string BootstrapServers {{ get; init; }}
+            public string {BootstrapServers()} {{ get; init; }}
 
-            public {ProcessorConfig.TypeFullName(responder)}[] Processors {{ get; init; }}
+            public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
         }}
 ");
         }
@@ -50,6 +50,26 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "Config";
+        }
+
+        public static string Processors()
+        {
+            return "Processors";
+        }
+
+        public static string BootstrapServers()
+        {
+            return "BootstrapServers";
+        }
+
+        public static string ServiceName()
+        {
+            return "ServiceName";
+        }
+
+        public static string GroupId()
+        {
+            return "GroupId";
         }
     }
 }

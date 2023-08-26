@@ -452,7 +452,7 @@ namespace KafkaExchengerTests
                     IsBackground = true,
                     Priority = ThreadPriority.AboveNormal,
                     Name = $"{groupId}Topic0"
-                }; ;
+                };
             }
 
             private void StartHorizonRoutine()

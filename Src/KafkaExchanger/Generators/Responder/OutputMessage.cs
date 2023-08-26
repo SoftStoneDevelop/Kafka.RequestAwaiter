@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KafkaExchanger.Datas;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -36,6 +37,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "OutputMessage";
+        }
+
+        public static string Message(OutputData outputData)
+        {
+            return outputData.MessageTypeName;
         }
     }
 }

@@ -22,13 +22,13 @@ namespace KafkaExchanger.Generators.Responder
                 int[] partitions
                 )
             {{
-                TopicName = topicName;
-                Partitions = partitions;
+                {TopicName()} = topicName;
+                {Partitions()} = partitions;
             }}
 
-            public string TopicName {{ get; init; }}
+            public string {TopicName()} {{ get; init; }}
 
-            public int[] Partitions {{ get; init; }}
+            public int[] {Partitions()} {{ get; init; }}
         }}
 ");
         }
@@ -41,6 +41,16 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
         {
             return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string Partitions()
+        {
+            return $"Partitions";
+        }
+
+        public static string TopicName()
+        {
+            return $"TopicName";
         }
     }
 }

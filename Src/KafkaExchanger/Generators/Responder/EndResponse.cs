@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using KafkaExchanger.Datas;
+using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
 {
@@ -13,13 +14,12 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
         private class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
         {{
-            public Confluent.Kafka.TopicPartitionOffset Input0 {{ get; set; }}
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-            public Confluent.Kafka.TopicPartitionOffset {inputData.NamePascalCase} {{ get; set; }}
+            public Confluent.Kafka.TopicPartitionOffset {Offset(inputData)} {{ get; set; }}
 ");
             }
             builder.Append($@"
@@ -35,6 +35,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "EndResponse";
+        }
+
+        public static string Offset(InputData inputData)
+        {
+            return inputData.NamePascalCase;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using KafkaExchanger.Generators.Responder;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -43,11 +44,11 @@ namespace KafkaExchanger.Datas
 
         public bool CheckCurrentState { get; private set; }
 
-        public string GetCurrentStateFunc(List<InputData> inputDatas)
+        public string GetCurrentStateFunc()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 tempSb.Append($" int[], Input{i}Message,");
             }
@@ -71,19 +72,15 @@ namespace KafkaExchanger.Datas
 
         public bool AfterSend { get; private set; }
 
-        public string AfterSendFunc(
-            string assemblyName,
-            List<InputData> inputDatas,
-            INamedTypeSymbol typeSymbol
-            )
+        public string AfterSendFunc()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 tempSb.Append($"Input{i}Message,");
             }
-            tempSb.Append($"{typeSymbol.Name}.ResponseResult, Task>");
+            tempSb.Append($"{TypeSymbol.Name}.ResponseResult, Task>");
 
             return tempSb.ToString();
         }
@@ -103,11 +100,11 @@ namespace KafkaExchanger.Datas
 
         public bool AfterCommit { get; private set; }
 
-        public string AfterCommitFunc(List<InputData> inputDatas)
+        public string AfterCommitFunc()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int, ");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
             }
@@ -127,6 +124,24 @@ namespace KafkaExchanger.Datas
 
             AfterCommit = (bool)argument.Value;
             return true;
+        }
+
+        public string CreateAnswerFuncType()
+        {
+            return $"Func<{InputMessage.TypeFullName(this)}, KafkaExchanger.Attributes.Enums.CurrentState, Task<{OutputMessage.TypeFullName(this)}>>";
+        }
+
+        public string LoadCurrentHorizonFuncType()
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<");
+            for (int i = 0; i < InputDatas.Count; i++)
+            {
+                tempSb.Append($"int[], ");
+            }
+            tempSb.Append("ValueTask<long>>");
+
+            return tempSb.ToString();
         }
     }
 }

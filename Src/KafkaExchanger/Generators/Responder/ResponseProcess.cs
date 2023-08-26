@@ -34,6 +34,11 @@ namespace KafkaExchanger.Generators.Responder
             return "ResponseProcess";
         }
 
+        public static string HorizonId()
+        {
+            return "HorizonId";
+        }
+
         private static void StartClass(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder,
@@ -44,7 +49,7 @@ namespace KafkaExchanger.Generators.Responder
         public class {TypeName()}
         {{
             public Task _response;
-            public  long HorizonId {{ get; init; }}
+            public long {HorizonId()} {{ get; init; }}
 ");
         }
 

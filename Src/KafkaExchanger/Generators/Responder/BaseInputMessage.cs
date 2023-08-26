@@ -2,7 +2,7 @@
 
 namespace KafkaExchanger.Generators.Responder
 {
-    internal static class ChannelInfo
+    internal static class BaseInputMessage
     {
         public static void Append(
             StringBuilder builder,
@@ -11,9 +11,9 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        private abstract class {TypeName()}
+        public abstract class BaseInputMessage
         {{
-            public long {HorizonId()} {{ get; set; }}
+            public Confluent.Kafka.TopicPartitionOffset {TopicPartitionOffset()} {{ get; set; }}
         }}
 ");
         }
@@ -25,12 +25,12 @@ namespace KafkaExchanger.Generators.Responder
 
         public static string TypeName()
         {
-            return "ChannelInfo";
+            return "BaseInputMessage";
         }
 
-        public static string HorizonId()
+        public static string TopicPartitionOffset()
         {
-            return "HorizonId";
+            return "TopicPartitionOffset";
         }
     }
 }

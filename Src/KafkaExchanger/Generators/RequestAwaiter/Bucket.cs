@@ -426,7 +426,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             consumer.Assign({Partitions(inputData)}.Select(sel => new TopicPartition({_inputTopicName(inputData)}, sel)));
                             try
                             {{
-                                var offsets = new Dictionary<Partition, TopicPartitionOffset>();
+                                var offsets = new Dictionary<Confluent.Kafka.Partition, Confluent.Kafka.TopicPartitionOffset>();
                                 while (!_ctsConsume.Token.IsCancellationRequested)
                                 {{
                                     try
@@ -479,8 +479,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                 continue;
                                             }}
 
-                                            var headerInfo = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
-                                            if(headerInfo.Bucket != {_bucketId()})
+                                            var header = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                            if(header.Bucket != {_bucketId()})
                                             {{
                                                 offsets[consumeResult.Partition] = consumeResult.TopicPartitionOffset;
                                                 continue;
@@ -488,14 +488,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                                             inputMessage = new()
                                             {{
-                                                OriginalMessage = consumeResult.Message,
-                                                {(inputData.KeyType.IsKafkaNull() ? "" : $"Key = {GetResponseKey(inputData)},")}
-                                                Value = {GetResponseValue(inputData)},
-                                                Partition = consumeResult.Partition,
-                                                HeaderInfo = headerInfo,
-                                                TopicName = {_inputTopicName(inputData)}
+                                                {InputMessages.OriginalMessage()} = consumeResult.Message,
+                                                {BaseInputMessage.Partition()} = consumeResult.Partition,
+                                                {InputMessages.Header()} = header,
+                                                {BaseInputMessage.TopicName()} = {_inputTopicName(inputData)}
                                             }};
+");
+                if (inputData.KeyType.IsProtobuffType())
+                {
+                    builder.Append($@"
+                                            inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());
+");
+                }
 
+                if (inputData.ValueType.IsProtobuffType())
+                {
+                    builder.Append($@"
+                                            inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());
+");
+                }
+                builder.Append($@"
                                             {LogInputMessage(requestAwaiter, inputData, "LogInformation")}
                                         }}
                                         while (true) 
@@ -508,7 +520,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                 {{
                                                     if (inputMessage != null)
                                                     {{
-                                                        _responseAwaiters.TryGetValue(inputMessage.HeaderInfo.AnswerToMessageGuid, out topicResponse);
+                                                        _responseAwaiters.TryGetValue(inputMessage.Header.AnswerToMessageGuid, out topicResponse);
                                                     }}
 
                                                     if (_addedCount == {_maxInFly()} && _responseAwaiters.Count == 0)
@@ -582,13 +594,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                                                    topicResponse.TrySetResponse({i}, inputMessage);
+                                                    topicResponse.TrySetResponse({inputData.Id}, inputMessage);
 ");
                 }
                 else
                 {
                     builder.Append($@"
-                                                    switch(inputMessage.HeaderInfo.AnswerFrom)
+                                                    switch(inputMessage.Header.AnswerFrom)
                                                     {{
                                                         default:
                                                         {{
@@ -599,10 +611,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
+                        var acceptedService = inputData.AcceptedService[j];
+                        var acceptedServiceId = j;
                         builder.Append($@"
-                                                        case ""{inputData.AcceptedService[j]}"":
+                                                        case ""{acceptedService}"":
                                                         {{
-                                                            topicResponse.TrySetResponse({i}, inputMessage, {j});
+                                                            topicResponse.TrySetResponse({inputData.Id}, inputMessage, {acceptedServiceId});
                                                             break;
                                                         }}
 ");
@@ -1308,7 +1322,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private {assemblyName}.RequestHeader CreateOutputHeader()
             {{
-                var headerInfo = new {assemblyName}.RequestHeader()
+                var header = new {assemblyName}.RequestHeader()
                 {{
                     Bucket = {_bucketId()}
                 }};
@@ -1343,12 +1357,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     builder.Append($@"}});");
                 }
                 builder.Append($@"
-                headerInfo.TopicsForAnswer.Add(topic);
+                header.TopicsForAnswer.Add(topic);
 ");
 
             }
             builder.Append($@"
-                return headerInfo;
+                return header;
             }}
 ");
         }
@@ -1365,48 +1379,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 return string.Empty;
             }
 
-            var temp = new StringBuilder(170);
-            temp.Append($@"_logger.{logMethod}($""Consumed inputMessage Key: ");
-            if (inputData.KeyType.IsProtobuffType())
-            {
-                temp.Append(@"'{inputMessage.Key}'");
-            }
-            else
-            {
-                temp.Append(@"'{consumeResult.Message.Key}'");
-            }
-            temp.Append($@", Value: ");
-            if (inputData.ValueType.IsProtobuffType())
-            {
-                temp.Append(@"'{inputMessage.Value}'");
-            }
-            else
-            {
-                temp.Append(@"'{consumeResult.Message.Value}'");
-            }
-            temp.Append($@"{afterMessageInfo}."");");
-
-            return temp.ToString();
-        }
-
-        private static string GetResponseKey(InputData inputData)
-        {
-            if (inputData.KeyType.IsProtobuffType())
-            {
-                return $"{inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan())";
-            }
-
-            return "consumeResult.Message.Key";
-        }
-
-        private static string GetResponseValue(InputData inputData)
-        {
-            if (inputData.ValueType.IsProtobuffType())
-            {
-                return $"{inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan())";
-            }
-
-            return "consumeResult.Message.Value";
+            return $@"_logger.{logMethod}($""Consumed inputMessage Key: '{{inputMessage.Key}}', Value: '{{inputMessage.Value}}'{afterMessageInfo}."");";
         }
 
         private static void End(StringBuilder builder)
