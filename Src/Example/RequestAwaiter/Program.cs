@@ -48,8 +48,8 @@ namespace RequestAwaiterConsole
                 }
                 );
 
-            //using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
-            await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
+            await using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
+            //await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
 
             int requests = 0;
             while ( true )
@@ -64,12 +64,12 @@ namespace RequestAwaiterConsole
                 requests = int.Parse(read);
                 Console.WriteLine($"Start {requests} reqests");
                 Stopwatch sw = Stopwatch.StartNew();
-                //var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
-                var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
+                var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
+                //var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
                 for (int i = 0; i < requests; i++)
                 {
-                    //tasks[i] = Produce(reqAwaiter);
-                    tasks[i] = Produce2(reqAwaiter);
+                    tasks[i] = Produce(reqAwaiter);
+                    //tasks[i] = Produce2(reqAwaiter);
                 }
                 Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
                 Task.WaitAll(tasks);
@@ -102,7 +102,7 @@ namespace RequestAwaiterConsole
                 for (int i = 0; i < pairs.Count; i++)
                 {
                     KeyValuePair<long, int> item = pairs[i];
-                    if (item.Key > startRange + 100)
+                    if (item.Key > startRange + 10)
                     {
                         sb.AppendLine($"({startRange} - {last}) ms: count {count}");
                         count = item.Value;
