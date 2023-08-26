@@ -44,44 +44,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()} : IAsyncDisposable
         {{
-            private readonly Bucket[] {Buckets()};
-            private uint {Current()};
+            private readonly Bucket[] {_buckets()};
+            private uint {_current()};
 ");
         }
 
-        private static string Buckets()
+        private static string _buckets()
         {
             return "_buckets";
         }
 
-        private static string Current()
+        private static string _current()
         {
             return "_current";
-        }
-
-        private static string loadOutputFunc(OutputData outputData)
-        {
-            return $"load{outputData.MessageTypeName}";
-        }
-
-        private static string afterSendFunc(OutputData outputData)
-        {
-            return $"afterSend{outputData.NamePascalCase}";
-        }
-
-        private static string currentStateFunc()
-        {
-            return $"currentState";
-        }
-
-        private static string afterCommitFunc()
-        {
-            return $"afterCommit";
-        }
-
-        private static string checkOutputStatusFunc(OutputData outputData)
-        {
-            return $"check{outputData.NamePascalCase}Status";
         }
 
         private static void Constructor(
@@ -90,6 +65,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            string checkOutputStatusFunc(OutputData outputData)
+            {
+                return $"check{outputData.NamePascalCase}Status";
+            }
+
+            string loadOutputFunc(OutputData outputData)
+            {
+                return $"load{outputData.MessageTypeName}";
+            }
+
+            string afterSendFunc(OutputData outputData)
+            {
+                return $"afterSend{outputData.NamePascalCase}";
+            }
+
+            string currentStateFunc()
+            {
+                return $"currentState";
+            }
+
+            string afterCommitFunc()
+            {
+                return $"afterCommit";
+            }
+
             var bucketsParametr = "buckets";
             var msxInFlyParametr = "maxInFly";
             builder.Append($@"
@@ -140,10 +140,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 )
             {{
-                {Buckets()} = new Bucket[{bucketsParametr}];
+                {_buckets()} = new Bucket[{bucketsParametr}];
                 for (int bucketId = 0; bucketId < {bucketsParametr}; bucketId++)
                 {{
-                    {Buckets()}[bucketId] = new Bucket(
+                    {_buckets()}[bucketId] = new Bucket(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -201,9 +201,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
-                for (int i = 0; i < {Buckets()}.Length; i++)
+                for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    {Buckets()}[i].Start(bootstrapServers, groupId, changeConfig);
+                    {_buckets()}[i].Start(bootstrapServers, groupId, changeConfig);
                 }}
             }}
 ");
@@ -214,9 +214,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public async ValueTask DisposeAsync()
             {{
-                for (int i = 0; i < {Buckets()}.Length; i++)
+                for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    await {Buckets()}[i].DisposeAsync();
+                    await {_buckets()}[i].DisposeAsync();
                 }}
             }}
 ");
@@ -248,10 +248,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < {Buckets()}.Length; i++)
+                for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    var index = {Current()};
-                    var tp = await {Buckets()}[index].TryProduce(
+                    var index = {_current()};
+                    var tp = await {_buckets()}[index].TryProduce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -275,8 +275,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         return tp;
                     }}
 
-                    uint nextIndex = (index + 1) % (uint){Buckets()}.Length;
-                    Interlocked.CompareExchange(ref {Current()}, nextIndex, index);
+                    uint nextIndex = (index + 1) % (uint){_buckets()}.Length;
+                    Interlocked.CompareExchange(ref {_current()}, nextIndex, index);
                 }}
 
                 return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
@@ -310,10 +310,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < {Buckets()}.Length; i++)
+                for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    var index = {Current()};
-                    var tp = {Buckets()}[index].TryProduceDelay(
+                    var index = {_current()};
+                    var tp = {_buckets()}[index].TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -337,8 +337,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         return tp;
                     }}
 
-                    uint nextIndex = (index + 1) % (uint){Buckets()}.Length;
-                    Interlocked.CompareExchange(ref {Current()}, nextIndex, index);
+                    uint nextIndex = (index + 1) % (uint){_buckets()}.Length;
+                    Interlocked.CompareExchange(ref {_current()}, nextIndex, index);
                 }}
 
                 return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
@@ -371,9 +371,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int waitResponseTimeout = 0
                 )
             {{
-                for (int i = 0; i < {Buckets()}.Length; i++)
+                for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    var currentBucket = {Buckets()}[i];
+                    var currentBucket = {_buckets()}[i];
                     if(currentBucket.BucketId != bucket)
                     {{
                         continue;
