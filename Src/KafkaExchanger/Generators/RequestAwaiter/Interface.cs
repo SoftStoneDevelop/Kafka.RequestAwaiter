@@ -74,7 +74,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public {requestAwaiter.TypeSymbol.Name}.DelayProduce ProduceDelay(
+        public ValueTask<{requestAwaiter.TypeSymbol.Name}.DelayProduce> ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {

@@ -29,7 +29,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             //inner classes
             DelayProduce.Append(_builder, assemblyName, requestAwaiter);
 
-            TryProduceResult.Append(_builder, assemblyName, requestAwaiter);
             TryDelayProduceResult.Append(_builder, assemblyName, requestAwaiter);
             TryAddAwaiterResult.Append(_builder, requestAwaiter);
             Response.Append(_builder, assemblyName, requestAwaiter);
@@ -61,6 +60,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             context.AddSource($"{requestAwaiter.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
+        private string _fws()
+        {
+            return "_fws";
+        }
+
         private void Start(Datas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
@@ -89,6 +93,7 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
         private string _bootstrapServers;
         private string _groupId;
         private volatile bool _isRun;
+        private KafkaExchanger.FreeWatcherSignal {_fws()};
 
         public {requestAwaiter.TypeSymbol.Name}({(requestAwaiter.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
@@ -152,20 +157,17 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
             _items = new PartitionItem[config.Processors.Length];
             _bootstrapServers = config.BootstrapServers;
             _groupId = config.GroupId;
+            {_fws()} = new(config.Processors.Sum(s => s.Buckets));
             for (int i = 0; i < config.Processors.Length; i++)
             {{
                 _items[i] =
                     new PartitionItem(
+                        {_fws()}
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                if (i != 0)
-                {
-                    _builder.Append(',');
-                }
-
-                _builder.Append($@"
+                _builder.Append($@",
                         config.Processors[i].{ProcessorConfig.ConsumerInfo(inputData)}.TopicName,
                         config.Processors[i].{ProcessorConfig.ConsumerInfo(inputData)}.Partitions
 ");
@@ -259,32 +261,40 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
 
             while(true)
             {{
-                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                var item = _items[index];
-                var tp =
-                    await item.TryProduce(
+                var waitFree = {_fws()}.WaitFree();
+                await waitFree.ConfigureAwait(false);
+                for (int i = 0; i < _items.Length; i++)
+                {{
+                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                    var item = _items[index];
+                    var tp =
+                        item.TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
-                    key{i},
+                        key{i},
 ");
                 }
 
                 _builder.Append($@"
-                    value{i},
+                        value{i},
 ");
             }
             _builder.Append($@"
-                    waitResponseTimeout
-                ).ConfigureAwait(false);
+                        waitResponseTimeout
+                    );
 
-                if(tp.Succsess)
-                {{
-                    return tp.Response;
+                    if(tp.Succsess)
+                    {{
+                        return await tp.Bucket.Produce(tp);
+                    }}
                 }}
+
+                waitFree = {_fws()}.WaitFree();
+                await waitFree.ConfigureAwait(false);
             }}
         }}
         private uint _currentItemIndex = 0;
@@ -294,7 +304,7 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
         private void ProduceDelay(string assemblyName, Datas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
-        public {requestAwaiter.TypeSymbol.Name}.DelayProduce ProduceDelay(
+        public async ValueTask<{requestAwaiter.TypeSymbol.Name}.DelayProduce> ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -316,32 +326,40 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
 
             while(true)
             {{
-                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                var item = _items[index];
-                var tp =
-                    item.TryProduceDelay(
+                var waitFree = {_fws()}.WaitFree();
+                await waitFree.ConfigureAwait(false);
+                for (int i = 0; i < _items.Length; i++)
+                {{
+                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                    var item = _items[index];
+                    var tp =
+                        item.TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     _builder.Append($@"
-                        key{i},
+                            key{i},
 ");
                 }
 
                 _builder.Append($@"
-                        value{i},
+                            value{i},
 ");
             }
             _builder.Append($@"
-                        waitResponseTimeout
-                );
+                            waitResponseTimeout
+                    );
 
-                if(tp.Succsess)
-                {{
-                    return new {requestAwaiter.TypeSymbol.Name}.DelayProduce(tp);
+                    if(tp.Succsess)
+                    {{
+                        return new {requestAwaiter.TypeSymbol.Name}.DelayProduce(tp);
+                    }}
                 }}
+
+                waitFree = {_fws()}.WaitFree();
+                await waitFree.ConfigureAwait(false);
             }}
         }}
 ");

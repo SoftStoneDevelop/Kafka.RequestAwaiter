@@ -21,7 +21,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             StartTopicConsume(sb, assemblyName, requestAwaiter);
             StopConsume(sb, requestAwaiter);
-            TryProduce(sb, requestAwaiter);
             TryProduceDelay(sb, requestAwaiter);
             Produce(sb, requestAwaiter);
             AddAwaiter(sb, assemblyName, requestAwaiter);
@@ -126,6 +125,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $"afterSend{outputData.NamePascalCase}";
         }
 
+        private static string _fws()
+        {
+            return $"_fws";
+        }
+
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
@@ -135,6 +139,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public class {TypeName()} : IAsyncDisposable
             {{
+                private readonly KafkaExchanger.FreeWatcherSignal {_fws()};
                 private readonly int {_bucketId()};
                 public int {BucketId()} => {_bucketId()};
                 private readonly int {_maxInFly()};
@@ -155,6 +160,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
                 public {TypeName()}(
+                    KafkaExchanger.FreeWatcherSignal fws,
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -220,6 +226,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                     )
                 {{
+                    {_fws()} = fws;
                     {_bucketId()} = bucketId;
                     {_maxInFly()} = maxInFly;
                     _responseAwaiters = new({_maxInFly()});
@@ -550,6 +557,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                             if(allPartitions.Count != 0)
                                                                 consumer.Commit(allPartitions);
                                                             _addedCount = 0;
+                                                            {_fws()}.SignalFree();
 ");
                 if(requestAwaiter.AfterCommit)
                 {
@@ -722,180 +730,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void TryProduce(
-            StringBuilder builder,
-            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
-            )
-        {
-            builder.Append($@"
-            public async ValueTask<{requestAwaiter.TypeSymbol.Name}.TryProduceResult> TryProduce(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
-                {
-                    builder.Append($@"
-                {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
-");
-                }
-
-                builder.Append($@"
-                {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
-");
-            }
-            builder.Append($@"
-                int waitResponseTimeout = 0
-                )
-            {{
-                string messageGuid = null;
-                {requestAwaiter.TypeSymbol.Name}.TopicResponse awaiter = null;
-
-                var needDispose = false;
-                _lock.EnterUpgradeableReadLock();
-                try
-                {{
-                    if(_addedCount == {_maxInFly()})
-                    {{
-                        return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
-                    }}
-                    else
-                    {{
-                        messageGuid = Guid.NewGuid().ToString(""D"");
-                        awaiter = 
-                            new {requestAwaiter.TypeSymbol.Name}.TopicResponse(
-                                {_bucketId()},
-                                {(requestAwaiter.CheckCurrentState ? $"{_currentStateFunc()}," : "")}
-                                messageGuid,
-                                RemoveAwaiter
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                var inputData = requestAwaiter.InputDatas[i];
-                builder.Append($@",
-                                {Partitions(inputData)}
-");
-            }
-            builder.Append($@",
-                                waitResponseTimeout
-                                );
-
-                        _lock.EnterWriteLock();
-                        try
-                        {{
-                            if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
-                            {{
-                                needDispose = true;
-                            }}
-                            else
-                            {{
-                                _addedCount++;
-                            }}
-                        }}
-                        finally
-                        {{
-                            _lock.ExitWriteLock();
-                        }}
-                    }}
-                }}
-                finally
-                {{
-                    _lock.ExitUpgradeableReadLock();
-                }}
-
-                if(needDispose)
-                {{
-                    awaiter.Dispose(); 
-                    return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{Succsess = false}};
-                }}
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                CreateOutputMessage(builder, requestAwaiter, outputData, i);
-                builder.Append($@"
-                var header{i} = CreateOutputHeader();
-");
-
-                builder.Append($@"
-                header{i}.MessageGuid = messageGuid;
-                message{i}.Headers = new Headers
-                {{
-                    {{ ""Info"", header{i}.ToByteArray() }}
-                }};
-");
-            }
-            
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                var variable = i == 0 ? "var producer" : "producer";
-                builder.Append($@"
-                {variable} = _producerPool{i}.Rent();
-                try
-                {{
-                    var deliveryResult = await producer.ProduceAsync({_outputTopicName(outputData)}, message{i}).ConfigureAwait(false);
-                }}
-                catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.UseLogger ? "e" : "")})
-                {{
-                        {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
-                        _lock.EnterWriteLock();
-                        try
-                        {{
-                            _responseAwaiters.Remove(header{i}.MessageGuid, out _);
-                        }}
-                        finally
-                        {{
-                            _lock.ExitWriteLock();
-                        }}
-                    awaiter.Dispose();
-
-                    throw;
-                }}
-                finally
-                {{
-                    _producerPool{i}.Return(producer);
-                }}
-");
-                if (requestAwaiter.AfterSend)
-                {
-                    builder.Append($@"
-                await {_afterSendFunc(outputData)}(
-                        header{i},
-                        new {outputData.MessageTypeName}(
-                                message{i}
-");
-                    if (outputData.KeyType.IsProtobuffType())
-                    {
-                        builder.Append($@",
-                                key{i}
-");
-                    }
-
-                    if (outputData.ValueType.IsProtobuffType())
-                    {
-                        builder.Append($@",
-                                value{i}
-");
-                    }
-                    builder.Append($@"
-                                )
-                        )
-                        .ConfigureAwait(false)
-                        ;
-");
-                }
-            }
-            builder.Append($@"
-                var response = await awaiter.GetResponse().ConfigureAwait(false);
-                return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult() 
-                {{
-                    Succsess = true,
-                    Response = response
-                }};
-            }}
-");
-        }
-
         private static void TryProduceDelay(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
@@ -925,55 +759,65 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {requestAwaiter.TypeSymbol.Name}.TopicResponse awaiter = null;
 
                 var needDispose = false;
-                _lock.EnterUpgradeableReadLock();
-                try
+                if (_lock.WaitingUpgradeCount == 0 && _lock.TryEnterUpgradeableReadLock(10))
                 {{
-                    if(_addedCount == {_maxInFly()})
+                    try
                     {{
-                        return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
-                    }}
-                    else
-                    {{
-                        messageGuid = Guid.NewGuid().ToString(""D"");
-                        awaiter = 
-                            new {requestAwaiter.TypeSymbol.Name}.TopicResponse(
-                                    {_bucketId()},
-                                    {(requestAwaiter.CheckCurrentState ? $"{_currentStateFunc()}," : "")}
-                                    messageGuid,
-                                    RemoveAwaiter
+                        if(_addedCount == {_maxInFly()})
+                        {{
+                            return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
+                        }}
+                        else
+                        {{
+                            messageGuid = Guid.NewGuid().ToString(""D"");
+                            awaiter = 
+                                new {requestAwaiter.TypeSymbol.Name}.TopicResponse(
+                                        {_bucketId()},
+                                        {(requestAwaiter.CheckCurrentState ? $"{_currentStateFunc()}," : "")}
+                                        messageGuid,
+                                        RemoveAwaiter
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                                {Partitions(inputData)}
+                                    {Partitions(inputData)}
 ");
             }
             builder.Append($@",
-                                    waitResponseTimeout
-                                    );
+                                        waitResponseTimeout
+                                        );
 
-                        _lock.EnterWriteLock();
-                        try
-                        {{
-                            if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                            _lock.EnterWriteLock();
+                            try
                             {{
-                                needDispose = true;
+                                if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                                {{
+                                    needDispose = true;
+                                }}
+                                else
+                                {{
+                                    _addedCount++;
+                                    if(_addedCount == {_maxInFly()})
+                                    {{
+                                        {_fws()}.SignalStuck();
+                                    }}
+                                }}
                             }}
-                            else
+                            finally
                             {{
-                                _addedCount++;
+                                _lock.ExitWriteLock();
                             }}
-                        }}
-                        finally
-                        {{
-                            _lock.ExitWriteLock();
                         }}
                     }}
+                    finally
+                    {{
+                        _lock.ExitUpgradeableReadLock();
+                    }}
                 }}
-                finally
+                else
                 {{
-                    _lock.ExitUpgradeableReadLock();
+                    return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
                 }}
 
                 if(needDispose)
@@ -1178,6 +1022,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             else
                             {{
                                 _addedCount++;
+                                if(_addedCount == _maxInFly)
+                                {{
+                                    {_fws()}.SignalStuck();
+                                }}
                             }}
                         }}
                         finally

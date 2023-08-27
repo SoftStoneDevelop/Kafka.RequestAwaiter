@@ -19,7 +19,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
             DisposeAsync(sb);
-            TryProduce(sb, requestAwaiter);
             TryProduceDelay(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
             End(sb);
@@ -92,12 +91,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             var bucketsParametr = "buckets";
             var msxInFlyParametr = "maxInFly";
+            var fwsParametr = "fws";
             builder.Append($@"
             public {TypeName()}(
+                KafkaExchanger.FreeWatcherSignal {fwsParametr},
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
-                if(i != 0)
+                if (i != 0)
                 {
                     builder.Append(',');
                 }
@@ -144,6 +145,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 for (int bucketId = 0; bucketId < {bucketsParametr}; bucketId++)
                 {{
                     {_buckets()}[bucketId] = new Bucket(
+                        {fwsParametr},
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -218,68 +220,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     await {_buckets()}[i].DisposeAsync();
                 }}
-            }}
-");
-        }
-
-        private static void TryProduce(
-            StringBuilder builder, 
-            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
-            )
-        {
-            builder.Append($@"
-            public async ValueTask<{requestAwaiter.TypeSymbol.Name}.TryProduceResult> TryProduce(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                if (!outputData.KeyType.IsKafkaNull())
-                {
-                    builder.Append($@"
-                {outputData.KeyType.GetFullTypeName(true)} key{i},
-");
-                }
-
-                builder.Append($@"
-                {outputData.ValueType.GetFullTypeName(true)} value{i},
-");
-            }
-            builder.Append($@"
-                int waitResponseTimeout = 0
-                )
-            {{
-                for (int i = 0; i < {_buckets()}.Length; i++)
-                {{
-                    var index = {_current()};
-                    var tp = await {_buckets()}[index].TryProduce(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                if (!outputData.KeyType.IsKafkaNull())
-                {
-                    builder.Append($@"
-                    key{i},
-");
-                }
-
-                builder.Append($@"
-                    value{i},
-");
-            }
-            builder.Append($@"
-                    waitResponseTimeout
-                    ).ConfigureAwait(false);
-                    if (tp.Succsess)
-                    {{
-                        return tp;
-                    }}
-
-                    uint nextIndex = (index + 1) % (uint){_buckets()}.Length;
-                    Interlocked.CompareExchange(ref {_current()}, nextIndex, index);
-                }}
-
-                return new {requestAwaiter.TypeSymbol.Name}.TryProduceResult {{ Succsess = false }};
             }}
 ");
         }

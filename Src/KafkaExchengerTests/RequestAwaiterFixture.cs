@@ -492,11 +492,11 @@ namespace KafkaExchengerTests
                 var sendedCount = 0;
                 for (int i = 0; i < requestsCount; i++)
                 {
-                    using var delayProduce = reqAwaiterPrepare.ProduceDelay(i.ToString());
+                    using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString());
                     if (i % 2 == 0)
                     {
                         sendedCount++;
-                        _ = delayProduce.Produce();
+                        _ = await delayProduce.Produce();
                     }
                     else
                     {
