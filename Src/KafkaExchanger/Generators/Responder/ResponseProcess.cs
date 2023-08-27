@@ -137,7 +137,7 @@ namespace KafkaExchanger.Generators.Responder
                 }
 
                 builder.Append($@"
-                {inputData.MessageTypeName} = {inputData.NameCamelCase}
+                    {inputData.MessageTypeName} = {inputData.NameCamelCase}
 ");
             }
             builder.Append($@"

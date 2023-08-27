@@ -14,7 +14,7 @@ namespace KafkaExchanger.Datas
             result.TypeSymbol = type;
 
             var namedArguments = attribute.ConstructorArguments;
-            if (namedArguments.Length != 5)
+            if (namedArguments.Length != 4)
             {
                 throw new Exception("Unknown attribute constructor");
             }
@@ -24,17 +24,17 @@ namespace KafkaExchanger.Datas
                 throw new Exception($"Fail create {nameof(Responder)}");
             }
 
-            if (!result.SetCheckCurrentState(namedArguments[2]))
+            if (!result.SetCheckCurrentState(namedArguments[1]))
             {
                 throw new Exception($"Fail create {nameof(Responder)}");
             }
 
-            if (!result.SetAfterSend(namedArguments[3]))
+            if (!result.SetAfterSend(namedArguments[2]))
             {
                 throw new Exception($"Fail create {nameof(Responder)}");
             }
 
-            if (!result.SetAfterCommit(namedArguments[4]))
+            if (!result.SetAfterCommit(namedArguments[3]))
             {
                 throw new Exception($"Fail create {nameof(Responder)}");
             }

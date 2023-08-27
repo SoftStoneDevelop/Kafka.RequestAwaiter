@@ -72,6 +72,11 @@ namespace KafkaExchanger.Generators.Responder
             return $"_{outputData.NameCamelCase}Pool";
         }
 
+        private static string _logger()
+        {
+            return "_logger";
+        }
+
         public static void StartClass(
             StringBuilder builder
             )
@@ -113,6 +118,13 @@ namespace KafkaExchanger.Generators.Responder
                 string {serviceNameParam},
                 int {commitAtLeastAfterParam},
 ");
+            var loggerParametr = "logger";
+            if(responder.UseLogger)
+            {
+                builder.Append($@"
+                ILogger {loggerParametr},
+");
+            }
             var createAnswerParam = "createAnswer";
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
@@ -137,6 +149,12 @@ namespace KafkaExchanger.Generators.Responder
                 {_commitAtLeastAfter()} = {commitAtLeastAfterParam};
                 {_createAnswer()} = {createAnswerParam};
 ");
+            if (responder.UseLogger)
+            {
+                builder.Append($@"
+                {_logger()} = {loggerParametr};
+");
+            }
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
@@ -216,6 +234,7 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
+            {(responder.UseLogger ? $"private readonly ILogger {_logger()};" : string.Empty)}
             
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
@@ -317,7 +336,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             private void StartHorizonRoutine()
             {{
-                _horizonRoutine = Task.Factory.StartNew(async () => 
+                {_horizonRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_channel()}.Reader;
                     var storage = new KafkaExchanger.HorizonStorage();
@@ -359,8 +378,7 @@ namespace KafkaExchanger.Generators.Responder
                             }}
                             else
                             {{
-                                //TODO log error
-                                //throw new Exception(""Unknown info type"");
+                                {(responder.UseLogger ? $@"{_logger()}.LogError(""Unknown info type"");" : string.Empty)}
                             }}
                         }}
                     }}
@@ -374,7 +392,7 @@ namespace KafkaExchanger.Generators.Responder
                     }}
                     catch (Exception ex)
                     {{
-                        //TODO log
+                        {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
                         throw;
                     }}
                 }});
@@ -399,126 +417,139 @@ namespace KafkaExchanger.Generators.Responder
             {{
                 return new Thread((param) =>
                 {{
-                    var conf = new ConsumerConfig
+                    start:
+                    if(_cts.Token.IsCancellationRequested)
                     {{
-                        GroupId = groupId,
-                        BootstrapServers = bootstrapServers,
-                        AutoOffsetReset = AutoOffsetReset.Earliest,
-                        AllowAutoCreateTopics = false,
-                        EnableAutoCommit = false
-                    }};
-
-                    var consumer =
-                        new ConsumerBuilder<{inputData.TypesPair}>(conf)
-                        .Build()
-                        ;
-
-                    consumer.Assign({_inputPartitions(inputData)}.Select(sel => new Confluent.Kafka.TopicPartition({_inputTopicName(inputData)}, sel)));
+                        return;
+                    }}
 
                     try
                     {{
-                        while (!_cts.Token.IsCancellationRequested)
+                        var conf = new ConsumerConfig
                         {{
-                            try
-                            {{
-                                var consumeResult = consumer.Consume(50);
+                            GroupId = groupId,
+                            BootstrapServers = bootstrapServers,
+                            AutoOffsetReset = AutoOffsetReset.Earliest,
+                            AllowAutoCreateTopics = false,
+                            EnableAutoCommit = false
+                        }};
 
-                                var needCommit = Interlocked.CompareExchange(ref {_needCommit()}, 0, 1);
-                                if (needCommit == 1)
+                        var consumer =
+                            new ConsumerBuilder<{inputData.TypesPair}>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign({_inputPartitions(inputData)}.Select(sel => new Confluent.Kafka.TopicPartition({_inputTopicName(inputData)}, sel)));
+
+                        try
+                        {{
+                            while (!_cts.Token.IsCancellationRequested)
+                            {{
+                                try
                                 {{
-                                    var info = Volatile.Read(ref {_horizonCommitInfo()});
-                                    if(info.HorizonId == -1)
+                                    var consumeResult = consumer.Consume(50);
+
+                                    var needCommit = Interlocked.CompareExchange(ref {_needCommit()}, 0, 1);
+                                    if (needCommit == 1)
                                     {{
-                                        throw new Exception(""Concurrency error"");
+                                        var info = Volatile.Read(ref {_horizonCommitInfo()});
+                                        if(info.HorizonId == -1)
+                                        {{
+                                            throw new Exception(""Concurrency error"");
+                                        }}
+
+                                        consumer.Commit(info.TopicPartitionOffset);
+
+                                        //after commit delegate
+
+                                        Volatile.Read(ref {_tcsCommit()}).SetResult();
                                     }}
 
-                                    consumer.Commit(info.TopicPartitionOffset);
+                                    if (consumeResult == null)
+                                    {{
+                                        continue;
+                                    }}
 
-                                    //after commit delegate
-
-                                    Volatile.Read(ref {_tcsCommit()}).SetResult();
-                                }}
-
-                                if (consumeResult == null)
-                                {{
-                                    continue;
-                                }}
-
-                                var inputMessage = new {inputData.MessageTypeName}();
-                                inputMessage.{BaseInputMessage.TopicPartitionOffset()} = consumeResult.TopicPartitionOffset;
-                                inputMessage.{InputMessages.OriginalMessage()} = consumeResult.Message;
+                                    var inputMessage = new {inputData.MessageTypeName}();
+                                    inputMessage.{BaseInputMessage.TopicPartitionOffset()} = consumeResult.TopicPartitionOffset;
+                                    inputMessage.{InputMessages.OriginalMessage()} = consumeResult.Message;
 ");
                 if(inputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@"
-                                inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());
+                                    inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());
 ");
                 }
 
                 if (inputData.ValueType.IsProtobuffType())
                 {
                     builder.Append($@"
-                                inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());
+                                    inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());
 ");
                 }
 
                 builder.Append($@"
-                                if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
-                                {{
-                                    continue;
-                                }}
-
-                                inputMessage.{InputMessages.Header()} = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
-                                if (!inputMessage.{InputMessages.Header()}.TopicsForAnswer.Any(wh => !wh.CanAnswerFrom.Any() || wh.CanAnswerFrom.Contains({_serviceName()})))
-                                {{
-                                    continue;
-                                }}
-
-                                var responseProcess = {_responseProcesses()}.GetOrAdd(
-                                    inputMessage.{InputMessages.Header()}.MessageGuid, 
-                                    (key) => 
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
                                     {{
-                                        var horizonId = Interlocked.Increment(ref {_horizonId()});
-                                        return new {ResponseProcess.TypeFullName(responder)}(
-                                            key,
-                                            horizonId,
-                                            {_createAnswer()}, 
-                                            Produce, 
-                                            (key) => {_responseProcesses()}.TryRemove(key, out _),
-                                            {_channel()}.Writer
-                                            ); 
+                                        continue;
                                     }}
-                                    );
+
+                                    inputMessage.{InputMessages.Header()} = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                    if (!inputMessage.{InputMessages.Header()}.TopicsForAnswer.Any(wh => !wh.CanAnswerFrom.Any() || wh.CanAnswerFrom.Contains({_serviceName()})))
+                                    {{
+                                        continue;
+                                    }}
+
+                                    var responseProcess = {_responseProcesses()}.GetOrAdd(
+                                        inputMessage.{InputMessages.Header()}.MessageGuid, 
+                                        (key) => 
+                                        {{
+                                            var horizonId = Interlocked.Increment(ref {_horizonId()});
+                                            return new {ResponseProcess.TypeFullName(responder)}(
+                                                key,
+                                                horizonId,
+                                                {_createAnswer()}, 
+                                                Produce, 
+                                                (key) => {_responseProcesses()}.TryRemove(key, out _),
+                                                {_channel()}.Writer
+                                                ); 
+                                        }}
+                                        );
                                 
-                                var startResponse = new {StartResponse.TypeFullName(responder)}()
+                                    var startResponse = new {StartResponse.TypeFullName(responder)}()
+                                    {{
+                                        {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
+                                    }};
+                                    {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
+                                    responseProcess.TrySetResponse({inputData.Id}, inputMessage);
+                                }}
+                                catch (ConsumeException)
                                 {{
-                                    {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
-                                }};
-                                {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
-                                responseProcess.TrySetResponse({inputData.Id}, inputMessage);
-                            }}
-                            catch (ConsumeException)
-                            {{
-                                //ignore
+                                    throw;
+                                }}
                             }}
                         }}
+                        catch (OperationCanceledException)
+                        {{
+                            consumer.Close();
+                        }}
+                        finally
+                        {{
+                            consumer.Dispose();
+                        }}
                     }}
-                    catch (OperationCanceledException)
+                    catch (Exception ex)
                     {{
-                        consumer.Close();
+                        {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
+                        goto start;
                     }}
-                    finally
-                    {{
-                        consumer.Dispose();
-                    }}
-
                 }}
-                )
-                {{
-                    IsBackground = true,
-                    Priority = ThreadPriority.AboveNormal,
-                    Name = $""{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}""
-                }};
+                    )
+                    {{
+                        IsBackground = true,
+                        Priority = ThreadPriority.AboveNormal,
+                        Name = $""{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}""
+                    }};
             }}
 ");
             }
@@ -662,13 +693,21 @@ namespace KafkaExchanger.Generators.Responder
                 {{
                     while (consumeRoutine.IsAlive)
                     {{
-                        await Task.Delay(50);
+                        await Task.Delay(15);
                     }}
                 }}
 
                 {_tcsCommit()}.TrySetCanceled();
                 {_channel()}.Writer.Complete();
-                await {_horizonRoutine()};
+
+                try
+                {{
+                    await {_horizonRoutine()};
+                }}
+                catch
+                {{
+                    //ignore
+                }}
 
                 {_cts()}?.Dispose();
             }}
@@ -681,9 +720,9 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public async Task Stop()
+            public Task Stop()
             {{
-                await StopConsume();
+                return StopConsume();
             }}
 ");
         }
