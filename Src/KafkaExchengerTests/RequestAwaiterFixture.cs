@@ -50,6 +50,8 @@ namespace KafkaExchengerTests
                 await CreateTopic(adminClient, _outputProtobuffTopic);
             }
 
+            await Task.Delay(500);
+
             _responder1 = new ResponderOneToOneSimple();
             _responder1Config = CreateResponderConfig(
                 groupId: "RAResponder1",
@@ -123,6 +125,8 @@ namespace KafkaExchengerTests
                         _outputProtobuffTopic,
                     });
             }
+
+            await Task.Delay(500);
         }
 
         private async Task CreateTopic(IAdminClient adminClient, string topicName)
@@ -140,7 +144,7 @@ namespace KafkaExchengerTests
                                 new TopicSpecification
                                 {
                                     Name = topicName,
-                                    ReplicationFactor = 1,
+                                    ReplicationFactor = -1,
                                     NumPartitions = 3,
                                     Configs = new System.Collections.Generic.Dictionary<string, string>
                                     {
