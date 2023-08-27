@@ -212,7 +212,7 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
         private void StopAsync()
         {
             _builder.Append($@"
-        public async ValueTask StopAsync()
+        public async ValueTask StopAsync(CancellationToken token = default)
         {{
             var items = _items;
             if(items == null)
@@ -228,7 +228,7 @@ namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
             var disposeTasks = new Task[items.Length];
             for (var i = 0; i < items.Length; i++)
             {{
-                disposeTasks[i] = items[i].DisposeAsync().AsTask();
+                disposeTasks[i] = items[i].StopAsync(token).AsTask();
             }}
             
             await Task.WhenAll(disposeTasks);

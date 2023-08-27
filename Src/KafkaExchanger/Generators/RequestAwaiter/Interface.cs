@@ -158,7 +158,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask StopAsync();
+        public ValueTask StopAsync(CancellationToken token = default);
 ");
         }
 

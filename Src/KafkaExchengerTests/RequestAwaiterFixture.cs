@@ -467,36 +467,30 @@ namespace KafkaExchengerTests
                 });
             var sended = new ConcurrentDictionary<string, AddAwaiterInfo>();
             var sendedFromAwaiter = new ConcurrentDictionary<string, AddAwaiterInfo>();
+            TaskCompletionSource waitSended = new();
 
             RequestAwaiterSimple.Config reqAwaiterConfitg;
             CreateConfig();
 
             var requestsCount = 300;
-            await using (var reqAwaiterPrepare = new RequestAwaiterSimple())
+            var reqAwaiterPrepare = new RequestAwaiterSimple();
+            try
             {
                 reqAwaiterPrepare.Setup(
                     config: reqAwaiterConfitg,
                     producerPool0: pool
                     );
 
-                reqAwaiterPrepare.Start(
-                    static (config) =>
-                    {
-                        config.MaxPollIntervalMs = 10_000;
-                        config.SessionTimeoutMs = 5_000;
-                        config.SocketKeepaliveEnable = true;
-                        config.AllowAutoCreateTopics = false;
-                    }
-                    );
-
                 var sendedCount = 0;
                 for (int i = 0; i < requestsCount; i++)
                 {
-                    using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString());
+                    using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString(), 10).ConfigureAwait(false);
                     if (i % 2 == 0)
                     {
                         sendedCount++;
-                        _ = await delayProduce.Produce();
+                        Volatile.Write(ref waitSended, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+                        _ = delayProduce.Produce();
+                        await Volatile.Read(ref waitSended).Task.ConfigureAwait(false);
                     }
                     else
                     {
@@ -509,19 +503,13 @@ namespace KafkaExchengerTests
                     }
                 }
 
-                while (true)
-                {
-                    if (sended.Count == sendedCount)
-                    {
-                        break;
-                    }
-
-                    Thread.Sleep(50);
-                }
-
-                await reqAwaiterPrepare.StopAsync();
-
                 Assert.That(sended.Count, Is.EqualTo(sendedCount));
+            }
+            finally
+            {
+                using var cts = new CancellationTokenSource(0);
+                await reqAwaiterPrepare.StopAsync(cts.Token);
+                await reqAwaiterPrepare.DisposeAsync();
             }
             await _responder1.Start(config: _responder1Config, output0Pool: pool);
             await _responder2.Start(config: _responder2Config, output0Pool: pool);
@@ -714,6 +702,7 @@ namespace KafkaExchengerTests
                     sended.TryAdd(header.MessageGuid, info);
                 }
 
+                Volatile.Read(ref waitSended).TrySetResult();
                 return Task.CompletedTask;
             }
 

@@ -18,7 +18,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             Constructor(sb, assemblyName, requestAwaiter);
             Start(sb);
-            DisposeAsync(sb);
+            StopAsync(sb);
             TryProduceDelay(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
             End(sb);
@@ -41,7 +41,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class {TypeName()} : IAsyncDisposable
+        public class {TypeName()}
         {{
             private readonly Bucket[] {_buckets()};
             private uint {_current()};
@@ -211,14 +211,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void DisposeAsync(StringBuilder builder)
+        private static void StopAsync(StringBuilder builder)
         {
             builder.Append($@"
-            public async ValueTask DisposeAsync()
+            public async ValueTask StopAsync(CancellationToken token = default)
             {{
                 for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
-                    await {_buckets()}[i].DisposeAsync();
+                    await {_buckets()}[i].StopAsync(token);
                 }}
             }}
 ");

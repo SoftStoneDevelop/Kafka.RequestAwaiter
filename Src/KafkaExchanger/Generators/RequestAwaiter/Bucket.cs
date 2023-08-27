@@ -16,7 +16,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StartClassPartitionItem(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
             PrivateFilds(sb, assemblyName, requestAwaiter);
-            DisposeAsync(sb, requestAwaiter);
+            StopAsync(sb, requestAwaiter);
             Start(sb, requestAwaiter);
 
             StartTopicConsume(sb, assemblyName, requestAwaiter);
@@ -137,7 +137,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public class {TypeName()} : IAsyncDisposable
+            public class {TypeName()}
             {{
                 private readonly KafkaExchanger.FreeWatcherSignal {_fws()};
                 private readonly int {_bucketId()};
@@ -333,19 +333,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
         }
 
-        private static void DisposeAsync(
+        private static void StopAsync(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public async ValueTask DisposeAsync()
+            public async ValueTask StopAsync(CancellationToken token = default)
             {{
-                await StopConsume();
                 var isEmpty = false;
-                while(!isEmpty)
+                while(!isEmpty && (token == default || token.IsCancellationRequested))
                 {{
-                    await Task.Delay(50);
                     _lock.EnterReadLock();
                     try
                     {{
@@ -355,7 +353,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{ 
                         _lock.ExitReadLock();
                     }}
+
+                    await Task.Delay(25);
                 }}
+
+                _lock.EnterReadLock();
+                try
+                {{
+                    foreach(var awaiter in _responseAwaiters.Values)
+                    {{
+                        awaiter.Dispose(); 
+                    }}
+                }}
+                finally
+                {{ 
+                    _lock.ExitReadLock();
+                }}
+
+                await StopConsume();
 
                 _lock.Dispose();
                 _lock = null;
@@ -717,11 +732,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         _lock.ExitWriteLock();
                     }}
                     
-                    foreach (var consumeRoutine in _consumeRoutines)
+                    if(_consumeRoutines != null)//if not started
                     {{
-                        while(consumeRoutine.IsAlive)
+                        foreach (var consumeRoutine in _consumeRoutines)
                         {{
-                            await Task.Delay(50);
+                            while(consumeRoutine.IsAlive)
+                            {{
+                                await Task.Delay(50);
+                            }}
                         }}
                     }}
 

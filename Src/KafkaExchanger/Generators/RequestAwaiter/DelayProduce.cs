@@ -90,7 +90,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public async Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce()
+            public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce()
             {{
                 if(_produced)
                 {{
@@ -99,7 +99,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 _produced = true;
                 return 
-                    await _tryDelay.Bucket.Produce(_tryDelay);
+                    _tryDelay.Bucket.Produce(_tryDelay);
             }}
 ");
         }
