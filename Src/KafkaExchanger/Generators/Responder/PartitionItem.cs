@@ -22,6 +22,7 @@ namespace KafkaExchanger.Generators.Responder
             Start(builder, responder);
             StartConsume(builder, responder);
             StartHorizonRoutine(builder, responder);
+            StartInitializeRoutine(builder, responder);
             StartConsumeInput(builder, assemblyName, responder);
             Produce(builder, responder);
             CreateOutputHeader(builder, assemblyName, responder);
@@ -403,6 +404,7 @@ namespace KafkaExchanger.Generators.Responder
             {{
                 {_cts()} = new CancellationTokenSource();
                 StartHorizonRoutine();
+                StartInitializeRoutine();
                 {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
@@ -510,7 +512,7 @@ namespace KafkaExchanger.Generators.Responder
 ");
         }
 
-        public static void InitializeRoutine(
+        public static void StartInitializeRoutine(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder
             )
@@ -518,7 +520,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             private void StartInitializeRoutine()
             {{
-                {_horizonRoutine()} = Task.Factory.StartNew(async () => 
+                {_initializeRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_initializeChannel()}.Reader;
                     var storage = new KafkaExchanger.HorizonStorage();
