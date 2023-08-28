@@ -421,6 +421,12 @@ namespace KafkaExchanger.Generators.Responder
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
                             if (info is {StartResponse.TypeFullName(responder)} startResponse)
                             {{
+                                if(startResponse.{StartResponse.NotInitedProcess()} != null)
+                                {{
+                                    startResponse.{StartResponse.NotInitedProcess()}.Init();
+                                    startResponse.{StartResponse.NotInitedProcess()} = null;
+                                }}
+
                                 storage.Add(new KafkaExchanger.HorizonInfo(startResponse.{ChannelInfo.HorizonId()}));
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
@@ -582,6 +588,7 @@ namespace KafkaExchanger.Generators.Responder
                                     }}
 
                                     {ResponseProcess.TypeFullName(responder)} responseProcess = null;
+                                    var created = false;
                                     while (responseProcess == null)
                                     {{
                                         if(!{_responseProcesses()}.TryGetValue(inputMessage.{InputMessages.Header()}.MessageGuid, out responseProcess))
@@ -622,7 +629,7 @@ namespace KafkaExchanger.Generators.Responder
                                                 );
                                             if({_responseProcesses()}.TryAdd(inputMessage.{InputMessages.Header()}.MessageGuid, responseProcess))
                                             {{
-                                                responseProcess.Init();
+                                                created = true;
                                             }}
                                             else
                                             {{
@@ -631,12 +638,17 @@ namespace KafkaExchanger.Generators.Responder
                                             }}
                                         }}
                                     }}
-
-                                    var startResponse = new {StartResponse.TypeFullName(responder)}()
+                                    
+                                    if(created)
                                     {{
-                                        {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
-                                    }};
-                                    {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
+                                        var startResponse = new {StartResponse.TypeFullName(responder)}()
+                                        {{
+                                            {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()},
+                                            {StartResponse.NotInitedProcess()} = responseProcess
+                                        }};
+                                        {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
+                                    }}
+
                                     responseProcess.TrySetResponse({inputData.Id}, inputMessage);
                                 }}
                                 catch (ConsumeException)
