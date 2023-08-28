@@ -738,13 +738,14 @@ namespace KafkaExchanger.Generators.Responder
                                                                                     )
                         )
                         {{
-                            var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions.First());
+                            var index = Interlocked.Increment(ref _partitionIndex) % (uint)topicForAnswer.Partitions.Count;
+                            var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions[(int)index]);
                             var producer = {_outputPool(outputData)}.Rent();
                             try
                             {{
                                 var deliveryResult = await producer.ProduceAsync(topicPartition, message);
                             }}
-                            catch (ProduceException<{outputData.TypesPair}> e)
+                            catch (ProduceException<{outputData.TypesPair}>)
                             {{
                                 //ignore
                             }}
@@ -762,6 +763,8 @@ namespace KafkaExchanger.Generators.Responder
             }
             builder.Append($@"
             }}
+
+            private uint _partitionIndex = 0;
 ");
         }
 
