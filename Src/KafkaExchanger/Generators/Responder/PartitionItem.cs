@@ -17,7 +17,7 @@ namespace KafkaExchanger.Generators.Responder
         {
             StartClass(builder);
 
-            Constructors(builder, responder);
+            Constructor(builder, responder);
             Fields(builder, responder);
             Start(builder, responder);
             StartConsume(builder, responder);
@@ -77,6 +77,21 @@ namespace KafkaExchanger.Generators.Responder
             return "_logger";
         }
 
+        private static string _afterCommit()
+        {
+            return "_afterCommit";
+        }
+
+        private static string _afterSend()
+        {
+            return "_afterSend";
+        }
+
+        private static string _checkState()
+        {
+            return "_checkState";
+        }
+
         public static void StartClass(
             StringBuilder builder
             )
@@ -87,7 +102,7 @@ namespace KafkaExchanger.Generators.Responder
 " );
         }
 
-        public static void Constructors(
+        public static void Constructor(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder
             )
@@ -110,9 +125,7 @@ namespace KafkaExchanger.Generators.Responder
             var serviceNameParam = "serviceName";
             var commitAtLeastAfterParam = "commitAtLeastAfter";
             builder.Append($@"
-            private {TypeName()}()
-            {{
-            }}
+            private {TypeName()}() {{ }}
 
             public {TypeName()}(
                 string {serviceNameParam},
@@ -122,10 +135,30 @@ namespace KafkaExchanger.Generators.Responder
             if(responder.UseLogger)
             {
                 builder.Append($@"
-                ILogger {loggerParametr},
-");
+                ILogger {loggerParametr},");
             }
-            var createAnswerParam = "createAnswer";
+
+            var afterCommitParam = "afterCommit";
+            if (responder.AfterCommit)
+            {
+                builder.Append($@"
+                {responder.AfterCommitFuncType()} {afterCommitParam},");
+            }
+
+            var checkStateParam = "checkState";
+            if (responder.CheckCurrentState)
+            {
+                builder.Append($@"
+                {responder.CheckCurrentStateFuncType()} {checkStateParam},");
+            }
+
+            var afterSendParam = "afterSend";
+            if (responder.AfterSend)
+            {
+                builder.Append($@"
+                {responder.AfterSendFuncType()} {afterSendParam},");
+            }
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
@@ -141,20 +174,40 @@ namespace KafkaExchanger.Generators.Responder
                 {outputData.FullPoolInterfaceName} {outputPool(outputData)},
 ");
             }
+
+            var createAnswerParam = "createAnswer";
             builder.Append($@"
                 {responder.CreateAnswerFuncType()} {createAnswerParam}
                 )
             {{
                 {_serviceName()} = {serviceNameParam};
                 {_commitAtLeastAfter()} = {commitAtLeastAfterParam};
-                {_createAnswer()} = {createAnswerParam};
-");
+                {_createAnswer()} = {createAnswerParam};");
+            
             if (responder.UseLogger)
             {
                 builder.Append($@"
-                {_logger()} = {loggerParametr};
-");
+                {_logger()} = {loggerParametr};");
             }
+
+            if (responder.AfterCommit)
+            {
+                builder.Append($@"
+                {_afterCommit()} = {afterCommitParam};");
+            }
+
+            if (responder.CheckCurrentState)
+            {
+                builder.Append($@"
+                {_checkState()} = {checkStateParam};");
+            }
+
+            if (responder.AfterSend)
+            {
+                builder.Append($@"
+                {_afterSend()} = {afterSendParam};");
+            }
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
@@ -234,7 +287,6 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
-            {(responder.UseLogger ? $"private readonly ILogger {_logger()};" : string.Empty)}
             
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
@@ -245,22 +297,44 @@ namespace KafkaExchanger.Generators.Responder
                     AllowSynchronousContinuations = false, 
                     SingleReader = true,
                     SingleWriter = false
-                }});
-");
+                }});");
+
+            if(responder.UseLogger)
+            {
+                builder.Append($@"
+                private readonly ILogger {_logger()};");
+            }
+
+            if (responder.AfterCommit)
+            {
+                builder.Append($@"
+                private readonly {responder.AfterCommitFuncType()} {_afterCommit()};");
+            }
+
+            if (responder.CheckCurrentState)
+            {
+                builder.Append($@"
+                private readonly {responder.CheckCurrentStateFuncType()} {_checkState()};");
+            }
+
+            if (responder.AfterSend)
+            {
+                builder.Append($@"
+                private readonly {responder.AfterSendFuncType()} {_afterSend()};");
+            }
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
                 private readonly string {_inputTopicName(inputData)};
-                private readonly int[] {_inputPartitions(inputData)};
-");
+                private readonly int[] {_inputPartitions(inputData)};");
             }
             for (int i = 0; i < responder.OutputDatas.Count; i++)
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                private readonly {outputData.FullPoolInterfaceName} {_outputPool(outputData)};
-");
+                private readonly {outputData.FullPoolInterfaceName} {_outputPool(outputData)};");
             }
         }
 
@@ -375,10 +449,17 @@ namespace KafkaExchanger.Generators.Responder
                                 Interlocked.Exchange(ref {_needCommit()}, 1);
 
                                 await commit.Task.ConfigureAwait(false);
+");
+            if(responder.AfterCommit)
+            {
+                builder.Append($@"
+                                await {_afterCommit()}.ConfigureAwait(false);");
+            }
+            builder.Append($@"
                             }}
                             else
                             {{
-                                {(responder.UseLogger ? $@"{_logger()}.LogError(""Unknown info type"");" : string.Empty)}
+                                {(responder.UseLogger ? $@"{_logger()}.LogError(""Unknown info type"");" : "//ignore")}
                             }}
                         }}
                     }}
@@ -390,7 +471,7 @@ namespace KafkaExchanger.Generators.Responder
                     {{
                         //ignore
                     }}
-                    catch (Exception ex)
+                    catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
                         {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
                         throw;
@@ -448,20 +529,10 @@ namespace KafkaExchanger.Generators.Responder
                                 try
                                 {{
                                     var consumeResult = consumer.Consume(50);
-
-                                    var needCommit = Interlocked.CompareExchange(ref {_needCommit()}, 0, 1);
-                                    if (needCommit == 1)
+                                    if (Interlocked.CompareExchange(ref {_needCommit()}, 0, 1) == 1)
                                     {{
                                         var info = Volatile.Read(ref {_horizonCommitInfo()});
-                                        if(info.HorizonId == -1)
-                                        {{
-                                            throw new Exception(""Concurrency error"");
-                                        }}
-
                                         consumer.Commit(info.TopicPartitionOffset);
-
-                                        //after commit delegate
-
                                         Volatile.Read(ref {_tcsCommit()}).SetResult();
                                     }}
 
@@ -538,7 +609,7 @@ namespace KafkaExchanger.Generators.Responder
                             consumer.Dispose();
                         }}
                     }}
-                    catch (Exception ex)
+                    catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
                         {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
                         goto start;

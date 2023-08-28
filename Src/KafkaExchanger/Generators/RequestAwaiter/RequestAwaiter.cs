@@ -141,45 +141,56 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {_fws()} = new(config.{Config.Processors()}.Sum(s => s.{ProcessorConfig.Buckets()}));
             for (int i = 0; i < config.{Config.Processors()}.Length; i++)
             {{
+                var processorConfig = config.{Config.Processors()}[i];
                 {_items()}[i] =
                     new {PartitionItem.TypeFullName(requestAwaiter)}(
-                        {_fws()}
-");
+                        {_fws()}");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                        config.{Config.Processors()}[i].{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.TopicName()},
-                        config.{Config.Processors()}[i].{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.Partitions()}
-");
+                        processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.TopicName()},
+                        processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.Partitions()}");
             }
             builder.Append($@",
-                        config.{Config.Processors()}[i].{ProcessorConfig.Buckets()},
-                        config.{Config.Processors()}[i].{ProcessorConfig.MaxInFly()}
-                        {(requestAwaiter.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
-                        {(requestAwaiter.CheckCurrentState ? $@",config.{Config.Processors()}[i].{ProcessorConfig.CurrentStateFunc()}" : "")}
-                        {(requestAwaiter.AfterCommit ? $@",config.{Config.Processors()}[i].{ProcessorConfig.AfterCommitFunc()}" : "")}
-");
+                        processorConfig.{ProcessorConfig.Buckets()},
+                        processorConfig.{ProcessorConfig.MaxInFly()}");
+
+            if(requestAwaiter.UseLogger)
+            {
+                builder.Append($@",
+                        _loggerFactory.CreateLogger(config.GroupId)");
+            }
+
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@",
+                        processorConfig.{ProcessorConfig.CurrentState()}");
+            }
+
+            if (requestAwaiter.AfterCommit)
+            {
+                builder.Append($@",
+                        processorConfig.{ProcessorConfig.AfterCommit()}");
+            }
+
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                        config.{Config.Processors()}[i].{ProcessorConfig.ProducerInfo(outputData)}.TopicName,
-                        producerPool{i}
-");
+                        processorConfig.{ProcessorConfig.ProducerInfo(outputData)}.TopicName,
+                        producerPool{i}");
                 if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@",
-                        config.{Config.Processors()}[i].{ProcessorConfig.AfterSendFunc(outputData)}
-");
+                        processorConfig.{ProcessorConfig.AfterSend(outputData)}");
                 }
 
                 if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                        config.{Config.Processors()}[i].{ProcessorConfig.LoadOutputFunc(outputData)},
-                        config.{Config.Processors()}[i].{ProcessorConfig.CheckOutputStatusFunc(outputData)}
-");
+                        processorConfig.{ProcessorConfig.LoadOutput(outputData)},
+                        processorConfig.{ProcessorConfig.CheckOutputStatus(outputData)}");
                 }
             }
 

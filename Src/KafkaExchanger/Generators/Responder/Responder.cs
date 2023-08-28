@@ -1,5 +1,6 @@
 ﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Extensions;
+using KafkaExchanger.Generators.RequestAwaiter;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -75,14 +76,13 @@ namespace KafkaExchanger.Generators.Responder
         {
             builder.Append($@"
         public async Task Start(
-            {Config.TypeFullName(responder)} config
-");
+            {Config.TypeFullName(responder)} config");
+
             for (int i = 0; i < responder.OutputDatas.Count; i++)
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@",
-            {outputData.FullPoolInterfaceName} {outputData.NameCamelCase}Pool
-");
+            {outputData.FullPoolInterfaceName} {outputData.NameCamelCase}Pool");
             }
             builder.Append($@"
             )
@@ -95,23 +95,46 @@ namespace KafkaExchanger.Generators.Responder
                     new {PartitionItem.TypeFullName(responder)}(
                         config.{Config.ServiceName()},
                         config.{Config.CommitAtLeastAfter()},
-                        {(responder.UseLogger ? $@"{_loggerFactory()}.CreateLogger(config.{Config.GroupId()})," : string.Empty)}
 ");
+            if (responder.UseLogger)
+            {
+                builder.Append($@"
+                        {_loggerFactory()}.CreateLogger(config.{Config.GroupId()}),");
+            }
+
+            if (responder.AfterCommit)
+            {
+                builder.Append($@"
+                        processorConfig.{ProcessorConfig.AfterCommit()},");
+            }
+
+            if (responder.CheckCurrentState)
+            {
+                builder.Append($@"
+                        processorConfig.{ProcessorConfig.CheckCurrentState()},");
+            }
+
+            if (responder.AfterSend)
+            {
+                builder.Append($@"
+                        processorConfig.{ProcessorConfig.AfterSend()},");
+            }
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
                         processorConfig.{ProcessorConfig.ConsumerInfoName(inputData)}.{ConsumerInfo.TopicName()},
-                        processorConfig.{ProcessorConfig.ConsumerInfoName(inputData)}.{ConsumerInfo.Partitions()},
-");
+                        processorConfig.{ProcessorConfig.ConsumerInfoName(inputData)}.{ConsumerInfo.Partitions()},");
             }
+
             for (int i = 0; i < responder.OutputDatas.Count; i++)
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                        {outputData.NameCamelCase}Pool,
-");
+                        {outputData.NameCamelCase}Pool,");
             }
+
             builder.Append($@"
                         processorConfig.{ProcessorConfig.CreateAnswer()}
                         );

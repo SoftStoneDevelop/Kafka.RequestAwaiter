@@ -62,8 +62,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-            private TaskCompletionSource<{inputData.MessageTypeName}> _{inputData.NameCamelCase} = new(TaskCreationOptions.RunContinuationsAsynchronously);
-");
+            private TaskCompletionSource<{inputData.MessageTypeName}> _{inputData.NameCamelCase} = new(TaskCreationOptions.RunContinuationsAsynchronously);");
             }
         }
 
@@ -76,7 +75,7 @@ namespace KafkaExchanger.Generators.Responder
             public {TypeName()}(
                 string guid,
                 long horizonId,
-                {ProcessorConfig.CreateAnswerFuncType(responder)} createAnswer,
+                {responder.CreateAnswerFuncType()} createAnswer,
                 {ProduceFuncType(responder)} produce,
                 Action<string> removeAction,
                 ChannelWriter<{ChannelInfo.TypeFullName(responder)}> writer
@@ -108,26 +107,40 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             private async Task Response(
                 string guid,
-                {ProcessorConfig.CreateAnswerFuncType(responder)} createAnswer,
+                {responder.CreateAnswerFuncType()} createAnswer,
                 {ProduceFuncType(responder)} produce,
                 Action<string> removeAction,
-                ChannelWriter<{ChannelInfo.TypeFullName(responder)}> writer
+                ChannelWriter<{ChannelInfo.TypeFullName(responder)}> writer");
+
+            var afterSendParam = "afterSend";
+            if (responder.AfterSend)
+            {
+                builder.Append($@",
+                {responder.AfterSendFuncType()} {afterSendParam}");
+            }
+
+            var checkStateParam = "checkState";
+            if (responder.CheckCurrentState)
+            {
+                builder.Append($@",
+                {responder.CheckCurrentStateFuncType()} {checkStateParam}");
+            }
+
+            builder.Append($@"
                 )
-            {{
-                
-");
+            {{");
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-                var {inputData.NameCamelCase} = await _{inputData.NameCamelCase}.Task.ConfigureAwait(false);
-");
+                var {inputData.NameCamelCase} = await _{inputData.NameCamelCase}.Task.ConfigureAwait(false);");
             }
 
             builder.Append($@"
                 var inputMessage = new {InputMessage.TypeFullName(responder)}()
-                {{
-");
+                {{");
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
@@ -137,42 +150,46 @@ namespace KafkaExchanger.Generators.Responder
                 }
 
                 builder.Append($@"
-                    {inputData.MessageTypeName} = {inputData.NameCamelCase}
-");
+                    {InputMessage.Message(inputData)} = {inputData.NameCamelCase}");
             }
             builder.Append($@"
-                }};
-");
+                }};");
+
             if(responder.CheckCurrentState)
             {
                 builder.Append($@"
-                var currentState = _checkCurrentState();//TODO
-");
+                var currentState = await {checkStateParam}().ConfigureAwait(false);");
             }
             else
             {
                 builder.Append($@"
-                var currentState = KafkaExchanger.Attributes.Enums.CurrentState.NewMessage;
-");
+                var currentState = KafkaExchanger.Attributes.Enums.CurrentState.NewMessage;");
             }
 
             builder.Append($@"
                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                 {{
                     var outputMessage = await createAnswer(inputMessage, currentState).ConfigureAwait(false);
-                    await produce(outputMessage, inputMessage).ConfigureAwait(false);
+                    await produce(outputMessage, inputMessage).ConfigureAwait(false);");
+            
+            if(responder.AfterSend)
+            {
+                builder.Append($@"
+                    await {afterSendParam}().ConfigureAwait(false);");
+            }
+
+            builder.Append($@"
                 }}
 
                 var endResponse = new {EndResponse.TypeFullName(responder)}() 
                 {{
-                    HorizonId = this.HorizonId
-");
+                    HorizonId = this.HorizonId");
+
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@",
-                    {inputData.NamePascalCase} = {inputData.NameCamelCase}.TopicPartitionOffset
-");
+                    {inputData.NamePascalCase} = {inputData.NameCamelCase}.TopicPartitionOffset");
             }
             builder.Append($@"
                 }};

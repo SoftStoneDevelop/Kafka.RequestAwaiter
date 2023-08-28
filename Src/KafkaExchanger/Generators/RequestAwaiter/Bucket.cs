@@ -1,6 +1,7 @@
 ﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
@@ -446,6 +447,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                var threadName = $"{{groupId}}Bucket{{{_bucketId()}}}{_inputTopicName(inputData)}";
                 builder.Append($@"
                 private Thread Start{inputData.NamePascalCase}(
                     string bootstrapServers,
@@ -703,7 +705,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     }}
                                     catch (ConsumeException {(requestAwaiter.UseLogger ? "e" : "")})
                                     {{
-                                        {(requestAwaiter.UseLogger ? @"_logger.LogError($""Error occured: {e.Error.Reason}"");" : "//ignore")}
+                                        {(requestAwaiter.UseLogger ? $@"_logger.LogError(e, $""Error in consume thread: {threadName}"");" : "//ignore")}
                                     }}
                                 }}
                             }}
@@ -724,13 +726,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         {{
                             if(!agg.InnerExceptions.All(an => an is OperationCanceledException))
                             {{
-                                {(requestAwaiter.UseLogger ? @"_logger.LogError(agg);" : string.Empty)}
+                                {(requestAwaiter.UseLogger ? $@"_logger.LogError(agg, $""Error in consume thread: {threadName}"");" : string.Empty)}
                                 goto start;
                             }}
                         }}
                         catch(Exception {(requestAwaiter.UseLogger ? @"ex" : string.Empty)})
                         {{
-                            {(requestAwaiter.UseLogger ? @"_logger.LogError(ex);" : string.Empty)}
+                            {(requestAwaiter.UseLogger ? $@"_logger.LogError(ex, $""Error in consume thread: {threadName}"");" : string.Empty)}
                             goto start;
                         }}
                     }}
@@ -738,7 +740,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         IsBackground = true,
                         Priority = ThreadPriority.AboveNormal,
-                        Name = $""{{groupId}}Bucket{{{_bucketId()}}}{_inputTopicName(inputData)}""
+                        Name = $""{threadName}""
                     }};
                 }}
 ");
@@ -978,7 +980,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
                 catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.UseLogger ? "e" : "")})
                 {{
-                    {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
+                    {(requestAwaiter.UseLogger ? @"_logger.LogError(e, $""Delivery failed"");" : "")}
                     {_lock()}.EnterWriteLock();
                     try
                     {{
@@ -1180,7 +1182,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }}
                         catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.UseLogger ? "e" : "")})
                         {{
-                            {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
+                            {(requestAwaiter.UseLogger ? @"_logger.LogError(e, $""Delivery failed"");" : "")}
                             {_lock()}.EnterWriteLock();
                             try
                             {{

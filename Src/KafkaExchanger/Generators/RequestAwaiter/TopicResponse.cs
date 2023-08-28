@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Datas;
+using System.Net.Sockets;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -212,16 +213,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            var bucketParam = "bucket";
             builder.Append($@"
             private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse(
-                int bucket
-");
+                int {bucketParam}");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                int[] {inputData.NameCamelCase}Partitions
-");
+                int[] {inputData.NameCamelCase}Partitions");
             }
             builder.Append($@"
                 {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} getCurrentState" : "")}
@@ -234,16 +235,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                var topic{i} = await {_responseTopic(inputData)}.Task.ConfigureAwait(false);
-");
+                var topic{i} = await {_responseTopic(inputData)}.Task.ConfigureAwait(false);");
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-                var topic{i}{inputData.AcceptedService[j]} = await {_responseTopic(inputData, j)}.Task.ConfigureAwait(false);
-");
+                var topic{i}{inputData.AcceptedService[j]} = await {_responseTopic(inputData, j)}.Task.ConfigureAwait(false);");
                     }
                 }
             }
@@ -252,8 +251,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 builder.Append($@"
                 var currentState = await getCurrentState(
-                    
-");
+                    {bucketParam},");
                 for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
                     var inputData = requestAwaiter.InputDatas[i];
@@ -263,14 +261,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }
 
                     builder.Append($@"
-                    {inputData.NameCamelCase}Partitions
-");
+                    {inputData.NameCamelCase}Partitions,");
 
                     if (inputData.AcceptFromAny)
                     {
                         builder.Append($@"
-                    topic{i}
-");
+                    topic{i}");
                     }
                     else
                     {
@@ -282,8 +278,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             }
 
                             builder.Append($@"
-                    topic{i}{inputData.AcceptedService[j]}
-");
+                    topic{i}{inputData.AcceptedService[j]}");
                         }
                     }
                 }
@@ -294,35 +289,32 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             else
             {
                 builder.Append($@"
-                var currentState = KafkaExchanger.Attributes.Enums.RAState.Sended;
-");
+                var currentState = KafkaExchanger.Attributes.Enums.RAState.Sended;");
             }
 
             builder.Append($@"
                 var response = new {requestAwaiter.TypeSymbol.Name}.Response(
-                    bucket,
+                    {bucketParam},
                     currentState,
-                    {_responseProcess()}
-");
+                    {_responseProcess()}");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                    {inputData.NameCamelCase}Partitions
-");
+                    {inputData.NameCamelCase}Partitions");
+
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@",
-                        topic{i}
-");
+                    topic{i}");
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@",
-                        topic{i}{inputData.AcceptedService[j]}
-");
+                    topic{i}{inputData.AcceptedService[j]}");
                     }
                 }
             }

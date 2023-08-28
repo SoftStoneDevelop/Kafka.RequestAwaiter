@@ -44,7 +44,7 @@ namespace KafkaExchanger.Datas
 
         public bool CheckCurrentState { get; private set; }
 
-        public string GetCurrentStateFunc()
+        public string CheckCurrentStateFuncType()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int,");
@@ -72,7 +72,7 @@ namespace KafkaExchanger.Datas
 
         public bool AfterSend { get; private set; }
 
-        public string AfterSendFunc()
+        public string AfterSendFuncType()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int,");
@@ -100,7 +100,7 @@ namespace KafkaExchanger.Datas
 
         public bool AfterCommit { get; private set; }
 
-        public string AfterCommitFunc()
+        public string AfterCommitFuncType()
         {
             var tempSb = new StringBuilder(100);
             tempSb.Append("Func<int, ");
