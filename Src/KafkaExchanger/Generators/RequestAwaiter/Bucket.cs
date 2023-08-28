@@ -130,6 +130,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $"_fws";
         }
 
+        private static string _lock()
+        {
+            return $"_lock";
+        }
+
+        private static string _addedCount()
+        {
+            return $"_addedCount";
+        }
+
+        private static string _responseAwaiters()
+        {
+            return $"_responseAwaiters";
+        }
+
+        private static string _consumeRoutines()
+        {
+            return $"_consumeRoutines";
+        }
+
+        private static string _ctsConsume()
+        {
+            return $"_ctsConsume";
+        }
+
         private static void StartClassPartitionItem(
             StringBuilder builder,
             string assemblyName,
@@ -143,12 +168,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 private readonly int {_bucketId()};
                 public int {BucketId()} => {_bucketId()};
                 private readonly int {_maxInFly()};
-                private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
-                private int _addedCount;
-                private readonly Dictionary<string, {requestAwaiter.TypeSymbol.Name}.TopicResponse> _responseAwaiters;
+                private ReaderWriterLockSlim {_lock()} = new ReaderWriterLockSlim();
+                private int {_addedCount()};
+                private readonly Dictionary<string, {requestAwaiter.TypeSymbol.Name}.TopicResponse> {_responseAwaiters()};
 
-                private CancellationTokenSource _ctsConsume;
-                private Thread[] _consumeRoutines;
+                private CancellationTokenSource {_ctsConsume()};
+                private Thread[] {_consumeRoutines()};
 ");
         }
 
@@ -229,7 +254,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {_fws()} = fws;
                     {_bucketId()} = bucketId;
                     {_maxInFly()} = maxInFly;
-                    _responseAwaiters = new({_maxInFly()});
+                    {_responseAwaiters()} = new({_maxInFly()});
 
                     {(requestAwaiter.UseLogger ? @"_logger = logger;" : "")}
                     {(requestAwaiter.CheckCurrentState ? $"{_currentStateFunc()} = currentState;" : "")}
@@ -344,36 +369,36 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var isEmpty = false;
                 while(!isEmpty && (token == default || token.IsCancellationRequested))
                 {{
-                    _lock.EnterReadLock();
+                    {_lock()}.EnterReadLock();
                     try
                     {{
-                        isEmpty |= _responseAwaiters.Count == 0;
+                        isEmpty |= {_responseAwaiters()}.Count == 0;
                     }}
                     finally
                     {{ 
-                        _lock.ExitReadLock();
+                        {_lock()}.ExitReadLock();
                     }}
 
                     await Task.Delay(25);
                 }}
 
-                _lock.EnterReadLock();
+                {_lock()}.EnterReadLock();
                 try
                 {{
-                    foreach(var awaiter in _responseAwaiters.Values)
+                    foreach(var awaiter in {_responseAwaiters()}.Values)
                     {{
                         awaiter.Dispose(); 
                     }}
                 }}
                 finally
                 {{ 
-                    _lock.ExitReadLock();
+                    {_lock()}.ExitReadLock();
                 }}
 
                 await StopConsume();
 
-                _lock.Dispose();
-                _lock = null;
+                {_lock()}.Dispose();
+                {_lock()} = null;
             }}
 ");
         }
@@ -390,15 +415,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
-                _consumeRoutines = new Thread[{requestAwaiter.InputDatas.Count}];
-                _ctsConsume = new CancellationTokenSource();
+                {_consumeRoutines()} = new Thread[{requestAwaiter.InputDatas.Count}];
+                {_ctsConsume()} = new CancellationTokenSource();
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                _consumeRoutines[{i}] = StartTopic{i}Consume(bootstrapServers, groupId, changeConfig);
-                _consumeRoutines[{i}].Start();
+                {_consumeRoutines()}[{i}] = StartTopic{i}Consume(bootstrapServers, groupId, changeConfig);
+                {_consumeRoutines()}[{i}].Start();
                 {_consumeCanceled(inputData)} = false;
                 {_tcsPartitions(inputData)} = new();
 ");
@@ -449,22 +474,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             try
                             {{
                                 var offsets = new Dictionary<Confluent.Kafka.Partition, Confluent.Kafka.TopicPartitionOffset>();
-                                while (!_ctsConsume.Token.IsCancellationRequested)
+                                while (!{_ctsConsume()}.Token.IsCancellationRequested)
                                 {{
                                     try
                                     {{
                                         ConsumeResult<{inputData.TypesPair}> consumeResult = consumer.Consume(30);
                                         try
                                         {{
-                                            _ctsConsume.Token.ThrowIfCancellationRequested();
+                                            {_ctsConsume()}.Token.ThrowIfCancellationRequested();
                                         }}
                                         catch (OperationCanceledException oce)
                                         {{
                                             Volatile.Read(ref {_tcsPartitions(inputData)})?.TrySetCanceled();
-                                            _lock.EnterReadLock();
+                                            {_lock()}.EnterReadLock();
                                             try
                                             {{
-                                                foreach (var topicResponseItem in _responseAwaiters.Values)
+                                                foreach (var topicResponseItem in {_responseAwaiters()}.Values)
                                                 {{
 ");
                 if(inputData.AcceptFromAny)
@@ -487,7 +512,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                             }}
                                             finally
                                             {{
-                                                _lock.ExitReadLock();
+                                                {_lock()}.ExitReadLock();
                                             }}
                                             throw;
                                         }}
@@ -534,7 +559,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         }}
                                         while (true) 
                                         {{
-                                            var locked = _lock.TryEnterUpgradeableReadLock(15);
+                                            var locked = {_lock()}.TryEnterUpgradeableReadLock(15);
                                             if(locked)
                                             {{
                                                 {requestAwaiter.TypeSymbol.Name}.TopicResponse topicResponse = null;
@@ -542,12 +567,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                 {{
                                                     if (inputMessage != null)
                                                     {{
-                                                        _responseAwaiters.TryGetValue(inputMessage.Header.AnswerToMessageGuid, out topicResponse);
+                                                        {_responseAwaiters()}.TryGetValue(inputMessage.Header.AnswerToMessageGuid, out topicResponse);
                                                     }}
 
-                                                    if (_addedCount == {_maxInFly()} && _responseAwaiters.Count == 0)
+                                                    if ({_addedCount()} == {_maxInFly()} && {_responseAwaiters()}.Count == 0)
                                                     {{
-                                                        _lock.EnterWriteLock();
+                                                        {_lock()}.EnterWriteLock();
                                                         try
                                                         {{
                                                             var allPartitions = offsets.Values.ToList();
@@ -571,7 +596,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                                                             if(allPartitions.Count != 0)
                                                                 consumer.Commit(allPartitions);
-                                                            _addedCount = 0;
+                                                            {_addedCount()} = 0;
                                                             {_fws()}.SignalFree();
 ");
                 if(requestAwaiter.AfterCommit)
@@ -602,13 +627,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                                         }}
                                                         finally
                                                         {{
-                                                            _lock.ExitWriteLock();
+                                                            {_lock()}.ExitWriteLock();
                                                         }}
                                                     }}
                                                 }}
                                                 finally
                                                 {{
-                                                    _lock.ExitUpgradeableReadLock();
+                                                    {_lock()}.ExitUpgradeableReadLock();
                                                 }}
 
                                                 if(topicResponse != null)
@@ -711,10 +736,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 private async ValueTask StopConsume()
                 {{
-                    _ctsConsume?.Cancel();
+                    {_ctsConsume()}?.Cancel();
 ");
             builder.Append($@"
-                    _lock.EnterWriteLock();
+                    {_lock()}.EnterWriteLock();
                     try
                     {{
 ");
@@ -729,12 +754,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }}
                     finally
                     {{ 
-                        _lock.ExitWriteLock();
+                        {_lock()}.ExitWriteLock();
                     }}
                     
-                    if(_consumeRoutines != null)//if not started
+                    if({_consumeRoutines()} != null)//if not started
                     {{
-                        foreach (var consumeRoutine in _consumeRoutines)
+                        foreach (var consumeRoutine in {_consumeRoutines()})
                         {{
                             while(consumeRoutine.IsAlive)
                             {{
@@ -743,7 +768,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }}
                     }}
 
-                    _ctsConsume?.Dispose();
+                    {_ctsConsume()}?.Dispose();
                 }}
 ");
         }
@@ -777,11 +802,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {requestAwaiter.TypeSymbol.Name}.TopicResponse awaiter = null;
 
                 var needDispose = false;
-                if (_lock.WaitingUpgradeCount == 0 && _lock.TryEnterUpgradeableReadLock(10))
+                if ({_lock()}.WaitingUpgradeCount == 0 && {_lock()}.TryEnterUpgradeableReadLock(10))
                 {{
                     try
                     {{
-                        if(_addedCount == {_maxInFly()})
+                        if({_addedCount()} == {_maxInFly()})
                         {{
                             return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
                         }}
@@ -806,17 +831,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         waitResponseTimeout
                                         );
 
-                            _lock.EnterWriteLock();
+                            {_lock()}.EnterWriteLock();
                             try
                             {{
-                                if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                                if (!{_responseAwaiters()}.TryAdd(messageGuid, awaiter))
                                 {{
                                     needDispose = true;
                                 }}
                                 else
                                 {{
-                                    _addedCount++;
-                                    if(_addedCount == {_maxInFly()})
+                                    {_addedCount()}++;
+                                    if({_addedCount()} == {_maxInFly()})
                                     {{
                                         {_fws()}.SignalStuck();
                                     }}
@@ -824,13 +849,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             }}
                             finally
                             {{
-                                _lock.ExitWriteLock();
+                                {_lock()}.ExitWriteLock();
                             }}
                         }}
                     }}
                     finally
                     {{
-                        _lock.ExitUpgradeableReadLock();
+                        {_lock()}.ExitUpgradeableReadLock();
                     }}
                 }}
                 else
@@ -922,16 +947,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
                 catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.UseLogger ? "e" : "")})
                 {{
-                        {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
-                        _lock.EnterWriteLock();
-                        try
-                        {{
-                            _responseAwaiters.Remove(tryDelayProduce.Response.MessageGuid, out _);
-                        }}
-                        finally
-                        {{
-                            _lock.ExitWriteLock();
-                        }}
+                    {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
+                    {_lock()}.EnterWriteLock();
+                    try
+                    {{
+                        {_responseAwaiters()}.Remove(tryDelayProduce.Response.MessageGuid, out _);
+                    }}
+                    finally
+                    {{
+                        {_lock()}.ExitWriteLock();
+                    }}
                     tryDelayProduce.Response.Dispose();
 
                     throw;
@@ -1003,10 +1028,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {requestAwaiter.TypeSymbol.Name}.TopicResponse awaiter = null;
                 
                 var needDispose = false;
-                _lock.EnterUpgradeableReadLock();
+                {_lock()}.EnterUpgradeableReadLock();
                 try
                 {{
-                    if (_addedCount == {_maxInFly()})
+                    if ({_addedCount()} == {_maxInFly()})
                     {{
                         throw new InvalidOperationException(""Expect awaiter's limit exceeded"");
                     }}
@@ -1030,17 +1055,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     waitResponseTimeout
                                     );
 
-                        _lock.EnterWriteLock();
+                        {_lock()}.EnterWriteLock();
                         try
                         {{
-                            if (!_responseAwaiters.TryAdd(messageGuid, awaiter))
+                            if (!{_responseAwaiters()}.TryAdd(messageGuid, awaiter))
                             {{
                                 needDispose = true;
                             }}
                             else
                             {{
-                                _addedCount++;
-                                if(_addedCount == _maxInFly)
+                                {_addedCount()}++;
+                                if({_addedCount()} == _maxInFly)
                                 {{
                                     {_fws()}.SignalStuck();
                                 }}
@@ -1048,13 +1073,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         }}
                         finally
                         {{
-                            _lock.ExitWriteLock();
+                            {_lock()}.ExitWriteLock();
                         }}
                     }}
                 }}
                 finally
                 {{
-                    _lock.ExitUpgradeableReadLock();
+                    {_lock()}.ExitUpgradeableReadLock();
                 }}
 
                 if (needDispose)
@@ -1120,14 +1145,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         catch (ProduceException<{outputData.TypesPair}> {(requestAwaiter.UseLogger ? "e" : "")})
                         {{
                             {(requestAwaiter.UseLogger ? @"_logger.LogError($""Delivery failed: {e.Error.Reason}"");" : "")}
-                            _lock.EnterWriteLock();
+                            {_lock()}.EnterWriteLock();
                             try
                             {{
-                                _responseAwaiters.Remove(awaiter.MessageGuid, out _);
+                                {_responseAwaiters()}.Remove(awaiter.MessageGuid, out _);
                             }}
                             finally
                             {{
-                                _lock.ExitWriteLock();
+                                {_lock()}.ExitWriteLock();
                             }}
                             awaiter.Dispose();
 
@@ -1163,17 +1188,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public void RemoveAwaiter(string guid)
             {{
-                    _lock.EnterWriteLock();
+                    {_lock()}.EnterWriteLock();
                     try
                     {{
-                        if(_responseAwaiters.Remove(guid, out var value))
+                        if({_responseAwaiters()}.Remove(guid, out var value))
                         {{
                             value.Dispose();
                         }}
                     }}
                     finally
                     {{
-                        _lock.ExitWriteLock();
+                        {_lock()}.ExitWriteLock();
                     }}
             }}
 ");
