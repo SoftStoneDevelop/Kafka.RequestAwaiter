@@ -247,30 +247,23 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Dispose()
             {{
-                var response = {_response()};
+                if({_response()} != null)
+                {{
+                    return;
+                }}
 ");
             
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-            {_inputTask(inputData)}.TrySetCanceled();");
+                {_inputTask(inputData)}.TrySetCanceled();");
             }
             builder.Append($@"
-                if(response != null)
-                {{
-                    try
-                    {{
-                        response.Wait();
-                    }}
-                    catch
-                    {{
-                        //ignore
-                    }}
-                }}
-
+                {_response()} = null;
                 {HorizonId()} = 0;
                 {_guid()} = null;
                 {_createAnswer()} = null;
@@ -319,7 +312,16 @@ namespace KafkaExchanger.Generators.Responder
                     .ContinueWith(
                         (task) => 
                         {{
-                            {_removeAction()}({_guid()});
+                            try
+                            {{
+                                {_removeAction()}({_guid()});
+                            }}
+                            catch
+                            {{
+                                //ignore
+                            }}
+                            
+                            Dispose();
                         }});
             }}");
         }
