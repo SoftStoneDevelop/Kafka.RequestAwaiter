@@ -16,11 +16,16 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             StartClass(builder, responder, assemblyName);
-            TCS(builder, responder);
+
             Constructor(builder, responder);
+            PropetiesAndFields(builder, responder, assemblyName);
+
+            Init(builder);
+            Dispose(builder, responder, assemblyName);
             Response(builder, assemblyName, responder);
             TrySetResponse(builder, responder);
             TrySetException(builder, responder);
+
             End(builder);
         }
 
@@ -46,24 +51,54 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public class {TypeName()}
+        public class {TypeName()} : IDisposable
         {{
-            public Task _response;
-            public long {HorizonId()} {{ get; init; }}
 ");
         }
 
-        private static void TCS(
-            StringBuilder builder,
-            KafkaExchanger.Datas.Responder responder
-            )
+        private static string _inputTask(InputData inputData)
         {
-            for (int i = 0; i < responder.InputDatas.Count; i++)
-            {
-                var inputData = responder.InputDatas[i];
-                builder.Append($@"
-            private TaskCompletionSource<{inputData.MessageTypeName}> _{inputData.NameCamelCase} = new(TaskCreationOptions.RunContinuationsAsynchronously);");
-            }
+            return $@"_{inputData.NameCamelCase}";
+        }
+
+        private static string _guid()
+        {
+            return "_guid";
+        }
+
+        private static string _createAnswer()
+        {
+            return "_createAnswer";
+        }
+
+        private static string _produce()
+        {
+            return "_produce";
+        }
+
+        private static string _removeAction()
+        {
+            return "_removeAction";
+        }
+
+        private static string _writer()
+        {
+            return "_writer";
+        }
+
+        private static string _afterSend()
+        {
+            return "_afterSend";
+        }
+
+        private static string _checkState()
+        {
+            return "_checkState";
+        }
+
+        private static string _partitions(InputData inputData)
+        {
+            return $"{inputData.NameCamelCase}Partitions";
         }
 
         private static void Constructor(
@@ -82,8 +117,8 @@ namespace KafkaExchanger.Generators.Responder
                 long horizonId,
                 {responder.CreateAnswerFuncType()} createAnswer,
                 {ProduceFuncType(responder)} produce,
-                Action<string> removeAction,
-                ChannelWriter<{ChannelInfo.TypeFullName(responder)}> writer");
+                {RemoveActionType()} removeAction,
+                {ChannelWriterType(responder)} writer");
 
             var afterSendParam = "afterSend";
             var needPartitions = false;
@@ -116,23 +151,22 @@ namespace KafkaExchanger.Generators.Responder
                 )
             {{
                 {HorizonId()} = horizonId;
-                _response = Response(
-                    guid,
-                    createAnswer,
-                    produce,
-                    removeAction,
-                    writer");
+                {_guid()} = guid;
+                {_createAnswer()} = createAnswer;
+                {_produce()} = produce;
+                {_removeAction()} = removeAction;
+                {_writer()} = writer;");
 
             if (responder.AfterSend)
             {
-                builder.Append($@",
-                    {afterSendParam}");
+                builder.Append($@"
+                {_afterSend()} = {afterSendParam};");
             }
 
             if (responder.CheckCurrentState)
             {
-                builder.Append($@",
-                    {checkStateParam}");
+                builder.Append($@"
+                {_checkState()} = {checkStateParam};");
             }
 
             if (needPartitions)
@@ -140,18 +174,172 @@ namespace KafkaExchanger.Generators.Responder
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     var inputData = responder.InputDatas[i];
-                    builder.Append($@",
-                    {partitions(inputData)}");
+                    builder.Append($@"
+                {_partitions(inputData)} = {partitions(inputData)};");
                 }
             }
 
             builder.Append($@"
-                );
             }}
 ");
         }
 
-        public static string ProduceFuncType(KafkaExchanger.Datas.Responder responder)
+        private static void PropetiesAndFields(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder,
+            string assemblyName
+            )
+        {
+            builder.Append($@"
+            public long {HorizonId()} 
+            {{ 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get;
+
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                private set;
+            }}
+
+            private Task {_response()};
+            private string {_guid()};
+            private {responder.CreateAnswerFuncType()} {_createAnswer()};
+            private {ProduceFuncType(responder)} {_produce()};
+            {RemoveActionType()} {_removeAction()};
+            {ChannelWriterType(responder)} {_writer()};");
+
+            var needPartitions = false;
+            if (responder.AfterSend)
+            {
+                needPartitions |= true;
+                builder.Append($@"
+                private {responder.AfterSendFuncType()} {_afterSend()};");
+            }
+
+            if (responder.CheckCurrentState)
+            {
+                needPartitions |= true;
+                builder.Append($@"
+                private {responder.CheckCurrentStateFuncType()} {_checkState()};");
+            }
+
+            if (needPartitions)
+            {
+                for (int i = 0; i < responder.InputDatas.Count; i++)
+                {
+                    var inputData = responder.InputDatas[i];
+                    builder.Append($@"
+                private int[] {_partitions(inputData)};");
+                }
+            }
+
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                var inputData = responder.InputDatas[i];
+                builder.Append($@"
+            private TaskCompletionSource<{inputData.MessageTypeName}> {_inputTask(inputData)} = new(TaskCreationOptions.RunContinuationsAsynchronously);");
+            }
+        }
+
+        private static void Dispose(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder,
+            string assemblyName
+            )
+        {
+            builder.Append($@"
+            public void Dispose()
+            {{
+                var response = {_response()};
+");
+            
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                var inputData = responder.InputDatas[i];
+                builder.Append($@"
+            {_inputTask(inputData)}.TrySetCanceled();");
+            }
+            builder.Append($@"
+                if(response != null)
+                {{
+                    try
+                    {{
+                        response.Wait();
+                    }}
+                    catch
+                    {{
+                        //ignore
+                    }}
+                }}
+
+                {HorizonId()} = 0;
+                {_guid()} = null;
+                {_createAnswer()} = null;
+                {_produce()} = null;
+                {_removeAction()} = null;
+                {_writer()} = null;");
+
+            var needPartitions = false;
+            if (responder.AfterSend)
+            {
+                needPartitions |= true;
+                builder.Append($@"
+                {_afterSend()} = null;");
+            }
+
+            if (responder.CheckCurrentState)
+            {
+                needPartitions |= true;
+                builder.Append($@"
+                {_checkState()} = null;");
+            }
+
+            if (needPartitions)
+            {
+                for (int i = 0; i < responder.InputDatas.Count; i++)
+                {
+                    var inputData = responder.InputDatas[i];
+                    builder.Append($@"
+                {_partitions(inputData)} = null;");
+                }
+            }
+
+            builder.Append($@"
+            }}
+");
+        }
+
+        private static void Init(StringBuilder builder)
+        {
+            builder.Append($@"
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Init()
+            {{
+                {_response()} = 
+                    Response()
+                    .ContinueWith(
+                        (task) => 
+                        {{
+                            {_removeAction()}({_guid()});
+                        }});
+            }}");
+        }
+
+        private static string _response()
+        {
+            return "_response";
+        }
+
+        private static string ChannelWriterType(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"ChannelWriter<{ChannelInfo.TypeFullName(responder)}>";
+        }
+
+        private static string RemoveActionType()
+        {
+            return $"Action<string>";
+        }
+
+        private static string ProduceFuncType(KafkaExchanger.Datas.Responder responder)
         {
             return $"Func<{OutputMessage.TypeFullName(responder)}, {InputMessage.TypeFullName(responder)}, Task>";
         }
@@ -162,55 +350,15 @@ namespace KafkaExchanger.Generators.Responder
             KafkaExchanger.Datas.Responder responder
             )
         {
-            string partitions(InputData inputData)
-            {
-                return $"{inputData.NameCamelCase}Partitions";
-            }
-
             builder.Append($@"
-            private async Task Response(
-                string guid,
-                {responder.CreateAnswerFuncType()} createAnswer,
-                {ProduceFuncType(responder)} produce,
-                Action<string> removeAction,
-                ChannelWriter<{ChannelInfo.TypeFullName(responder)}> writer");
-
-            var needPartitions = false;
-            var afterSendParam = "afterSend";
-            if (responder.AfterSend)
-            {
-                needPartitions |= true;
-                builder.Append($@",
-                {responder.AfterSendFuncType()} {afterSendParam}");
-            }
-
-            var checkStateParam = "checkState";
-            if (responder.CheckCurrentState)
-            {
-                needPartitions |= true;
-                builder.Append($@",
-                {responder.CheckCurrentStateFuncType()} {checkStateParam}");
-            }
-
-            if(needPartitions)
-            {
-                for (int i = 0; i < responder.InputDatas.Count; i++)
-                {
-                    var inputData = responder.InputDatas[i];
-                    builder.Append($@",
-                int[] {partitions(inputData)}");
-                }
-            }
-
-            builder.Append($@"
-                )
+            private async Task Response()
             {{");
 
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-                var {inputData.NameCamelCase} = await _{inputData.NameCamelCase}.Task.ConfigureAwait(false);");
+                var {inputData.NameCamelCase} = await {_inputTask(inputData)}.Task.ConfigureAwait(false);");
             }
 
             builder.Append($@"
@@ -234,12 +382,12 @@ namespace KafkaExchanger.Generators.Responder
             if(responder.CheckCurrentState)
             {
                 builder.Append($@"
-                var currentState = await {checkStateParam}(");
+                var currentState = await {_checkState()}(");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
-                    {partitions(inputData)},
+                    {_partitions(inputData)},
                     {inputData.NameCamelCase}");
                 }
                 builder.Append($@"
@@ -254,18 +402,18 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 if(currentState != KafkaExchanger.Attributes.Enums.CurrentState.AnswerSended)
                 {{
-                    var outputMessage = await createAnswer(inputMessage, currentState).ConfigureAwait(false);
-                    await produce(outputMessage, inputMessage).ConfigureAwait(false);");
+                    var outputMessage = await {_createAnswer()}(inputMessage, currentState).ConfigureAwait(false);
+                    await {_produce()}(outputMessage, inputMessage).ConfigureAwait(false);");
             
             if(responder.AfterSend)
             {
                 builder.Append($@"
-                await {afterSendParam}(");
+                await {_afterSend()}(");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
-                    {partitions(inputData)},
+                    {_partitions(inputData)},
                     {inputData.NameCamelCase}");
                 }
                 builder.Append($@"
@@ -277,7 +425,7 @@ namespace KafkaExchanger.Generators.Responder
 
                 var endResponse = new {EndResponse.TypeFullName(responder)}() 
                 {{
-                    HorizonId = this.HorizonId");
+                    {ChannelInfo.HorizonId()} = this.HorizonId");
 
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
@@ -288,8 +436,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 }};
 
-                await writer.WriteAsync(endResponse).ConfigureAwait(false);
-                removeAction(guid);
+                await {_writer()}.WriteAsync(endResponse).ConfigureAwait(false);
             }}
 ");
         }
@@ -311,7 +458,7 @@ namespace KafkaExchanger.Generators.Responder
                 builder.Append($@"
                     case ({i}, 0):
                     {{
-                        return _{inputData.NameCamelCase}.TrySetResult(({inputData.MessageTypeName})response);
+                        return {_inputTask(inputData)}.TrySetResult(({inputData.MessageTypeName})response);
                     }}
 ");
             }
@@ -343,7 +490,7 @@ namespace KafkaExchanger.Generators.Responder
                 builder.Append($@"
                     case ({i}, 0):
                     {{
-                        return _{inputData.NameCamelCase}.TrySetException(exception);
+                        return {_inputTask(inputData)}.TrySetException(exception);
                     }}
 ");
             }

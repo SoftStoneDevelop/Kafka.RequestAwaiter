@@ -581,13 +581,14 @@ namespace KafkaExchanger.Generators.Responder
                                         continue;
                                     }}
 
-                                    var responseProcess = {_responseProcesses()}.GetOrAdd(
-                                        inputMessage.{InputMessages.Header()}.MessageGuid, 
-                                        (key) => 
+                                    {ResponseProcess.TypeFullName(responder)} responseProcess = null;
+                                    while (responseProcess == null)
+                                    {{
+                                        if(!{_responseProcesses()}.TryGetValue(inputMessage.{InputMessages.Header()}.MessageGuid, out responseProcess))
                                         {{
                                             var horizonId = Interlocked.Increment(ref {_horizonId()});
-                                            return new {ResponseProcess.TypeFullName(responder)}(
-                                                key,
+                                            responseProcess = new {ResponseProcess.TypeFullName(responder)}(
+                                                inputMessage.{InputMessages.Header()}.MessageGuid,
                                                 horizonId,
                                                 {_createAnswer()}, 
                                                 Produce, 
@@ -617,12 +618,20 @@ namespace KafkaExchanger.Generators.Responder
                                                 {_inputPartitions(inputData)}");
                     }
                 }
-
                 builder.Append($@"
-                                                ); 
+                                                );
+                                            if({_responseProcesses()}.TryAdd(inputMessage.{InputMessages.Header()}.MessageGuid, responseProcess))
+                                            {{
+                                                responseProcess.Init();
+                                            }}
+                                            else
+                                            {{
+                                                responseProcess.Dispose();
+                                                responseProcess = null;
+                                            }}
                                         }}
-                                        );
-                                
+                                    }}
+
                                     var startResponse = new {StartResponse.TypeFullName(responder)}()
                                     {{
                                         {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
@@ -647,7 +656,7 @@ namespace KafkaExchanger.Generators.Responder
                     }}
                     catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
-                        {(responder.UseLogger ? $@"{_logger()}.LogError(ex, ""{threadName}"");" : string.Empty)}
+                        {(responder.UseLogger ? $@"{_logger()}.LogError(ex, $""{threadName}"");" : string.Empty)}
                         goto start;
                     }}
                 }}

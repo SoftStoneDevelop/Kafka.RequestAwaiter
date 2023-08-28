@@ -38,17 +38,17 @@ namespace KafkaExchengerTests
 
     }
 
-    [Responder(
-        useLogger: true, 
-        checkCurrentState: true, 
-        afterSend: true, 
-        afterCommit: true
-        ),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
-        Output(keyType: typeof(Null), valueType: typeof(string))
-        ]
-    public partial class ResponderFull
-    {
+    //[Responder(
+    //    useLogger: true, 
+    //    checkCurrentState: true, 
+    //    afterSend: true, 
+    //    afterCommit: true
+    //    ),
+    //    Input(keyType: typeof(Null), valueType: typeof(string)),
+    //    Output(keyType: typeof(Null), valueType: typeof(string))
+    //    ]
+    //public partial class ResponderFull
+    //{
 
-    }
+    //}
 }
