@@ -258,6 +258,11 @@ namespace KafkaExchanger.Generators.Responder
             return $"_channel";
         }
 
+        private static string _initializeChannel()
+        {
+            return $"_initializeChannel";
+        }
+
         private static string _cts()
         {
             return $"_cts";
@@ -271,6 +276,11 @@ namespace KafkaExchanger.Generators.Responder
         private static string _horizonRoutine()
         {
             return $"_horizonRoutine";
+        }
+
+        private static string _initializeRoutine()
+        {
+            return $"_initializeRoutine";
         }
 
         public static void Fields(
@@ -287,6 +297,7 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
+            private System.Threading.Tasks.Task {_initializeRoutine()};
             
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
@@ -297,7 +308,16 @@ namespace KafkaExchanger.Generators.Responder
                     AllowSynchronousContinuations = false, 
                     SingleReader = true,
                     SingleWriter = false
-                }});");
+                }});
+
+            private readonly Channel<{ResponseProcess.TypeFullName(responder)}> {_initializeChannel()} = Channel.CreateUnbounded<{ResponseProcess.TypeFullName(responder)}>(
+                new UnboundedChannelOptions() 
+                {{
+                    AllowSynchronousContinuations = false, 
+                    SingleReader = true,
+                    SingleWriter = false
+                }});
+");
 
             if(responder.UseLogger)
             {
@@ -421,12 +441,6 @@ namespace KafkaExchanger.Generators.Responder
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
                             if (info is {StartResponse.TypeFullName(responder)} startResponse)
                             {{
-                                if(startResponse.{StartResponse.NotInitedProcess()} != null)
-                                {{
-                                    startResponse.{StartResponse.NotInitedProcess()}.Init();
-                                    startResponse.{StartResponse.NotInitedProcess()} = null;
-                                }}
-
                                 storage.Add(new KafkaExchanger.HorizonInfo(startResponse.{ChannelInfo.HorizonId()}));
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
@@ -489,6 +503,36 @@ namespace KafkaExchanger.Generators.Responder
                     catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
                         {(responder.UseLogger ? $@"{_logger()}.LogError(ex, ""Error commit task"");" : string.Empty)}
+                        throw;
+                    }}
+                }});
+            }}
+");
+        }
+
+        public static void InitializeRoutine(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+            private void StartInitializeRoutine()
+            {{
+                {_horizonRoutine()} = Task.Factory.StartNew(async () => 
+                {{
+                    var reader = {_initializeChannel()}.Reader;
+                    var storage = new KafkaExchanger.HorizonStorage();
+                    try
+                    {{
+                        while (!{_cts()}.Token.IsCancellationRequested)
+                        {{
+                            var propessResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            propessResponse.Init();
+                        }}
+                    }}
+                    catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
+                    {{
+                        {(responder.UseLogger ? $@"{_logger()}.LogError(ex, ""Error init task"");" : string.Empty)}
                         throw;
                     }}
                 }});
@@ -641,10 +685,11 @@ namespace KafkaExchanger.Generators.Responder
                                     
                                     if(created)
                                     {{
+                                        {_initializeChannel()}.Writer.WriteAsync(responseProcess).GetAwaiter().GetResult();
+
                                         var startResponse = new {StartResponse.TypeFullName(responder)}()
                                         {{
-                                            {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()},
-                                            {StartResponse.NotInitedProcess()} = responseProcess
+                                            {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
                                         }};
                                         {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
                                     }}
@@ -830,10 +875,20 @@ namespace KafkaExchanger.Generators.Responder
 
                 {_tcsCommit()}.TrySetCanceled();
                 {_channel()}.Writer.Complete();
+                {_initializeChannel()}.Writer.Complete();
 
                 try
                 {{
                     await {_horizonRoutine()};
+                }}
+                catch
+                {{
+                    //ignore
+                }}
+
+                try
+                {{
+                    await {_initializeRoutine()};
                 }}
                 catch
                 {{

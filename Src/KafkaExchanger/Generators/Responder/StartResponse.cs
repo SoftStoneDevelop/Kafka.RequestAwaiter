@@ -13,7 +13,6 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
         public class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
         {{
-            public {ResponseProcess.TypeFullName(responder)} {NotInitedProcess()} {{ get; set; }}
         }}
 ");
         }
@@ -26,11 +25,6 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "StartResponse";
-        }
-
-        public static string NotInitedProcess()
-        {
-            return "NotInitedProcess";
         }
     }
 }
