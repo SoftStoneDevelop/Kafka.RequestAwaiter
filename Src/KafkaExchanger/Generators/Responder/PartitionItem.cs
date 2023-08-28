@@ -453,7 +453,16 @@ namespace KafkaExchanger.Generators.Responder
             if(responder.AfterCommit)
             {
                 builder.Append($@"
-                                await {_afterCommit()}.ConfigureAwait(false);");
+                                await {_afterCommit()}(
+                                    {_horizonId()}");
+                for (int i = 0; i < responder.InputDatas.Count; i++)
+                {
+                    var inputData = responder.InputDatas[i];
+                    builder.Append($@",
+                                    {_inputPartitions(inputData)}");
+                }
+                builder.Append($@"
+                                    ).ConfigureAwait(false);");
             }
             builder.Append($@"
                             }}
@@ -473,7 +482,7 @@ namespace KafkaExchanger.Generators.Responder
                     }}
                     catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
-                        {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
+                        {(responder.UseLogger ? $@"{_logger()}.LogError(ex, ""Error commit task"");" : string.Empty)}
                         throw;
                     }}
                 }});
@@ -490,6 +499,7 @@ namespace KafkaExchanger.Generators.Responder
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
+                var threadName = $@"{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}";
                 builder.Append($@"
             private Thread StartConsume{inputData.NamePascalCase}(
                 string bootstrapServers,
@@ -582,7 +592,33 @@ namespace KafkaExchanger.Generators.Responder
                                                 {_createAnswer()}, 
                                                 Produce, 
                                                 (key) => {_responseProcesses()}.TryRemove(key, out _),
-                                                {_channel()}.Writer
+                                                {_channel()}.Writer");
+                var needPartitions = false;
+                if (responder.AfterSend)
+                {
+                    needPartitions |= true;
+                    builder.Append($@",
+                                                {_afterSend()}");
+                }
+
+                if (responder.CheckCurrentState)
+                {
+                    needPartitions |= true;
+                    builder.Append($@",
+                                                {_checkState()}");
+                }
+
+                if (needPartitions)
+                {
+                    for (int j = 0; j < responder.InputDatas.Count; j++)
+                    {
+                        var inputDataItem = responder.InputDatas[j];
+                        builder.Append($@",
+                                                {_inputPartitions(inputData)}");
+                    }
+                }
+
+                builder.Append($@"
                                                 ); 
                                         }}
                                         );
@@ -611,7 +647,7 @@ namespace KafkaExchanger.Generators.Responder
                     }}
                     catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})
                     {{
-                        {(responder.UseLogger ? $"{_logger()}.LogError(ex);" : string.Empty)}
+                        {(responder.UseLogger ? $@"{_logger()}.LogError(ex, ""{threadName}"");" : string.Empty)}
                         goto start;
                     }}
                 }}
@@ -619,7 +655,7 @@ namespace KafkaExchanger.Generators.Responder
                     {{
                         IsBackground = true,
                         Priority = ThreadPriority.AboveNormal,
-                        Name = $""{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}""
+                        Name = $""{threadName}""
                     }};
             }}
 ");

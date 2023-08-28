@@ -47,12 +47,13 @@ namespace KafkaExchanger.Datas
         public string CheckCurrentStateFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<int,");
+            tempSb.Append("Func<");
             for (int i = 0; i < InputDatas.Count; i++)
             {
-                tempSb.Append($" int[], Input{i}Message,");
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], {InputMessages.TypeFullName(this, inputData)}, ");
             }
-            tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.RAState>>");
+            tempSb.Append("ValueTask<KafkaExchanger.Attributes.Enums.CurrentState>>");
 
             return tempSb.ToString();
         }
@@ -75,12 +76,13 @@ namespace KafkaExchanger.Datas
         public string AfterSendFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<int,");
+            tempSb.Append("Func<");
             for (int i = 0; i < InputDatas.Count; i++)
             {
-                tempSb.Append($"Input{i}Message,");
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], {InputMessages.TypeFullName(this, inputData)}, ");
             }
-            tempSb.Append($"{TypeSymbol.Name}.ResponseResult, Task>");
+            tempSb.Append("ValueTask>");
 
             return tempSb.ToString();
         }
@@ -103,12 +105,13 @@ namespace KafkaExchanger.Datas
         public string AfterCommitFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<int, ");
+            tempSb.Append("Func<long, ");
             for (int i = 0; i < InputDatas.Count; i++)
             {
-                tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], ");
             }
-            tempSb.Append(" Task>");
+            tempSb.Append("ValueTask>");
 
             return tempSb.ToString();
         }
