@@ -17,16 +17,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 ProcessorConfig[] processors
                 )
             {{
-                GroupId = groupId;
-                BootstrapServers = bootstrapServers;
-                Processors = processors;
+                {GroupId()} = groupId;
+                {BootstrapServers()} = bootstrapServers;
+                {Processors()} = processors;
             }}
 
-            public string GroupId {{ get; init; }}
+            public string {GroupId()} {{ get; init; }}
 
-            public string BootstrapServers {{ get; init; }}
+            public string {BootstrapServers()} {{ get; init; }}
 
-            public ProcessorConfig[] Processors {{ get; init; }}
+            public ProcessorConfig[] {Processors()} {{ get; init; }}
         }}
 ");
         }
@@ -39,6 +39,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static string TypeName()
         {
             return "Config";
+        }
+
+        public static string GroupId()
+        {
+            return "GroupId";
+        }
+
+        public static string BootstrapServers()
+        {
+            return "BootstrapServers";
+        }
+
+        public static string Processors()
+        {
+            return "Processors";
         }
     }
 }

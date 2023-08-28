@@ -1,5 +1,4 @@
 ﻿using KafkaExchanger.Datas;
-using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -19,14 +18,39 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             EndClass(builder);
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
         {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string TypeName()
         {
             return "DelayProduce";
+        }
+
+        public static string Bucket()
+        {
+            return "Bucket";
+        }
+
+        private static string _tryDelay()
+        {
+            return "_tryDelay";
+        }
+
+        public static string Partitions(InputData inputData)
+        {
+            return $"{inputData.NamePascalCase}Partitions";
+        }
+
+        public static string Header(OutputData outputData)
+        {
+            return $"{outputData.NamePascalCase}Header";
+        }
+
+        public static string Message(OutputData outputData)
+        {
+            return $"{outputData.MessageTypeName}";
         }
 
         private static void StartClass(
@@ -41,7 +65,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public {TypeName()}(
                 {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult tryDelay)
             {{
-                _tryDelay = tryDelay;
+                {_tryDelay()} = tryDelay;
             }}
 ");
         }
@@ -62,15 +86,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            private {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult _tryDelay;
-            public int Bucket => _tryDelay.Bucket.{Bucket.BucketId()};
-            public string MessageGuid => _tryDelay.Response.MessageGuid;
+            private {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {_tryDelay()};
+            public int {Bucket()} => {_tryDelay()}.{TryDelayProduceResult.Bucket()}.{KafkaExchanger.Generators.RequestAwaiter.Bucket.BucketId()};
+            public string MessageGuid => {_tryDelay()}.{TryDelayProduceResult.Response()}.{TopicResponse.MessageGuid()};
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] {inputData.NamePascalCase}Partitions => _tryDelay.Bucket.{Bucket.Partitions(inputData)};
+            public int[] {Partitions(inputData)} => {_tryDelay()}.{TryDelayProduceResult.Bucket()}.{KafkaExchanger.Generators.RequestAwaiter.Bucket.Partitions(inputData)};
 ");
             }
 
@@ -78,8 +102,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            public {assemblyName}.RequestHeader Output{i}Header => _tryDelay.Output{i}Header;
-            public Output{i}Message Output{i}Message => _tryDelay.Output{i}Message;
+            public {assemblyName}.RequestHeader {Header(outputData)} => {_tryDelay()}.{TryDelayProduceResult.Header(outputData)};
+            public {outputData.MessageTypeName} {Message(outputData)} => {_tryDelay()}.{TryDelayProduceResult.Message(outputData)};
 ");
             }
         }
@@ -99,7 +123,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
                 _produced = true;
                 return 
-                    _tryDelay.Bucket.Produce(_tryDelay);
+                    {_tryDelay()}.{TryDelayProduceResult.Bucket()}.Produce({_tryDelay()});
             }}
 ");
         }
@@ -125,11 +149,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     if (!_produced)
                     {{
-                        _tryDelay.Bucket.RemoveAwaiter(_tryDelay.Response.MessageGuid);
+                        {_tryDelay()}.{TryDelayProduceResult.Bucket()}.RemoveAwaiter({_tryDelay()}.{TryDelayProduceResult.Response()}.{TopicResponse.MessageGuid()});
                     }}
 
-                    _tryDelay.Bucket = null;
-                    _tryDelay = null;
+                    {_tryDelay()}.{TryDelayProduceResult.Bucket()} = null;
+                    {_tryDelay()} = null;
                     _disposedValue = true;
                 }}
             }}

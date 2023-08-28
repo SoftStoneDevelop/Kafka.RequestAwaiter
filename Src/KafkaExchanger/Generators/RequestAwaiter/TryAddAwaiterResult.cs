@@ -14,20 +14,30 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()}
         {{
-            public bool Succsess;
-            public {requestAwaiter.TypeSymbol.Name}.TopicResponse Response;
+            public bool {Succsess()};
+            public {TopicResponse.TypeFullName(requestAwaiter)} {Response()};
         }}
 ");
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
         {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string TypeName()
         {
             return "TryAddAwaiterResult";
+        }
+
+        public static string Succsess()
+        {
+            return "Succsess";
+        }
+
+        public static string Response()
+        {
+            return "Response";
         }
     }
 }

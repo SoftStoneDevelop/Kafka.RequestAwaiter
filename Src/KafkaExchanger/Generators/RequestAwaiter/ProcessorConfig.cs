@@ -2,6 +2,7 @@
 using KafkaExchanger.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -14,17 +15,74 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            Start(builder, requestAwaiter);
+
+            Constructor(builder, assemblyName, requestAwaiter);
+            FieldsAndProperties(builder, assemblyName, requestAwaiter);
+
+            End(builder, requestAwaiter);
+        }
+
+        public static void Start(
+            StringBuilder builder,
+            Datas.RequestAwaiter requestAwaiter
+            )
+        {
             builder.Append($@"
         public class {TypeName()}
         {{
             private {TypeName()}() {{ }}
+");
+        }
 
+        public static void End(
+            StringBuilder builder,
+            Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+        }}
+");
+        }
+
+        public static void Constructor(
+            StringBuilder builder,
+            string assemblyName,
+            Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            string afterSendFunc(OutputData outputData)
+            {
+                return $"afterSend{outputData.NamePascalCase}";
+            }
+
+            string checkOutputStatusFunc(OutputData outputData)
+            {
+                return $"check{outputData.NamePascalCase}Status";
+            }
+
+            string loadOutputFunc(OutputData outputData)
+            {
+                return $"load{outputData.MessageTypeName}";
+            }
+
+            string producerInfo(OutputData outputData)
+            {
+                return outputData.NameCamelCase;
+            }
+
+            string consumerInfo(InputData inputData)
+            {
+                return inputData.NameCamelCase;
+            }
+
+            builder.Append($@"
             public {TypeName()}(
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                if(i != 0)
+                if (i != 0)
                 {
                     builder.Append(',');
                 }
@@ -51,9 +109,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
             }
 
+            var currentStateParam = "currentState";
+            var afterCommitParam = "afterCommit";
             builder.Append($@"
-                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {currentStateFunc()}" : "")}
-                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {afterCommitFunc()}" : "")}
+                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {currentStateParam}" : "")}
+                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {afterCommitParam}" : "")}
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -74,25 +134,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
             }
 
+            var maxInFlyParam = "maxInFly";
+            var bucketsParam = "buckets";
             builder.Append($@",
-                int {buckets()},
-                int {maxInFly()}
+                int {bucketsParam},
+                int {maxInFlyParam}
                 )
             {{
-                {Buckets()} = {buckets()};
-                {MaxInFly()} = {maxInFly()};
+                {Buckets()} = {bucketsParam};
+                {MaxInFly()} = {maxInFlyParam};
 ");
-            if(requestAwaiter.CheckCurrentState)
+            if (requestAwaiter.CheckCurrentState)
             {
                 builder.Append($@"
-                {CurrentStateFunc()} = {currentStateFunc()};
+                {CurrentStateFunc()} = {currentStateParam};
 ");
             }
 
             if (requestAwaiter.AfterCommit)
             {
                 builder.Append($@"
-                {AfterCommitFunc()} = {afterCommitFunc()};
+                {AfterCommitFunc()} = {afterCommitParam};
 ");
             }
 
@@ -133,6 +195,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
             }}
+");
+        }
+
+        public static void FieldsAndProperties(
+            StringBuilder builder,
+            string assemblyName,
+            Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
 
             public int {Buckets()} {{ get; init; }}
             
@@ -155,7 +227,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
             public ProducerInfo {ProducerInfo(outputData)} {{ get; init; }}
 ");
-                if(requestAwaiter.AfterSend)
+                if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@"
             public {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {AfterSendFunc(outputData)} {{ get; init; }}
@@ -170,10 +242,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
                 }
             }
-
-            builder.Append($@"
-        }}
-");
         }
 
         public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
@@ -191,19 +259,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return inputData.NamePascalCase;
         }
 
-        private static string consumerInfo(InputData inputData)
-        {
-            return inputData.NameCamelCase;
-        }
-
         public static string ProducerInfo(OutputData outputData)
         {
             return outputData.NamePascalCase;
-        }
-
-        private static string producerInfo(OutputData outputData)
-        {
-            return outputData.NameCamelCase;
         }
 
         public static string LoadOutputFunc(OutputData outputData)
@@ -211,19 +269,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $"Load{outputData.MessageTypeName}";
         }
 
-        private static string loadOutputFunc(OutputData outputData)
-        {
-            return $"load{outputData.MessageTypeName}";
-        }
-
         public static string CheckOutputStatusFunc(OutputData outputData)
         {
             return $"Check{outputData.NamePascalCase}Status";
-        }
-
-        private static string checkOutputStatusFunc(OutputData outputData)
-        {
-            return $"check{outputData.NamePascalCase}Status";
         }
 
         public static string AfterSendFunc(OutputData outputData)
@@ -231,19 +279,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $"AfterSend{outputData.NamePascalCase}";
         }
 
-        private static string afterSendFunc(OutputData outputData)
-        {
-            return $"afterSend{outputData.NamePascalCase}";
-        }
-
         public static string Buckets()
         {
             return $"Buckets";
-        }
-
-        private static string buckets()
-        {
-            return $"buckets";
         }
 
         public static string MaxInFly()
@@ -251,29 +289,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $"MaxInFly";
         }
 
-        private static string maxInFly()
-        {
-            return $"maxInFly";
-        }
-
         public static string AfterCommitFunc()
         {
             return $"AfterCommit";
         }
 
-        private static string afterCommitFunc()
-        {
-            return $"afterCommit";
-        }
-
         public static string CurrentStateFunc()
         {
             return $"CurrentState";
-        }
-
-        private static string currentStateFunc()
-        {
-            return $"currentState";
         }
     }
 }

@@ -24,9 +24,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             End(sb);
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
         {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string TypeName()
@@ -43,7 +43,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()}
         {{
-            private readonly Bucket[] {_buckets()};
+            private readonly {Bucket.TypeFullName(requestAwaiter)}[] {_buckets()};
             private uint {_current()};
 ");
         }
@@ -141,10 +141,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 )
             {{
-                {_buckets()} = new Bucket[{bucketsParametr}];
+                {_buckets()} = new {Bucket.TypeFullName(requestAwaiter)}[{bucketsParametr}];
                 for (int bucketId = 0; bucketId < {bucketsParametr}; bucketId++)
                 {{
-                    {_buckets()}[bucketId] = new Bucket(
+                    {_buckets()}[bucketId] = new {Bucket.TypeFullName(requestAwaiter)}(
                         {fwsParametr},
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -230,7 +230,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult TryProduceDelay(
+            public {TryDelayProduceResult.TypeFullName(requestAwaiter)} TryProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -281,7 +281,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     Interlocked.CompareExchange(ref {_current()}, nextIndex, index);
                 }}
 
-                return new {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {{ Succsess = false }};
+                return new {TryDelayProduceResult.TypeFullName(requestAwaiter)}
+                {{ 
+                    {TryDelayProduceResult.Succsess()}  = false 
+                }};
             }}
 ");
         }
@@ -293,8 +296,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             var returnType = 
                 requestAwaiter.AddAwaiterCheckStatus ? 
-                    $"async ValueTask<{requestAwaiter.TypeSymbol.Name}.TryAddAwaiterResult>" : 
-                    $"{requestAwaiter.TypeSymbol.Name}.TryAddAwaiterResult"
+                    $"async ValueTask<{TryAddAwaiterResult.TypeFullName(requestAwaiter)}>" : 
+                    $"{TryAddAwaiterResult.TypeFullName(requestAwaiter)}"
                     ;
             builder.Append($@"
             public {returnType} TryAddAwaiter(
@@ -314,7 +317,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 for (int i = 0; i < {_buckets()}.Length; i++)
                 {{
                     var currentBucket = {_buckets()}[i];
-                    if(currentBucket.BucketId != bucket)
+                    if(currentBucket.{Bucket.BucketId()} != bucket)
                     {{
                         continue;
                     }}
@@ -329,9 +332,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     for(int j = 0; j < input{i}Partitions.Length; j++)
                     {{
                         var containPartition = false;
-                        for (int z = 0; z < currentBucket.{inputData.NamePascalCase}Partitions.Length; z++)
+                        for (int z = 0; z < currentBucket.{Bucket.Partitions(inputData)}.Length; z++)
                         {{
-                            containPartition = input{i}Partitions[j] == currentBucket.{inputData.NamePascalCase}Partitions[z];
+                            containPartition = input{i}Partitions[j] == currentBucket.{Bucket.Partitions(inputData)}[z];
                             if (containPartition)
                             {{
                                 break;
@@ -358,16 +361,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         waitResponseTimeout
                         );
                     
-                    return new TryAddAwaiterResult() 
+                    return new {TryAddAwaiterResult.TypeFullName(requestAwaiter)}() 
                     {{
-                        Succsess = true,
-                        Response = result
+                        {TryAddAwaiterResult.Succsess()} = true,
+                        {TryAddAwaiterResult.Response()} = result
                     }};
                 }}
 
-                return new {requestAwaiter.TypeSymbol.Name}.TryAddAwaiterResult 
+                return new {TryAddAwaiterResult.TypeFullName(requestAwaiter)}()
                 {{
-                    Succsess = false
+                    {TryAddAwaiterResult.Succsess()} = false
                 }};
             }}
 ");

@@ -21,13 +21,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 int[] partitions
                 )
             {{
-                TopicName = topicName;
+                {TopicName()} = topicName;
                 Partitions = partitions;
             }}
 
-            public string TopicName {{ get; init; }}
+            public string {TopicName()} {{ get; init; }}
 
-            public int[] Partitions {{ get; init; }}
+            public int[] {Partitions()} {{ get; init; }}
         }}
 ");
         }
@@ -40,6 +40,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static string TypeName()
         {
             return "ConsumerInfo";
+        }
+
+        public static string TopicName()
+        {
+            return "TopicName";
+        }
+
+        public static string Partitions()
+        {
+            return "Partitions";
         }
     }
 }
