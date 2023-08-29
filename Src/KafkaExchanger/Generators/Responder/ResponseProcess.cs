@@ -98,7 +98,7 @@ namespace KafkaExchanger.Generators.Responder
 
         private static string _partitions(InputData inputData)
         {
-            return $"{inputData.NameCamelCase}Partitions";
+            return $"_{inputData.NameCamelCase}Partitions";
         }
 
         private static void Constructor(
