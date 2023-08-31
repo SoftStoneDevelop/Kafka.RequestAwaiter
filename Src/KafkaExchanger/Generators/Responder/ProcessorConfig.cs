@@ -37,11 +37,6 @@ namespace KafkaExchanger.Generators.Responder
             return "CreateAnswer";
         }
 
-        public static string LoadCurrentHorizon()
-        {
-            return "LoadCurrentHorizon";
-        }
-
         public static string AfterCommit()
         {
             return "AfterCommit";
@@ -98,8 +93,7 @@ namespace KafkaExchanger.Generators.Responder
 
             builder.Append($@"
             public {TypeName()}(
-                {responder.CreateAnswerFuncType()} createAnswer,
-                {responder.LoadCurrentHorizonFuncType()} loadCurrentHorizon");
+                {responder.CreateAnswerFuncType()} createAnswer");
             if (responder.AfterCommit)
             {
                 builder.Append($@",
@@ -127,8 +121,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 )
             {{
-                {CreateAnswer()} = createAnswer;
-                {LoadCurrentHorizon()} = loadCurrentHorizon;");
+                {CreateAnswer()} = createAnswer;");
 
             if(responder.AfterCommit)
             {
@@ -166,9 +159,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public {responder.CreateAnswerFuncType()} {CreateAnswer()} {{ get; init; }}
-
-            public {responder.LoadCurrentHorizonFuncType()} {LoadCurrentHorizon()} {{ get; init; }}");
+            public {responder.CreateAnswerFuncType()} {CreateAnswer()} {{ get; init; }}");
 
             if (responder.AfterCommit)
             {

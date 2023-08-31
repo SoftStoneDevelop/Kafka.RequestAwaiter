@@ -171,13 +171,14 @@ namespace KafkaExchengerTests
                 new ResponderOneToOneSimple.Config(
                 groupId: groupId,
                 serviceName: serviceName,
-                commitAtLeastAfter: 100,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                maxBuckets: 5,
+                itemsInBucket: 100,
+                addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
                 processors: new ResponderOneToOneSimple.ProcessorConfig[]
                 {
                     new ResponderOneToOneSimple.ProcessorConfig(
-                        createAnswer: createAnswer, 
-                        loadCurrentHorizon: loadCurrentHorizon, 
+                        createAnswer: createAnswer,
                         new ResponderOneToOneSimple.ConsumerInfo(
                             _outputSimpleTopic, 
                             new int[] { 0, 1, 2 }
@@ -332,8 +333,8 @@ namespace KafkaExchengerTests
                     }
                     );
 
-                await _responder1.Start(config: _responder1Config, output0Pool: pool);
-                await _responder2.Start(config: _responder2Config, output0Pool: pool);
+                _responder1.Start(config: _responder1Config, output0Pool: pool);
+                _responder2.Start(config: _responder2Config, output0Pool: pool);
 
                 var requestsCount = 1000;
                 var answers = new Task<(RequestAwaiterSimple.Response, string)>[requestsCount];
@@ -520,8 +521,9 @@ namespace KafkaExchengerTests
                     await reqAwaiterPrepare.StopAsync(cts.Token);
                     await reqAwaiterPrepare.DisposeAsync();
                 }
-                await _responder1.Start(config: _responder1Config, output0Pool: pool);
-                await _responder2.Start(config: _responder2Config, output0Pool: pool);
+                
+                _responder1.Start(config: _responder1Config, output0Pool: pool);
+                _responder2.Start(config: _responder2Config, output0Pool: pool);
 
                 var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
                 await using (var reqAwaiter = new RequestAwaiterSimple())

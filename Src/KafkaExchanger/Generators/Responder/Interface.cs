@@ -34,7 +34,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public Task Start(
+        public void Start(
             {Config.TypeFullName(responder)} config
 ");
             for (int i = 0; i < responder.OutputDatas.Count; i++)

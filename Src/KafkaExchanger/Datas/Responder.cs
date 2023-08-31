@@ -134,17 +134,9 @@ namespace KafkaExchanger.Datas
             return $"Func<{InputMessage.TypeFullName(this)}, KafkaExchanger.Attributes.Enums.CurrentState, Task<{OutputMessage.TypeFullName(this)}>>";
         }
 
-        public string LoadCurrentHorizonFuncType()
+        public string AddNewBucketFuncType()
         {
-            var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<");
-            for (int i = 0; i < InputDatas.Count; i++)
-            {
-                tempSb.Append($"int[], ");
-            }
-            tempSb.Append("ValueTask<long>>");
-
-            return tempSb.ToString();
+            return $"Func<int, ValueTask>";
         }
     }
 }

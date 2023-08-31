@@ -19,6 +19,11 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
+
+            public int {BucketId()} {{ get; set; }}
+
+            public int {MessageId()} {{ get; set; }}
+
             public Confluent.Kafka.TopicPartitionOffset {Offset(inputData)} {{ get; set; }}
 ");
             }
@@ -40,6 +45,16 @@ namespace KafkaExchanger.Generators.Responder
         public static string Offset(InputData inputData)
         {
             return inputData.NamePascalCase;
+        }
+
+        public static string BucketId()
+        {
+            return "BucketId";
+        }
+
+        public static string MessageId()
+        {
+            return "MessageId";
         }
     }
 }

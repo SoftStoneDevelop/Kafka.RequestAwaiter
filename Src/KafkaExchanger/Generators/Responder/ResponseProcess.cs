@@ -39,9 +39,14 @@ namespace KafkaExchanger.Generators.Responder
             return "ResponseProcess";
         }
 
-        public static string HorizonId()
+        public static string BucketId()
         {
-            return "HorizonId";
+            return "BucketId";
+        }
+
+        public static string MessageId()
+        {
+            return "MessageId";
         }
 
         private static void StartClass(
@@ -114,7 +119,6 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             public {TypeName()}(
                 string guid,
-                long horizonId,
                 {responder.CreateAnswerFuncType()} createAnswer,
                 {ProduceFuncType(responder)} produce,
                 {RemoveActionType()} removeAction,
@@ -150,7 +154,6 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 )
             {{
-                {HorizonId()} = horizonId;
                 {_guid()} = guid;
                 {_createAnswer()} = createAnswer;
                 {_produce()} = produce;
@@ -191,13 +194,22 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public long {HorizonId()} 
+            public int {BucketId()} 
             {{ 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                private set;
+                set;
+            }}
+
+            public int {MessageId()} 
+            {{ 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get;
+
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set;
             }}
 
             private Task {_response()};
@@ -264,7 +276,8 @@ namespace KafkaExchanger.Generators.Responder
             }
             builder.Append($@"
                 {_response()} = null;
-                {HorizonId()} = 0;
+                {BucketId()} = 0;
+                {MessageId()} = 0;
                 {_guid()} = null;
                 {_createAnswer()} = null;
                 {_produce()} = null;
@@ -427,7 +440,8 @@ namespace KafkaExchanger.Generators.Responder
 
                 var endResponse = new {EndResponse.TypeFullName(responder)}() 
                 {{
-                    {ChannelInfo.HorizonId()} = this.HorizonId");
+                    {EndResponse.BucketId()} = this.{BucketId()},
+                    {EndResponse.MessageId()} = this.{MessageId()}");
 
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {

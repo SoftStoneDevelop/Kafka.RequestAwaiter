@@ -48,14 +48,24 @@ namespace KafkaExchanger.Generators.Responder
             return "_serviceName";
         }
 
-        private static string _commitAtLeastAfter()
-        {
-            return "_commitAtLeastAfter";
-        }
-
         private static string _createAnswer()
         {
             return "_createAnswer";
+        }
+
+        private static string _maxBuckets()
+        {
+            return "_maxBuckets";
+        }
+
+        private static string _itemsInBucket()
+        {
+            return "_itemsInBucket";
+        }
+
+        private static string _addNewBucket()
+        {
+            return "_addNewBucket";
         }
 
         private static string _inputTopicName(InputData inputData)
@@ -124,13 +134,19 @@ namespace KafkaExchanger.Generators.Responder
             }
 
             var serviceNameParam = "serviceName";
-            var commitAtLeastAfterParam = "commitAtLeastAfter";
+            var maxBucketsParam = "maxBuckets";
+            var itemsInBucketParam = "itemsInBucket";
+            var addNewBucketParam = "addNewBucket";
+
+
             builder.Append($@"
             private {TypeName()}() {{ }}
 
             public {TypeName()}(
                 string {serviceNameParam},
-                int {commitAtLeastAfterParam},
+                int {maxBucketsParam},
+                int {itemsInBucketParam},
+                {responder.AddNewBucketFuncType()} {addNewBucketParam},
 ");
             var loggerParametr = "logger";
             if(responder.UseLogger)
@@ -182,7 +198,9 @@ namespace KafkaExchanger.Generators.Responder
                 )
             {{
                 {_serviceName()} = {serviceNameParam};
-                {_commitAtLeastAfter()} = {commitAtLeastAfterParam};
+                {_maxBuckets()} = {maxBucketsParam};
+                {_itemsInBucket()} = {itemsInBucketParam};
+                {_addNewBucket()} = {addNewBucketParam};
                 {_createAnswer()} = {createAnswerParam};");
             
             if (responder.UseLogger)
@@ -229,19 +247,14 @@ namespace KafkaExchanger.Generators.Responder
 ");
         }
 
-        private static string _horizonId()
-        {
-            return $"_horizonId";
-        }
-
         private static string _needCommit()
         {
             return $"_needCommit";
         }
 
-        private static string _horizonCommitInfo()
+        private static string _commitOffsets()
         {
-            return $"_horizonCommitInfo";
+            return $"_commitOffsets";
         }
 
         private static string _tcsCommit()
@@ -290,16 +303,17 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            private long {_horizonId()};
             private int {_needCommit()};
-            private KafkaExchanger.HorizonInfo {_horizonCommitInfo()} = new(-1);
-            private int {_commitAtLeastAfter()};
+            private Confluent.Kafka.TopicPartitionOffset[] {_commitOffsets()};
             private System.Threading.Tasks.TaskCompletionSource {_tcsCommit()} = new();
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
             private System.Threading.Tasks.Task {_initializeRoutine()};
             
+            private readonly int {_maxBuckets()};
+            private readonly int {_itemsInBucket()};
+            private readonly {responder.AddNewBucketFuncType()} {_addNewBucket()};
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
             private readonly ConcurrentDictionary<string, {ResponseProcess.TypeFullName(responder)}> {_responseProcesses()} = new();
@@ -365,27 +379,11 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public async ValueTask Start(
+            public void Start(
                 string bootstrapServers,
-                string groupId,
-                {responder.LoadCurrentHorizonFuncType()} loadCurrentHorizon
+                string groupId
                 )
             {{
-                _horizonId = await loadCurrentHorizon(
-");
-            for (int i = 0; i < responder.InputDatas.Count; i++)
-            {
-                var inputData = responder.InputDatas[i];
-                if(i != 0)
-                {
-                    builder.Append(',');
-                }
-                builder.Append($@"
-                    {_inputPartitions(inputData)}
-");
-            }
-            builder.Append($@"
-                    );
                 StartConsume(bootstrapServers, groupId);
             }}
 ");
@@ -435,7 +433,12 @@ namespace KafkaExchanger.Generators.Responder
                 {_horizonRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_channel()}.Reader;
-                    var storage = new KafkaExchanger.HorizonStorage();
+                    var writer = {_initializeChannel()}.Writer;
+                    var storage = new KafkaExchanger.BucketStorage(
+                        maxBuckets: {_maxBuckets()},
+                        itemsInBucket: {_itemsInBucket()},
+                        addNewBucket: null
+                        );
                     try
                     {{
                         while (!{_cts()}.Token.IsCancellationRequested)
@@ -443,7 +446,17 @@ namespace KafkaExchanger.Generators.Responder
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
                             if (info is {StartResponse.TypeFullName(responder)} startResponse)
                             {{
-                                storage.Add(new KafkaExchanger.HorizonInfo(startResponse.{ChannelInfo.HorizonId()}));
+                                var newMessage = new KafkaExchanger.MessageInfo();
+                                newMessage.SetProcess(startResponse.{StartResponse.ResponseProcess()});
+                                var result = await storage.Push(newMessage);
+                                if(result.NeedStart)
+                                {{
+                                    var process = ({ResponseProcess.TypeFullName(responder)})result.Process;
+                                    process.{ResponseProcess.BucketId()} = result.BucketId;
+                                    process.{ResponseProcess.MessageId()} = newMessage.Id;
+
+                                    await writer.WriteAsync(process);
+                                }}
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
@@ -457,26 +470,21 @@ namespace KafkaExchanger.Generators.Responder
 ");
             }
             builder.Append($@"
-                                storage.Finish(endResponse.{ChannelInfo.HorizonId()}, offsets);
+                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.MessageId()}, offsets);
 
-                                if (storage.CanFree() < {_commitAtLeastAfter()})
+                                while (storage.TryPop(out var bucketId, out var canFreeInfos, out var needInit))
                                 {{
-                                    continue;
-                                }}
+                                    var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                                    Volatile.Write(ref {_commitOffsets()}, canFreeInfos.Last().TopicPartitionOffset);
+                                    Interlocked.Exchange(ref {_tcsCommit()}, commit);
+                                    Interlocked.Exchange(ref {_needCommit()}, 1);
 
-                                var seniorСleared = storage.ClearFinished();
-                                var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                Interlocked.Exchange(ref {_horizonCommitInfo()}, seniorСleared);
-                                Interlocked.Exchange(ref {_tcsCommit()}, commit);
-                                Interlocked.Exchange(ref {_needCommit()}, 1);
-
-                                await commit.Task.ConfigureAwait(false);
-");
+                                    await commit.Task.ConfigureAwait(false);");
             if(responder.AfterCommit)
             {
                 builder.Append($@"
                                 await {_afterCommit()}(
-                                    {_horizonId()}");
+                                    bucketId");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     var inputData = responder.InputDatas[i];
@@ -487,6 +495,19 @@ namespace KafkaExchanger.Generators.Responder
                                     ).ConfigureAwait(false);");
             }
             builder.Append($@"
+                                    if(needInit != null)
+                                    {{
+                                        for (int i = 0; i < needInit.Length; i++)
+                                        {{
+                                            var message = needInit[i];
+                                            var process = ({ResponseProcess.TypeFullName(responder)})message.TakeProcess();
+                                            process.BucketId = bucketId;
+                                            process.MessageId = message.Id;
+
+                                            await writer.WriteAsync(process);
+                                        }}
+                                    }}
+                                }}
                             }}
                             else
                             {{
@@ -523,7 +544,6 @@ namespace KafkaExchanger.Generators.Responder
                 {_initializeRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_initializeChannel()}.Reader;
-                    var storage = new KafkaExchanger.HorizonStorage();
                     try
                     {{
                         while (!{_cts()}.Token.IsCancellationRequested)
@@ -593,8 +613,8 @@ namespace KafkaExchanger.Generators.Responder
                                     var consumeResult = consumer.Consume(50);
                                     if (Interlocked.CompareExchange(ref {_needCommit()}, 0, 1) == 1)
                                     {{
-                                        var info = Volatile.Read(ref {_horizonCommitInfo()});
-                                        consumer.Commit(info.TopicPartitionOffset);
+                                        var offsets = Volatile.Read(ref {_commitOffsets()});
+                                        consumer.Commit(offsets);
                                         Volatile.Read(ref {_tcsCommit()}).SetResult();
                                     }}
 
@@ -639,10 +659,8 @@ namespace KafkaExchanger.Generators.Responder
                                     {{
                                         if(!{_responseProcesses()}.TryGetValue(inputMessage.{InputMessages.Header()}.MessageGuid, out responseProcess))
                                         {{
-                                            var horizonId = Interlocked.Increment(ref {_horizonId()});
                                             responseProcess = new {ResponseProcess.TypeFullName(responder)}(
                                                 inputMessage.{InputMessages.Header()}.MessageGuid,
-                                                horizonId,
                                                 {_createAnswer()}, 
                                                 Produce, 
                                                 (key) => {_responseProcesses()}.TryRemove(key, out _),
@@ -687,11 +705,9 @@ namespace KafkaExchanger.Generators.Responder
                                     
                                     if(created)
                                     {{
-                                        {_initializeChannel()}.Writer.WriteAsync(responseProcess).GetAwaiter().GetResult();
-
                                         var startResponse = new {StartResponse.TypeFullName(responder)}()
                                         {{
-                                            {ChannelInfo.HorizonId()} = responseProcess.{ResponseProcess.HorizonId()}
+                                            {StartResponse.ResponseProcess()} = responseProcess
                                         }};
                                         {_channel()}.Writer.WriteAsync(startResponse).GetAwaiter().GetResult();
                                     }}

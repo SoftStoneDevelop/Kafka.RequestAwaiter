@@ -28,7 +28,9 @@ namespace Responder0Console
                 groupId: responderName,
                 serviceName: responderName,
                 bootstrapServers: bootstrapServers,
-                commitAtLeastAfter: 1000,
+                maxBuckets: 5,
+                itemsInBucket: 100,
+                addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
                 new ResponderOneToOneSimple.ProcessorConfig[]
                 {
                     new ResponderOneToOneSimple.ProcessorConfig(
@@ -45,7 +47,6 @@ namespace Responder0Console
 
                             return Task.FromResult(result);
                         },
-                        loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(0L); },
                         input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 0 })
                         ),
                     new ResponderOneToOneSimple.ProcessorConfig(
@@ -62,7 +63,6 @@ namespace Responder0Console
 
                             return Task.FromResult(result);
                         },
-                        loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(0L); },
                         input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 1 })
                         ),
                     new ResponderOneToOneSimple.ProcessorConfig(
@@ -79,7 +79,6 @@ namespace Responder0Console
 
                             return Task.FromResult(result);
                         },
-                        loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(0L); },
                         input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 2 })
                         )
                 }
@@ -96,7 +95,7 @@ namespace Responder0Console
                 }
                 );
             Console.WriteLine("Start Responder");
-            await responder2.Start(config: responder1Config, output0Pool: pool);
+            responder2.Start(config: responder1Config, output0Pool: pool);
             Console.WriteLine("Responder started");
 
             while (true)

@@ -75,7 +75,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public async Task Start(
+        public void Start(
             {Config.TypeFullName(responder)} config");
 
             for (int i = 0; i < responder.OutputDatas.Count; i++)
@@ -94,7 +94,9 @@ namespace KafkaExchanger.Generators.Responder
                 {_items()}[i] =
                     new {PartitionItem.TypeFullName(responder)}(
                         config.{Config.ServiceName()},
-                        config.{Config.CommitAtLeastAfter()},
+                        config.{Config.MaxBuckets()},
+                        config.{Config.ItemsInBucket()},
+                        config.{Config.AddNewBucket()},
 ");
             if (responder.UseLogger)
             {
@@ -139,10 +141,9 @@ namespace KafkaExchanger.Generators.Responder
                         processorConfig.{ProcessorConfig.CreateAnswer()}
                         );
 
-                await {_items()}[i].Start(
+                {_items()}[i].Start(
                     config.{Config.BootstrapServers()},
-                    config.{Config.GroupId()},
-                    processorConfig.{ProcessorConfig.LoadCurrentHorizon()}
+                    config.{Config.GroupId()}
                     );
             }}
         }}

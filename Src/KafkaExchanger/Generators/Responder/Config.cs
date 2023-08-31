@@ -22,14 +22,18 @@ namespace KafkaExchanger.Generators.Responder
                 string groupId,
                 string serviceName,
                 string bootstrapServers,
-                int commitAtLeastAfter,
+                int maxBuckets,
+                int itemsInBucket,
+                {responder.AddNewBucketFuncType()} addNewBucket,
                 {ProcessorConfig.TypeFullName(responder)}[] processors
                 )
             {{
                 {GroupId()} = groupId;
                 {ServiceName()} = serviceName;
                 {BootstrapServers()} = bootstrapServers;
-                {CommitAtLeastAfter()} = commitAtLeastAfter;
+                {MaxBuckets()} = maxBuckets;
+                {ItemsInBucket()} = itemsInBucket;
+                {AddNewBucket()} = addNewBucket;
                 {Processors()} = processors;
             }}
 
@@ -39,11 +43,28 @@ namespace KafkaExchanger.Generators.Responder
 
             public string {BootstrapServers()} {{ get; init; }}
 
-            public int {CommitAtLeastAfter()} {{ get; init; }}
+            public int {MaxBuckets()} {{ get; init; }}
+            public int {ItemsInBucket()} {{ get; init; }}
+            public {responder.AddNewBucketFuncType()} {AddNewBucket()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
         }}
 ");
+        }
+
+        public static string MaxBuckets()
+        {
+            return "MaxBuckets";
+        }
+
+        public static string ItemsInBucket()
+        {
+            return "ItemsInBucket";
+        }
+
+        public static string AddNewBucket()
+        {
+            return "AddNewBucket";
         }
 
         public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
@@ -74,11 +95,6 @@ namespace KafkaExchanger.Generators.Responder
         public static string GroupId()
         {
             return "GroupId";
-        }
-
-        public static string CommitAtLeastAfter()
-        {
-            return "CommitAtLeastAfter";
         }
     }
 }

@@ -13,11 +13,6 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
         public abstract class {TypeName()}
         {{
-            public long {HorizonId()} 
-            {{ 
-                get; 
-                set; 
-            }}
         }}
 ");
         }
@@ -30,11 +25,6 @@ namespace KafkaExchanger.Generators.Responder
         public static string TypeName()
         {
             return "ChannelInfo";
-        }
-
-        public static string HorizonId()
-        {
-            return "HorizonId";
         }
     }
 }
