@@ -437,7 +437,15 @@ namespace KafkaExchanger.Generators.Responder
                     var storage = new KafkaExchanger.BucketStorage(
                         maxBuckets: {_maxBuckets()},
                         itemsInBucket: {_itemsInBucket()},
-                        addNewBucket: null
+                        addNewBucket: {_addNewBucket()}
+                        );
+
+                    await storage.Init(
+                        minBuckets: 5,
+                        currentBucketsCount: static async () =>
+                        {{
+                            return await Task.FromResult(5);
+                        }}
                         );
                     try
                     {{
