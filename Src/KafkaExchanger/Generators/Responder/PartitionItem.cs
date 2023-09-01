@@ -22,6 +22,7 @@ namespace KafkaExchanger.Generators.Responder
             StartConsumeInput(builder, assemblyName, responder);
             Produce(builder, responder);
             CreateOutputHeader(builder, assemblyName, responder);
+            PushMessage(builder, responder);
 
             Stop(builder, responder);
             StopConsume(builder, responder);
@@ -445,6 +446,26 @@ namespace KafkaExchanger.Generators.Responder
 ");
             }
             builder.Append($@"
+            }}
+");
+        }
+
+        public static void PushMessage(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+            public void PushMessage(
+                int bucketId,
+                string guid
+                )
+            {{
+                {_storage()}.Push(
+                    bucketId: bucketId,
+                    guid: guid,
+                    messageInfo: new KafkaExchanger.MessageInfo({responder.InputDatas.Count})
+                    );
             }}
 ");
         }

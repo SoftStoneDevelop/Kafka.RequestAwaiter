@@ -13,6 +13,7 @@ namespace KafkaExchanger.Generators.Responder
         {
             StartInterface(responder, builder);
             Start(responder, builder);
+            Push(responder, builder);
             StopAsync(responder, builder);
             EndInterfaceOrClass(builder);
         }
@@ -45,6 +46,20 @@ namespace KafkaExchanger.Generators.Responder
 ");
             }
             builder.Append($@"
+            );
+");
+        }
+
+        private static void Push(
+            KafkaExchanger.Datas.Responder responder,
+            StringBuilder builder
+            )
+        {
+            builder.Append($@"
+        public void Push(
+            int bucketId,
+            string guid,
+            int configId
             );
 ");
         }

@@ -37,6 +37,7 @@ namespace KafkaExchanger.Generators.Responder
             PartitionItem.Append(builder, assemblyName, responder);
 
             StartMethod(builder, responder);
+            Push(builder, responder);
             StopAsync(builder);
 
             End(builder);
@@ -148,6 +149,24 @@ namespace KafkaExchanger.Generators.Responder
                     config.{Config.BucketsCount()}
                     );
             }}
+        }}
+");
+        }
+
+        private static void Push(
+            StringBuilder builder,
+            Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+        public void Push(
+            int bucketId,
+            string guid,
+            int configId
+            )
+        {{
+            var partitionItem = {_items()}[configId];
+            partitionItem.PushMessage(bucketId, guid);
         }}
 ");
         }
