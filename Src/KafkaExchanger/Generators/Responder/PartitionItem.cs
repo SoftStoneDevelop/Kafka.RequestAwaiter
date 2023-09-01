@@ -449,22 +449,17 @@ namespace KafkaExchanger.Generators.Responder
                                 startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.BucketId()} = bucketId;
                                 await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
                             }}
+                            else if (info is {SetOffsetResponse.TypeFullName(responder)} setOffsetResponse)
+                            {{
+                                storage.SetOffset(
+                                    setOffsetResponse.{SetOffsetResponse.BucketId()},
+                                    setOffsetResponse.{SetOffsetResponse.Guid()},
+                                    setOffsetResponse.{SetOffsetResponse.OffsetId()},
+                                    setOffsetResponse.{SetOffsetResponse.Offset()}
+                                    );
+                            }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
-");
-            for (int i = 0; i < responder.InputDatas.Count; i++)
-            {
-                var inputData = responder.InputDatas[i];
-                builder.Append($@"
-                                storage.SetOffset(
-                                    endResponse.{EndResponse.BucketId()},
-                                    endResponse.{EndResponse.Guid()},
-                                    {i},
-                                    endResponse.{EndResponse.Offset(inputData)}
-                                    );
-");
-            }
-            builder.Append($@"
                                 storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
 
                                 var canFreeBuckets = storage.CanFreeBuckets();

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
 {
-    internal static class EndResponse
+    internal static class SetOffsetResponse
     {
         public static void Append(
             StringBuilder builder,
@@ -14,10 +14,13 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
         public class {TypeName()} : {ChannelInfo.TypeFullName(responder)}
         {{
-
             public int {BucketId()} {{ get; set; }}
 
             public string {Guid()} {{ get; set; }}
+
+            public int {OffsetId()} {{ get; set; }}
+
+            public Confluent.Kafka.TopicPartitionOffset {Offset()} {{ get; set; }}
         }}
 ");
         }
@@ -29,7 +32,12 @@ namespace KafkaExchanger.Generators.Responder
 
         public static string TypeName()
         {
-            return "EndResponse";
+            return "SetOffsetResponse";
+        }
+
+        public static string Offset()
+        {
+            return "Offset";
         }
 
         public static string BucketId()
@@ -40,6 +48,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string Guid()
         {
             return "Guid";
+        }
+
+        public static string OffsetId()
+        {
+            return "OffsetId";
         }
     }
 }

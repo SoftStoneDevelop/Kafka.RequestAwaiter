@@ -30,6 +30,7 @@ namespace KafkaExchanger.Generators.Responder
 
             ChannelInfo.Append(builder, assemblyName, responder);
             StartResponse.Append(builder, assemblyName, responder);
+            SetOffsetResponse.Append(builder, assemblyName, responder);
             EndResponse.Append(builder, assemblyName, responder);
 
             ResponseProcess.Append(builder, assemblyName, responder);

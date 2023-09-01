@@ -369,7 +369,16 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-                var {inputData.NameCamelCase} = await {_inputTask(inputData)}.Task.ConfigureAwait(false);");
+                var {inputData.NameCamelCase} = await {_inputTask(inputData)}.Task.ConfigureAwait(false);
+                await {_writer()}.WriteAsync(
+                    new {SetOffsetResponse.TypeFullName(responder)}
+                    {{
+                        {SetOffsetResponse.BucketId()} = this.{BucketId()},
+                        {SetOffsetResponse.Guid()} = this.{Guid()},
+                        {SetOffsetResponse.OffsetId()} = {i},
+                        {SetOffsetResponse.Offset()} = {inputData.NameCamelCase}.{BaseInputMessage.TopicPartitionOffset()}
+                    }}
+                    ).ConfigureAwait(false);");
             }
 
             builder.Append($@"
@@ -437,15 +446,7 @@ namespace KafkaExchanger.Generators.Responder
                 var endResponse = new {EndResponse.TypeFullName(responder)}() 
                 {{
                     {EndResponse.BucketId()} = this.{BucketId()},
-                    {EndResponse.Guid()} = this.{Guid()}");
-
-            for (int i = 0; i < responder.InputDatas.Count; i++)
-            {
-                var inputData = responder.InputDatas[i];
-                builder.Append($@",
-                    {inputData.NamePascalCase} = {inputData.NameCamelCase}.TopicPartitionOffset");
-            }
-            builder.Append($@"
+                    {EndResponse.Guid()} = this.{Guid()}
                 }};
 
                 await {_writer()}.WriteAsync(endResponse).ConfigureAwait(false);
