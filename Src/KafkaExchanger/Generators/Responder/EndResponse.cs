@@ -22,7 +22,7 @@ namespace KafkaExchanger.Generators.Responder
 
             public int {BucketId()} {{ get; set; }}
 
-            public int {MessageId()} {{ get; set; }}
+            public string {Guid()} {{ get; set; }}
 
             public Confluent.Kafka.TopicPartitionOffset {Offset(inputData)} {{ get; set; }}
 ");
@@ -52,9 +52,9 @@ namespace KafkaExchanger.Generators.Responder
             return "BucketId";
         }
 
-        public static string MessageId()
+        public static string Guid()
         {
-            return "MessageId";
+            return "Guid";
         }
     }
 }

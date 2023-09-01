@@ -330,7 +330,7 @@ namespace KafkaExchanger.Generators.Responder
                 {{
                     AllowSynchronousContinuations = false, 
                     SingleReader = true,
-                    SingleWriter = false
+                    SingleWriter = true
                 }});
 ");
 
@@ -456,12 +456,11 @@ namespace KafkaExchanger.Generators.Responder
                             {{
                                 var newMessage = new KafkaExchanger.MessageInfo();
                                 newMessage.SetProcess(startResponse.{StartResponse.ResponseProcess()});
-                                var result = await storage.Push(newMessage);
+                                var result = await storage.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
                                 if(result.NeedStart)
                                 {{
                                     var process = ({ResponseProcess.TypeFullName(responder)})result.Process;
                                     process.{ResponseProcess.BucketId()} = result.BucketId;
-                                    process.{ResponseProcess.MessageId()} = newMessage.Id;
 
                                     await writer.WriteAsync(process);
                                 }}
@@ -478,12 +477,12 @@ namespace KafkaExchanger.Generators.Responder
 ");
             }
             builder.Append($@"
-                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.MessageId()}, offsets);
+                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()}, offsets);
 
                                 while (storage.TryPop(out var bucketId, out var canFreeInfos, out var needInit))
                                 {{
                                     var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                    Volatile.Write(ref {_commitOffsets()}, canFreeInfos.Last().TopicPartitionOffset);
+                                    Volatile.Write(ref {_commitOffsets()}, canFreeInfos.Values.OrderByDescending(or => or.TopicPartitionOffset[0].Offset).First().TopicPartitionOffset);
                                     Interlocked.Exchange(ref {_tcsCommit()}, commit);
                                     Interlocked.Exchange(ref {_needCommit()}, 1);
 
@@ -505,12 +504,10 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                                     if(needInit != null)
                                     {{
-                                        for (int i = 0; i < needInit.Length; i++)
+                                        foreach (var message in needInit.Values)
                                         {{
-                                            var message = needInit[i];
                                             var process = ({ResponseProcess.TypeFullName(responder)})message.TakeProcess();
                                             process.BucketId = bucketId;
-                                            process.MessageId = message.Id;
 
                                             await writer.WriteAsync(process);
                                         }}

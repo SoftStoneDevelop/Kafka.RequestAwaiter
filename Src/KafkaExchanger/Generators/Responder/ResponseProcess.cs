@@ -44,9 +44,9 @@ namespace KafkaExchanger.Generators.Responder
             return "BucketId";
         }
 
-        public static string MessageId()
+        public static string Guid()
         {
-            return "MessageId";
+            return "Guid";
         }
 
         private static void StartClass(
@@ -203,13 +203,10 @@ namespace KafkaExchanger.Generators.Responder
                 set;
             }}
 
-            public int {MessageId()} 
+            public string {Guid()} 
             {{ 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get;
-
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                set;
+                get => {_guid()};
             }}
 
             private Task {_response()};
@@ -277,7 +274,6 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
                 {_response()} = null;
                 {BucketId()} = 0;
-                {MessageId()} = 0;
                 {_guid()} = null;
                 {_createAnswer()} = null;
                 {_produce()} = null;
@@ -441,7 +437,7 @@ namespace KafkaExchanger.Generators.Responder
                 var endResponse = new {EndResponse.TypeFullName(responder)}() 
                 {{
                     {EndResponse.BucketId()} = this.{BucketId()},
-                    {EndResponse.MessageId()} = this.{MessageId()}");
+                    {EndResponse.Guid()} = this.{Guid()}");
 
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
