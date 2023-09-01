@@ -17,6 +17,7 @@ namespace KafkaExchanger.Generators.Responder
             Constructor(builder, responder);
             Fields(builder, responder);
             Start(builder, responder);
+            Setup(builder, responder);
             StartCommitRoutine(builder, responder);
             StartInitializeRoutine(builder, responder);
             StartConsumeInput(builder, assemblyName, responder);
@@ -401,13 +402,44 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public async Task Start(
+            public void Start(
                 string bootstrapServers,
-                string groupId,
-                {responder.BucketsCountFuncType()} currentBucketsCount
+                string groupId
                 )
             {{
                 {_cts()} = new CancellationTokenSource();
+                {_storage()}.Validate();
+                StartHorizonRoutine();
+                StartInitializeRoutine();
+                {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
+");
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                var inputData = responder.InputDatas[i];
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+                builder.Append($@"
+                    {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
+                    {_consumeRoutines()}[{i}].Start();
+");
+            }
+            builder.Append($@"
+            }}
+");
+        }
+
+        public static void Setup(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+            public async Task Setup(
+                {responder.BucketsCountFuncType()} currentBucketsCount
+                )
+            {{
                 await {_storage()}.Init(currentBucketsCount: async () => 
                 {{
                     return await currentBucketsCount(
@@ -429,24 +461,6 @@ namespace KafkaExchanger.Generators.Responder
                             );
                 }}
                 );
-                {_storage()}.Validate();
-                StartHorizonRoutine();
-                StartInitializeRoutine();
-                {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
-");
-            for (int i = 0; i < responder.InputDatas.Count; i++)
-            {
-                var inputData = responder.InputDatas[i];
-                if (i != 0)
-                {
-                    builder.Append(',');
-                }
-                builder.Append($@"
-                    {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
-                    {_consumeRoutines()}[{i}].Start();
-");
-            }
-            builder.Append($@"
             }}
 ");
         }

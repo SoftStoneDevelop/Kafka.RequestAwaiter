@@ -330,6 +330,8 @@ namespace KafkaExchengerTests
                 RequestAwaiterSimple.Config reqAwaiterConfitg;
                 CreateConfig();
 
+                await _responder1.Setup(config: _responder1Config, output0Pool: pool);
+                await _responder2.Setup(config: _responder2Config, output0Pool: pool);
                 reqAwaiter.Setup(
                     config: reqAwaiterConfitg,
                     producerPool0: pool
@@ -345,8 +347,8 @@ namespace KafkaExchengerTests
                     }
                     );
 
-                await _responder1.Start(config: _responder1Config, output0Pool: pool);
-                await _responder2.Start(config: _responder2Config, output0Pool: pool);
+                _responder1.Start();
+                _responder2.Start();
 
                 var requestsCount = 1000;
                 var answers = new Task<(RequestAwaiterSimple.Response, string)>[requestsCount];
@@ -493,6 +495,8 @@ namespace KafkaExchengerTests
 
                 RequestAwaiterSimple.Config reqAwaiterConfitg;
                 CreateConfig();
+                await _responder1.Setup(config: _responder1Config, output0Pool: pool);
+                await _responder2.Setup(config: _responder2Config, output0Pool: pool);
 
                 var requestsCount = 300;
                 var reqAwaiterPrepare = new RequestAwaiterSimple();
@@ -534,8 +538,8 @@ namespace KafkaExchengerTests
                     await reqAwaiterPrepare.DisposeAsync();
                 }
 
-                await _responder1.Start(config: _responder1Config, output0Pool: pool);
-                await _responder2.Start(config: _responder2Config, output0Pool: pool);
+                _responder1.Start();
+                _responder2.Start();
 
                 var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
                 await using (var reqAwaiter = new RequestAwaiterSimple())

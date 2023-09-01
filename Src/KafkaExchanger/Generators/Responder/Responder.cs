@@ -37,6 +37,7 @@ namespace KafkaExchanger.Generators.Responder
             PartitionItem.Append(builder, assemblyName, responder);
 
             StartMethod(builder, responder);
+            Setup(builder, responder);
             Push(builder, responder);
             StopAsync(builder);
 
@@ -53,6 +54,16 @@ namespace KafkaExchanger.Generators.Responder
             return "_items";
         }
 
+        private static string _bootstrapServers()
+        {
+            return "_bootstrapServers";
+        }
+
+        private static string _groupId()
+        {
+            return "_groupId";
+        }
+
         private static void Start(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder
@@ -63,6 +74,8 @@ namespace KafkaExchanger.Generators.Responder
     {{
         {(responder.UseLogger ? $@"private readonly ILoggerFactory {_loggerFactory()};" : "")}
         private {PartitionItem.TypeFullName(responder)}[] {_items()};
+        private string {_bootstrapServers()};
+        private string {_groupId()};
         
         public {responder.TypeSymbol.Name}({(responder.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
@@ -77,7 +90,26 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public async Task Start(
+        public void Start()
+        {{
+            for (int i = 0; i < {_items()}.Length; i++)
+            {{
+                {_items()}[i].Start(
+                    {_bootstrapServers()},
+                    {_groupId()}
+                    );
+            }}
+        }}
+");
+        }
+
+        private static void Setup(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+        public async Task Setup(
             {Config.TypeFullName(responder)} config");
 
             for (int i = 0; i < responder.OutputDatas.Count; i++)
@@ -89,6 +121,8 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             )
         {{
+            {_bootstrapServers()} = config.{Config.BootstrapServers()};
+            {_groupId()} = config.{Config.GroupId()};
             {_items()} = new {PartitionItem.TypeFullName(responder)}[config.{Config.Processors()}.Length];
             for (int i = 0; i < config.{Config.Processors()}.Length; i++)
             {{
@@ -143,11 +177,7 @@ namespace KafkaExchanger.Generators.Responder
                         processorConfig.{ProcessorConfig.CreateAnswer()}
                         );
 
-                await {_items()}[i].Start(
-                    config.{Config.BootstrapServers()},
-                    config.{Config.GroupId()},
-                    config.{Config.BucketsCount()}
-                    );
+                await {_items()}[i].Setup(config.{Config.BucketsCount()});
             }}
         }}
 ");

@@ -96,7 +96,8 @@ namespace Responder0Console
                 }
                 );
             Console.WriteLine("Start Responder");
-            await responder2.Start(config: responder1Config, output0Pool: pool);
+            await responder2.Setup(config: responder1Config, output0Pool: pool);
+            responder2.Start();
             Console.WriteLine("Responder started");
 
             while (true)
