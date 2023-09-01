@@ -3,12 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace KafkaExchanger.Generators.RequestAwaiter
+namespace KafkaExchanger.Generators.Responder
 {
     internal static class ConsumerInfo
     {
         public static void Append(
-            StringBuilder builder
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
             )
         {
             builder.Append($@"
@@ -22,7 +23,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 )
             {{
                 {TopicName()} = topicName;
-                Partitions = partitions;
+                {Partitions()} = partitions;
             }}
 
             public string {TopicName()} {{ get; init; }}
@@ -32,24 +33,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
-        {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
-        }
-
         public static string TypeName()
         {
             return "ConsumerInfo";
         }
 
-        public static string TopicName()
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
         {
-            return "TopicName";
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string Partitions()
         {
-            return "Partitions";
+            return $"Partitions";
+        }
+
+        public static string TopicName()
+        {
+            return $"TopicName";
         }
     }
 }

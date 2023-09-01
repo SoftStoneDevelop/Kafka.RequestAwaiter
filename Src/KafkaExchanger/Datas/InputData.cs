@@ -1,7 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using System;
 
-namespace KafkaExchanger.AttributeDatas
+namespace KafkaExchanger.Datas
 {
     internal class InputData : BaseTopicData
     {
@@ -89,6 +89,7 @@ namespace KafkaExchanger.AttributeDatas
                 return;
             }
 
+            _id = index;
             _namePascalCase = $"Input{index}";
             _nameCamelCase = $"{char.ToLowerInvariant(_namePascalCase[0])}{_namePascalCase.Substring(1)}";
         }

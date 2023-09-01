@@ -38,18 +38,18 @@ namespace RequestAwaiterConsole
             var outputName = "RAOutputSimple";
 
             var pool = new KafkaExchanger.Common.ProducerPoolNullString(
-                20,
+                3,
                 bootstrapServers,
                 static (config) =>
                 {
-                    config.LingerMs = 1;
+                    config.LingerMs = 5;
                     config.SocketKeepaliveEnable = true;
                     config.AllowAutoCreateTopics = false;
                 }
                 );
 
-            //using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
-            await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
+            await using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
+            //await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
 
             int requests = 0;
             while ( true )
@@ -63,65 +63,81 @@ namespace RequestAwaiterConsole
 
                 requests = int.Parse(read);
                 Console.WriteLine($"Start {requests} reqests");
-                Stopwatch sw = Stopwatch.StartNew();
-                //var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
-                var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
-                for (int i = 0; i < requests; i++)
+                var iterationTimes = new long[20];
+                for (int iteration = 0; iteration < 20; iteration++)
                 {
-                    //tasks[i] = Produce(reqAwaiter);
-                    tasks[i] = Produce2(reqAwaiter);
-                }
-                Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
-                Task.WaitAll(tasks);
-                sw.Stop();
-                Console.WriteLine($"Requests sended: {requests}");
-                Console.WriteLine($"First pack Time: {sw.ElapsedMilliseconds} ms");
-                Console.WriteLine($"Per request: {sw.ElapsedMilliseconds / requests} ms");
+                    Console.WriteLine($"Iteration {iteration}");
+                    Stopwatch sw = Stopwatch.StartNew();
+                    var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
+                    //var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
 
-                var hashSet = new Dictionary<long, int>();
-                foreach (var task in tasks)
+                    Parallel.For(0, requests, (index) => 
+                    {
+                        tasks[index] = Produce(reqAwaiter);
+                        //tasks[i] = Produce2(reqAwaiter);
+                    });
+
+                    Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
+                    Task.WaitAll(tasks);
+                    sw.Stop();
+                    iterationTimes[iteration] = sw.ElapsedMilliseconds;
+                    Console.WriteLine($"Requests sended: {requests}");
+                    Console.WriteLine($"First pack Time: {sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Per request: {sw.ElapsedMilliseconds / requests} ms");
+
+                    var hashSet = new Dictionary<long, int>();
+                    foreach (var task in tasks)
+                    {
+                        var executedTime = task.Result.Item2;
+                        if (hashSet.TryGetValue(executedTime, out var internalCount))
+                        {
+                            hashSet[executedTime] = ++internalCount;
+                        }
+                        else
+                        {
+                            hashSet[executedTime] = 1;
+                        }
+                    }
+                    Console.WriteLine($"Times:");
+
+                    var pairs = hashSet.OrderBy(or => or.Key).ToList();
+                    long startRange = pairs.First().Key;
+                    long last = pairs.First().Key;
+                    int count = pairs.First().Value;
+                    var sb = new StringBuilder();
+
+                    for (int i = 0; i < pairs.Count; i++)
+                    {
+                        KeyValuePair<long, int> item = pairs[i];
+                        if (item.Key > startRange + 100)
+                        {
+                            sb.AppendLine($"({startRange} - {last}) ms: count {count}");
+                            count = item.Value;
+                            startRange = item.Key;
+                            last = item.Key;
+                        }
+                        else if (i != 0)
+                        {
+                            count += item.Value;
+                            last = item.Key;
+                        }
+
+                        if (i == pairs.Count - 1)
+                        {
+                            sb.AppendLine($"({startRange} - {last}) ms: count {count}");
+                        }
+                    }
+
+                    Console.Write(sb.ToString());
+                }
+
+                Console.WriteLine("Iterations:");
+                for (int i = 0; i < iterationTimes.Length; i++)
                 {
-                    var executedTime = task.Result.Item2;
-                    if(hashSet.TryGetValue(executedTime, out var internalCount))
-                    {
-                        hashSet[executedTime] = ++internalCount;
-                    }
-                    else
-                    {
-                        hashSet[executedTime] = 1;
-                    }
+                    var number = i + 1;
+                    var time = iterationTimes[i];
+                    Console.WriteLine($"Iteration {number}: {time}");
                 }
-                Console.WriteLine($"Times:");
-
-                var pairs = hashSet.OrderBy(or => or.Key).ToList();
-                long startRange = pairs.First().Key;
-                long last = pairs.First().Key;
-                int count = pairs.First().Value;
-                var sb = new StringBuilder();
-
-                for (int i = 0; i < pairs.Count; i++)
-                {
-                    KeyValuePair<long, int> item = pairs[i];
-                    if (item.Key > startRange + 100)
-                    {
-                        sb.AppendLine($"({startRange} - {last}) ms: count {count}");
-                        count = item.Value;
-                        startRange = item.Key;
-                        last = item.Key;
-                    }
-                    else if(i != 0)
-                    {
-                        count += item.Value;
-                        last = item.Key;
-                    }
-
-                    if (i == pairs.Count - 1)
-                    {
-                        sb.AppendLine($"({startRange} - {last}) ms: count {count}");
-                    }
-                }
-
-                Console.Write(sb.ToString());
             }
         }
 
@@ -152,7 +168,7 @@ namespace RequestAwaiterConsole
                                 ),
                             output0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
-                            maxInFly: 100
+                            maxInFly: 20000
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
@@ -165,7 +181,7 @@ namespace RequestAwaiterConsole
                                 ),
                             output0:new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
-                            maxInFly: 100
+                            maxInFly: 20000
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
@@ -178,7 +194,7 @@ namespace RequestAwaiterConsole
                                 ),
                             output0: new RequestAwaiter.ProducerInfo(outputName),
                             buckets: 2,
-                            maxInFly: 100
+                            maxInFly: 20000
                             )
                     }
                     );

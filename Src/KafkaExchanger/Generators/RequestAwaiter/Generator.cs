@@ -1,9 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
-using KafkaExchanger.Enums;
-using KafkaExchanger.Extensions;
-using KafkaExchanger.Helpers;
-using Microsoft.CodeAnalysis;
-using System.IO;
+﻿using Microsoft.CodeAnalysis;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -14,7 +9,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public void Generate(
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter,
+            Datas.RequestAwaiter requestAwaiter,
             SourceProductionContext context
             )
         {
@@ -23,48 +18,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Start(requestAwaiter);//start file
 
             Interface.Append(_builder, assemblyName, requestAwaiter);
-
-            StartClass(requestAwaiter);
-
-            //inner classes
-            DelayProduce.Append(_builder, assemblyName, requestAwaiter);
-
-            TryProduceResult.Append(_builder, assemblyName, requestAwaiter);
-            TryDelayProduceResult.Append(_builder, assemblyName, requestAwaiter);
-            TryAddAwaiterResult.Append(_builder, requestAwaiter);
-            Response.Append(_builder, assemblyName, requestAwaiter);
-
-            Config.Append(_builder);
-            ProcessorConfig.Append(_builder, assemblyName, requestAwaiter);
-            ConsumerInfo.Append(_builder);
-            ProducerInfo.Append(_builder);
-
-            InputMessages.Append(_builder, assemblyName, requestAwaiter);
-            OutputMessages.Append(_builder, assemblyName, requestAwaiter);
-            TopicResponse.Append(_builder, assemblyName, requestAwaiter);
-            PartitionItem.Append(_builder, assemblyName, requestAwaiter);
-
-            //methods
-            StartMethod(requestAwaiter);
-            Setup(requestAwaiter);
-            Produce(requestAwaiter);
-            ProduceDelay(assemblyName, requestAwaiter);
-            AddAwaiter(requestAwaiter);
-            StopAsync();
-            DisposeAsync();
-
-            EndClass();
+            RequestAwaiter.Append(_builder, assemblyName, requestAwaiter);
 
             End();//end file
 
-            context.AddSource($"{requestAwaiter.Data.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
+            context.AddSource($"{requestAwaiter.TypeSymbol.Name}RequesterAwaiter.g.cs", _builder.ToString());
         }
 
-        private void Start(AttributeDatas.RequestAwaiter requestAwaiter)
+        private void Start(Datas.RequestAwaiter requestAwaiter)
         {
             _builder.Append($@"
 using Confluent.Kafka;
-{(requestAwaiter.Data.UseLogger ? @"using Microsoft.Extensions.Logging;" : "")}
+{(requestAwaiter.UseLogger ? @"using Microsoft.Extensions.Logging;" : "")}
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -73,332 +38,8 @@ using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace {requestAwaiter.Data.TypeSymbol.ContainingNamespace}
+namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
 {{
-");
-        }
-
-        private void StartClass(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-    {requestAwaiter.Data.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.Data.TypeSymbol.Name} : I{requestAwaiter.Data.TypeSymbol.Name}RequestAwaiter
-    {{
-        {(requestAwaiter.Data.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
-        private PartitionItem[] _items;
-        private string _bootstrapServers;
-        private string _groupId;
-        private volatile bool _isRun;
-
-        public {requestAwaiter.Data.TypeSymbol.Name}({(requestAwaiter.Data.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
-        {{
-            {(requestAwaiter.Data.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
-        }}
-");
-        }
-
-        private void StartMethod(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public void Start(
-            Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
-            )
-        {{
-            if(_isRun)
-            {{
-                throw new System.Exception(""Before starting, you need to stop the previous run: call StopAsync"");
-            }}
-
-            _isRun = true;
-            foreach (var item in _items)
-            {{
-                item.Start(
-                    _bootstrapServers,
-                    _groupId,
-                    changeConfig
-                    );
-            }}
-        }}
-");
-        }
-
-        private void EndClass()
-        {
-            _builder.Append($@"
-    }}
-");
-        }
-
-        private void Setup(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public void Setup(
-            {requestAwaiter.Data.TypeSymbol.Name}.Config config
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                _builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
-            }
-            _builder.Append($@"
-            )
-        {{
-            if(_items != null)
-            {{
-                throw new System.Exception(""Before setup new configuration, you need to stop the previous: call StopAsync"");
-            }}
-
-            _items = new PartitionItem[config.Processors.Length];
-            _bootstrapServers = config.BootstrapServers;
-            _groupId = config.GroupId;
-            for (int i = 0; i < config.Processors.Length; i++)
-            {{
-                _items[i] =
-                    new PartitionItem(
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                var inputData = requestAwaiter.InputDatas[i];
-                if (i != 0)
-                {
-                    _builder.Append(',');
-                }
-
-                _builder.Append($@"
-                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.TopicName,
-                        config.Processors[i].{ProcessorConfig.ConsumerInfoName(inputData)}.Partitions
-");
-            }
-            _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.BucketsName()},
-                        config.Processors[i].{ProcessorConfig.MaxInFlyName()}
-                        {(requestAwaiter.Data.UseLogger ? @",_loggerFactory.CreateLogger(config.GroupId)" : "")}
-                        {(requestAwaiter.Data.ConsumerData.CheckCurrentState ? $@",config.Processors[i].{ProcessorConfig.CurrentStateFuncName()}" : "")}
-                        {(requestAwaiter.Data.ConsumerData.UseAfterCommit ? $@",config.Processors[i].{ProcessorConfig.AfterCommitFuncName()}" : "")}
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.ProducerInfoName(outputData)}.TopicName,
-                        producerPool{i}
-");
-                if (requestAwaiter.Data.AfterSend)
-                {
-                    _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.AfterSendFuncName(outputData)}
-");
-                }
-
-                if(requestAwaiter.Data.AddAwaiterCheckStatus)
-                {
-                    _builder.Append($@",
-                        config.Processors[i].{ProcessorConfig.LoadOutputFuncName(outputData)},
-                        config.Processors[i].{ProcessorConfig.CheckOutputStatusFuncName(outputData)}
-");
-                }
-            }
-
-            _builder.Append($@"
-                        );
-            }}
-        }}
-");
-        }
-
-        private void StopAsync()
-        {
-            _builder.Append($@"
-        public async ValueTask StopAsync()
-        {{
-            var items = _items;
-            if(items == null)
-            {{
-                return;
-            }}
-
-            _items = null;
-            _bootstrapServers = null;
-            _groupId = null;
-            _isRun = false;
-
-            var disposeTasks = new Task[items.Length];
-            for (var i = 0; i < items.Length; i++)
-            {{
-                disposeTasks[i] = items[i].DisposeAsync().AsTask();
-            }}
-            
-            await Task.WhenAll(disposeTasks);
-        }}
-");
-        }
-
-        private void Produce(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public async ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
-");
-                }
-
-                _builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
-");
-            }
-            _builder.Append($@"
-            int waitResponseTimeout = 0
-            )
-        {{
-
-            while(true)
-            {{
-                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                var item = _items[index];
-                var tp =
-                    await item.TryProduce(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-                    key{i},
-");
-                }
-
-                _builder.Append($@"
-                    value{i},
-");
-            }
-            _builder.Append($@"
-                    waitResponseTimeout
-                ).ConfigureAwait(false);
-
-                if(tp.Succsess)
-                {{
-                    return tp.Response;
-                }}
-            }}
-        }}
-        private uint _currentItemIndex = 0;
-");
-        }
-
-        private void ProduceDelay(string assemblyName, AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce ProduceDelay(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
-");
-                }
-
-                _builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
-");
-            }
-            _builder.Append($@"
-            int waitResponseTimeout = 0
-            )
-        {{
-
-            while(true)
-            {{
-                var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                var item = _items[index];
-                var tp =
-                    item.TryProduceDelay(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
-                {
-                    _builder.Append($@"
-                        key{i},
-");
-                }
-
-                _builder.Append($@"
-                        value{i},
-");
-            }
-            _builder.Append($@"
-                        waitResponseTimeout
-                );
-
-                if(tp.Succsess)
-                {{
-                    return new {requestAwaiter.Data.TypeSymbol.Name}.DelayProduce(tp);
-                }}
-            }}
-        }}
-");
-        }
-
-        private void AddAwaiter(AttributeDatas.RequestAwaiter requestAwaiter)
-        {
-            _builder.Append($@"
-        public async ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> AddAwaiter(
-            string messageGuid,
-            int bucket,
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                _builder.Append($@"
-            int[] input{i}partitions,
-");
-            }
-            _builder.Append($@"
-            int waitResponseTimeout = 0
-            )
-        {{
-
-            for (var i = 0; i < _items.Length; i++ )
-            {{
-                var taw =
-                    {(requestAwaiter.Data.AddAwaiterCheckStatus ? "await " : "")}_items[i].TryAddAwaiter(
-                        messageGuid,
-                        bucket,
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                _builder.Append($@"
-                        input{i}partitions,
-");
-            }
-            _builder.Append($@"
-                        waitResponseTimeout
-                        );
-
-                if(taw.Succsess)
-                {{
-                    return await taw.Response.GetResponse().ConfigureAwait(false);
-                }}
-            }}
-
-            throw new System.Exception(""No matching bucket found in combination with partitions"");
-        }}
-");
-        }
-
-        private void DisposeAsync()
-        {
-            _builder.Append($@"
-        public async ValueTask DisposeAsync()
-        {{
-            await StopAsync();
-        }}
 ");
         }
 

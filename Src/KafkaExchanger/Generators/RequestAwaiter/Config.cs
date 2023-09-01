@@ -9,26 +9,51 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(StringBuilder builder)
         {
             builder.Append($@"
-        public class Config
+        public class {TypeName()}
         {{
-            public Config(
+            public {TypeName()}(
                 string groupId,
                 string bootstrapServers,
                 ProcessorConfig[] processors
                 )
             {{
-                GroupId = groupId;
-                BootstrapServers = bootstrapServers;
-                Processors = processors;
+                {GroupId()} = groupId;
+                {BootstrapServers()} = bootstrapServers;
+                {Processors()} = processors;
             }}
 
-            public string GroupId {{ get; init; }}
+            public string {GroupId()} {{ get; init; }}
 
-            public string BootstrapServers {{ get; init; }}
+            public string {BootstrapServers()} {{ get; init; }}
 
-            public ProcessorConfig[] Processors {{ get; init; }}
+            public ProcessorConfig[] {Processors()} {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        {
+            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "Config";
+        }
+
+        public static string GroupId()
+        {
+            return "GroupId";
+        }
+
+        public static string BootstrapServers()
+        {
+            return "BootstrapServers";
+        }
+
+        public static string Processors()
+        {
+            return "Processors";
         }
     }
 }

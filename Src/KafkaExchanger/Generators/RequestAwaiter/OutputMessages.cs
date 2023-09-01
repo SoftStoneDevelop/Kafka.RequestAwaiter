@@ -1,4 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
+﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
 using System.Text;
 
@@ -9,18 +9,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static void Append(
             StringBuilder builder,
             string assemblyName,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-        public class {outputData.MessageTypeName}
+        public class {TypeName(outputData)}
         {{
-            private {outputData.MessageTypeName}() {{ }}
+            private {TypeName(outputData)}() {{ }}
 
-            public {outputData.MessageTypeName}(
+            public {TypeName(outputData)}(
                 Confluent.Kafka.Message<{outputData.TypesPair}> message
 ");
                 if (outputData.KeyType.IsProtobuffType())
@@ -39,19 +39,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
             ) 
             {{
-                Message = message;
+                {Message()} = message;
 ");
                 if (outputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@"
-                Key = key;
+                {Key()} = key;
 ");
                 }
 
                 if (outputData.ValueType.IsProtobuffType())
                 {
                     builder.Append($@"
-                Value = value;
+                {Value()} = value;
 ");
                 }
 
@@ -63,26 +63,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (outputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@"
-            public {outputData.KeyType.GetFullTypeName()} Key;
+            public {outputData.KeyType.GetFullTypeName()} {Key()};
 ");
                 }
                 else
                 {
                     builder.Append($@"
-            public {outputData.KeyType.GetFullTypeName()} Key => Message.Key;
+            public {outputData.KeyType.GetFullTypeName()} {Key()} => {Message()}.Key;
 ");
                 }
 
                 if (outputData.ValueType.IsProtobuffType())
                 {
                     builder.Append($@"
-            public {outputData.ValueType.GetFullTypeName()} Value;
+            public {outputData.ValueType.GetFullTypeName()} {Value()};
 ");
                 }
                 else
                 {
                     builder.Append($@"
-            public {outputData.ValueType.GetFullTypeName()} Value => Message.Value;
+            public {outputData.ValueType.GetFullTypeName()} {Value()} => {Message()}.Value;
 ");
                 }
 
@@ -90,6 +90,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         }}
 ");
             }
+        }
+
+        public static string TypeFullName(Datas.RequestAwaiter requestAwaiter, OutputData outputData)
+        {
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName(outputData)}";
+        }
+
+        public static string TypeName(OutputData outputData)
+        {
+            return outputData.MessageTypeName;
+        }
+
+        public static string Message()
+        {
+            return "Message";
+        }
+
+        public static string Key()
+        {
+            return "Key";
+        }
+
+        public static string Value()
+        {
+            return "Value";
         }
     }
 }

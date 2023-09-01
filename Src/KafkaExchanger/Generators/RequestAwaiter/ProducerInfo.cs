@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
@@ -11,20 +9,35 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public class ProducerInfo
+        public class {TypeName()}
         {{
-            private ProducerInfo() {{ }}
+            private {TypeName()}() {{ }}
 
             public ProducerInfo(
                 string topicName
                 )
             {{
-                TopicName = topicName;
+                {TopicName()} = topicName;
             }}
 
-            public string TopicName {{ get; init; }}
+            public string {TopicName()} {{ get; init; }}
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
+        {
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "ProducerInfo";
+        }
+
+        public static string TopicName()
+        {
+            return "TopicName";
         }
     }
 }

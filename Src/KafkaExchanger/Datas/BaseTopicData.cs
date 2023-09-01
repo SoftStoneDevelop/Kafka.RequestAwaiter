@@ -1,7 +1,8 @@
 ﻿using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
+using System.Security.Cryptography;
 
-namespace KafkaExchanger.AttributeDatas
+namespace KafkaExchanger.Datas
 {
     internal abstract class BaseTopicData
     {
@@ -81,6 +82,12 @@ namespace KafkaExchanger.AttributeDatas
             get => _namePascalCase;
         }
         protected string _namePascalCase;
+
+        public int Id
+        {
+            get => _id;
+        }
+        protected int _id;
 
         public abstract void SetName(int index);
 

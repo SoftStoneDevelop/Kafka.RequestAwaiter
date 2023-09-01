@@ -1,5 +1,4 @@
-﻿using KafkaExchanger.AttributeDatas;
-using KafkaExchanger.Datas;
+﻿using KafkaExchanger.Datas;
 using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
 using System.Text;
@@ -12,8 +11,8 @@ namespace KafkaExchanger.Generators
         HashSet<OutputData> _producers = new HashSet<OutputData>(ProducerPairComparer.Default);
 
         public void FillProducerTypes(
-            List<KafkaExchanger.AttributeDatas.RequestAwaiter> requestAwaiters,
-            List<Responder> responders
+            List<KafkaExchanger.Datas.RequestAwaiter> requestAwaiters,
+            List<KafkaExchanger.Datas.Responder> responders
             ) 
         {
             foreach (var requestAwaiter in requestAwaiters) 

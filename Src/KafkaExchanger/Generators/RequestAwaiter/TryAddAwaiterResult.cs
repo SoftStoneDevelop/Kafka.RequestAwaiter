@@ -8,16 +8,36 @@ namespace KafkaExchanger.Generators.RequestAwaiter
     {
         public static void Append(
             StringBuilder builder,
-            AttributeDatas.RequestAwaiter requestAwaiter
+            Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-        public class TryAddAwaiterResult
+        public class {TypeName()}
         {{
-            public bool Succsess;
-            public {requestAwaiter.Data.TypeSymbol.Name}.TopicResponse Response;
+            public bool {Succsess()};
+            public {TopicResponse.TypeFullName(requestAwaiter)} {Response()};
         }}
 ");
+        }
+
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
+        {
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
+        }
+
+        public static string TypeName()
+        {
+            return "TryAddAwaiterResult";
+        }
+
+        public static string Succsess()
+        {
+            return "Succsess";
+        }
+
+        public static string Response()
+        {
+            return "Response";
         }
     }
 }

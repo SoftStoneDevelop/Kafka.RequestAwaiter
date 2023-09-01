@@ -24,53 +24,63 @@ namespace Responder0Console
 
             var responder2 = new ResponderOneToOneSimple();
             var responder1Config =
-                new ResponderOneToOneSimple.ConfigResponder(
+                new ResponderOneToOneSimple.Config(
                 groupId: responderName,
                 serviceName: responderName,
                 bootstrapServers: bootstrapServers,
-                new ResponderOneToOneSimple.ConsumerResponderConfig[]
+                itemsInBucket: 100,
+                inFlyLimit: 5,
+                addNewBucket: static async (bucketId, partitions, topicName) => { await Task.CompletedTask; },
+                bucketsCount: async (partitions, topicName) => { return await Task.FromResult(5); },
+                new ResponderOneToOneSimple.ProcessorConfig[]
                 {
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                    new ResponderOneToOneSimple.ProcessorConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Input: {input.Value}");
+                            Console.WriteLine($"Input: {input.Input0Message.Value}");
                             var result = new ResponderOneToOneSimple.OutputMessage()
                             {
-                                Value = $"2: Answer {input.Value}"
+                                Output0Message = new ResponderOneToOneSimple.Output0Message()
+                                {
+                                    Value = $"2: Answer {input.Input0Message.Value}"
+                                }
                             };
 
                             return Task.FromResult(result);
                         },
-                        inputTopicName: inputName,
-                        partitions: new int[] { 0 }
+                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 0 })
                         ),
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                    new ResponderOneToOneSimple.ProcessorConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Input: {input.Value}");
+                            Console.WriteLine($"Input: {input.Input0Message.Value}");
                             var result = new ResponderOneToOneSimple.OutputMessage()
                             {
-                                Value = $"2: Answer {input.Value}"
+                                Output0Message = new ResponderOneToOneSimple.Output0Message()
+                                {
+                                    Value = $"2: Answer {input.Input0Message.Value}"
+                                }
                             };
 
                             return Task.FromResult(result);
                         },
-                        inputTopicName: inputName,
-                        partitions: new int[] { 1 }
+                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 1 })
                         ),
-                    new ResponderOneToOneSimple.ConsumerResponderConfig(
+                    new ResponderOneToOneSimple.ProcessorConfig(
                         createAnswer: (input, s) =>
                         {
-                            Console.WriteLine($"Input: {input.Value}");
+                            Console.WriteLine($"Input: {input.Input0Message.Value}");
                             var result = new ResponderOneToOneSimple.OutputMessage()
                             {
-                                Value = $"2: Answer {input.Value}"
+                                Output0Message = new ResponderOneToOneSimple.Output0Message()
+                                {
+                                    Value = $"2: Answer {input.Input0Message.Value}"
+                                }
                             };
 
                             return Task.FromResult(result);
                         },
-                        inputTopicName: inputName,
-                        partitions: new int[] { 2 }
+                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 2 })
                         )
                 }
                 );
@@ -86,7 +96,8 @@ namespace Responder0Console
                 }
                 );
             Console.WriteLine("Start Responder");
-            responder2.Start(config: responder1Config, producerPool: pool);
+            await responder2.Setup(config: responder1Config, output0Pool: pool);
+            responder2.Start();
             Console.WriteLine("Responder started");
 
             while (true)
