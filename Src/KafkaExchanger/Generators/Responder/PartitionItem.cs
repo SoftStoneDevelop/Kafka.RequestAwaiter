@@ -1,8 +1,5 @@
 ﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Helpers;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
@@ -56,6 +53,11 @@ namespace KafkaExchanger.Generators.Responder
         private static string _itemsInBucket()
         {
             return "_itemsInBucket";
+        }
+
+        private static string _inFlyLimit()
+        {
+            return "_inFlyLimit";
         }
 
         private static string _addNewBucket()
@@ -130,6 +132,7 @@ namespace KafkaExchanger.Generators.Responder
 
             var serviceNameParam = "serviceName";
             var itemsInBucketParam = "itemsInBucket";
+            var inFlyLimitParam = "inFlyLimit";
             var addNewBucketParam = "addNewBucket";
 
 
@@ -139,6 +142,7 @@ namespace KafkaExchanger.Generators.Responder
             public {TypeName()}(
                 string {serviceNameParam},
                 int {itemsInBucketParam},
+                int {inFlyLimitParam},
                 {responder.AddNewBucketFuncType()} {addNewBucketParam},
 ");
             var loggerParametr = "logger";
@@ -192,6 +196,7 @@ namespace KafkaExchanger.Generators.Responder
             {{
                 {_serviceName()} = {serviceNameParam};
                 {_itemsInBucket()} = {itemsInBucketParam};
+                {_inFlyLimit()} = {inFlyLimitParam};
                 {_addNewBucket()} = {addNewBucketParam};
                 {_createAnswer()} = {createAnswerParam};");
             
@@ -242,6 +247,16 @@ namespace KafkaExchanger.Generators.Responder
         private static string _needCommit()
         {
             return $"_needCommit";
+        }
+
+        private static string _needStopConsume()
+        {
+            return $"_needStopConsume";
+        }
+
+        private static string _tcsStopConsume()
+        {
+            return $"_tcsStopConsume";
         }
 
         private static string _commitOffsets()
@@ -296,14 +311,17 @@ namespace KafkaExchanger.Generators.Responder
         {
             builder.Append($@"
             private int {_needCommit()};
+            private int {_needStopConsume()};
             private Confluent.Kafka.TopicPartitionOffset[] {_commitOffsets()};
             private System.Threading.Tasks.TaskCompletionSource {_tcsCommit()} = new();
+            private System.Threading.Tasks.TaskCompletionSource {_tcsStopConsume()} = new();
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
             private System.Threading.Tasks.Task {_horizonRoutine()};
             private System.Threading.Tasks.Task {_initializeRoutine()};
             
             private readonly int {_itemsInBucket()};
+            private readonly int {_inFlyLimit()};
             private readonly {responder.AddNewBucketFuncType()} {_addNewBucket()};
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
@@ -426,6 +444,7 @@ namespace KafkaExchanger.Generators.Responder
                     var reader = {_channel()}.Reader;
                     var writer = {_initializeChannel()}.Writer;
                     var storage = new KafkaExchanger.BucketStorage(
+                        inFlyLimit: {_inFlyLimit()},
                         inputs: {responder.InputDatas.Count},
                         itemsInBucket: {_itemsInBucket()},
                         addNewBucket: {_addNewBucket()}
@@ -439,6 +458,7 @@ namespace KafkaExchanger.Generators.Responder
                         );
                     try
                     {{
+                        var consumeStop = false;
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
@@ -451,12 +471,20 @@ namespace KafkaExchanger.Generators.Responder
                             }}
                             else if (info is {SetOffsetResponse.TypeFullName(responder)} setOffsetResponse)
                             {{
-                                storage.SetOffset(
-                                    setOffsetResponse.{SetOffsetResponse.BucketId()},
-                                    setOffsetResponse.{SetOffsetResponse.Guid()},
-                                    setOffsetResponse.{SetOffsetResponse.OffsetId()},
-                                    setOffsetResponse.{SetOffsetResponse.Offset()}
-                                    );
+                                var canStopConsume = storage.SetOffset(
+                                        setOffsetResponse.{SetOffsetResponse.BucketId()},
+                                        setOffsetResponse.{SetOffsetResponse.Guid()},
+                                        setOffsetResponse.{SetOffsetResponse.OffsetId()},
+                                        setOffsetResponse.{SetOffsetResponse.Offset()}
+                                        );
+                                
+                                if(canStopConsume && !consumeStop)
+                                {{
+                                    consumeStop = true;
+                                    var stopConsume = new TaskCompletionSource();
+                                    Interlocked.Exchange(ref {_tcsStopConsume()}, stopConsume);
+                                    Interlocked.Exchange(ref {_needStopConsume()}, 1);
+                                }}
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
@@ -473,6 +501,14 @@ namespace KafkaExchanger.Generators.Responder
                                 Volatile.Write(ref {_commitOffsets()}, offset);
                                 Interlocked.Exchange(ref {_tcsCommit()}, commit);
                                 Interlocked.Exchange(ref {_needCommit()}, 1);
+
+                                if(consumeStop)
+                                {{
+                                    consumeStop = false;
+                                    var stopConsume = Volatile.Read(ref {_tcsStopConsume()});
+                                    Interlocked.Exchange(ref {_needStopConsume()}, 0);
+                                    stopConsume.SetResult();
+                                }}
 
                                 await commit.Task.ConfigureAwait(false);");
             if(responder.AfterCommit)
@@ -597,6 +633,12 @@ namespace KafkaExchanger.Generators.Responder
                                 try
                                 {{
                                     var consumeResult = consumer.Consume(50);
+                                    if (Volatile.Read(ref {_needStopConsume()}) == 1)
+                                    {{
+                                        var stopConsume = Volatile.Read(ref {_tcsStopConsume()});
+                                        stopConsume.Task.GetAwaiter().GetResult();
+                                    }}
+
                                     if (Interlocked.CompareExchange(ref {_needCommit()}, 0, 1) == 1)
                                     {{
                                         var offsets = Volatile.Read(ref {_commitOffsets()});

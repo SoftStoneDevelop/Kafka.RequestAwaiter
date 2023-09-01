@@ -67,8 +67,7 @@ namespace KafkaExchengerTests
                     };
 
                     return Task.FromResult(result);
-                },
-                loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(1L); }
+                }
                 );
 
             _responder2 = new ResponderOneToOneSimple();
@@ -86,8 +85,7 @@ namespace KafkaExchengerTests
                     };
 
                     return Task.FromResult(result);
-                },
-                loadCurrentHorizon: static async (input0partitions) => { return await Task.FromResult(1L); }
+                }
                 );
         }
 
@@ -163,8 +161,7 @@ namespace KafkaExchengerTests
         private ResponderOneToOneSimple.Config CreateResponderConfig(
             string groupId,
             string serviceName,
-            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer,
-            Func<int[], ValueTask<long>> loadCurrentHorizon
+            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer
             )
         {
             return
@@ -173,6 +170,7 @@ namespace KafkaExchengerTests
                 serviceName: serviceName,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
                 itemsInBucket: 100,
+                inFlyLimit: 5,
                 addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
                 processors: new ResponderOneToOneSimple.ProcessorConfig[]
                 {

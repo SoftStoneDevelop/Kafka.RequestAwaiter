@@ -23,6 +23,7 @@ namespace KafkaExchanger.Generators.Responder
                 string serviceName,
                 string bootstrapServers,
                 int itemsInBucket,
+                int inFlyLimit,
                 {responder.AddNewBucketFuncType()} addNewBucket,
                 {ProcessorConfig.TypeFullName(responder)}[] processors
                 )
@@ -31,6 +32,7 @@ namespace KafkaExchanger.Generators.Responder
                 {ServiceName()} = serviceName;
                 {BootstrapServers()} = bootstrapServers;
                 {ItemsInBucket()} = itemsInBucket;
+                {InFlyLimit()} = inFlyLimit;
                 {AddNewBucket()} = addNewBucket;
                 {Processors()} = processors;
             }}
@@ -42,6 +44,9 @@ namespace KafkaExchanger.Generators.Responder
             public string {BootstrapServers()} {{ get; init; }}
 
             public int {ItemsInBucket()} {{ get; init; }}
+
+            public int {InFlyLimit()} {{ get; init; }}
+
             public {responder.AddNewBucketFuncType()} {AddNewBucket()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
@@ -52,6 +57,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string ItemsInBucket()
         {
             return "ItemsInBucket";
+        }
+
+        public static string InFlyLimit()
+        {
+            return "InFlyLimit";
         }
 
         public static string AddNewBucket()

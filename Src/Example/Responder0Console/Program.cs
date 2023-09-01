@@ -29,6 +29,7 @@ namespace Responder0Console
                 serviceName: responderName,
                 bootstrapServers: bootstrapServers,
                 itemsInBucket: 100,
+                inFlyLimit: 5,
                 addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
                 new ResponderOneToOneSimple.ProcessorConfig[]
                 {

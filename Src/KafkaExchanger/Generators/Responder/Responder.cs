@@ -96,6 +96,7 @@ namespace KafkaExchanger.Generators.Responder
                     new {PartitionItem.TypeFullName(responder)}(
                         config.{Config.ServiceName()},
                         config.{Config.ItemsInBucket()},
+                        config.{Config.InFlyLimit()},
                         config.{Config.AddNewBucket()},
 ");
             if (responder.UseLogger)
