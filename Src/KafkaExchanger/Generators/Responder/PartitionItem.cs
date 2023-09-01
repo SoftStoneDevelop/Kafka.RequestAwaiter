@@ -17,8 +17,7 @@ namespace KafkaExchanger.Generators.Responder
             Constructor(builder, responder);
             Fields(builder, responder);
             Start(builder, responder);
-            StartConsume(builder, responder);
-            StartHorizonRoutine(builder, responder);
+            StartCommitRoutine(builder, responder);
             StartInitializeRoutine(builder, responder);
             StartConsumeInput(builder, assemblyName, responder);
             Produce(builder, responder);
@@ -50,19 +49,9 @@ namespace KafkaExchanger.Generators.Responder
             return "_createAnswer";
         }
 
-        private static string _itemsInBucket()
+        private static string _storage()
         {
-            return "_itemsInBucket";
-        }
-
-        private static string _inFlyLimit()
-        {
-            return "_inFlyLimit";
-        }
-
-        private static string _addNewBucket()
-        {
-            return "_addNewBucket";
+            return "_storage";
         }
 
         private static string _inputTopicName(InputData inputData)
@@ -195,11 +184,9 @@ namespace KafkaExchanger.Generators.Responder
                 )
             {{
                 {_serviceName()} = {serviceNameParam};
-                {_itemsInBucket()} = {itemsInBucketParam};
-                {_inFlyLimit()} = {inFlyLimitParam};
-                {_addNewBucket()} = {addNewBucketParam};
-                {_createAnswer()} = {createAnswerParam};");
-            
+                {_createAnswer()} = {createAnswerParam};
+");
+
             if (responder.UseLogger)
             {
                 builder.Append($@"
@@ -240,6 +227,32 @@ namespace KafkaExchanger.Generators.Responder
 ");
             }
             builder.Append($@"
+                {_storage()} = new KafkaExchanger.BucketStorage(
+                    inFlyLimit: {inFlyLimitParam},
+                    inputs: {responder.InputDatas.Count},
+                    itemsInBucket: {itemsInBucketParam},
+                    addNewBucket: async (bucketId) => 
+                    {{
+                        await {addNewBucketParam}(
+                            bucketId,
+");
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var inputData = responder.InputDatas[i];
+                builder.Append($@"
+                            {_inputPartitions(inputData)},
+                            {_inputTopicName(inputData)}
+");
+            }
+            builder.Append($@"
+                        );
+                    }}
+                    );
             }}
 ");
         }
@@ -320,9 +333,6 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.Tasks.Task {_horizonRoutine()};
             private System.Threading.Tasks.Task {_initializeRoutine()};
             
-            private readonly int {_itemsInBucket()};
-            private readonly int {_inFlyLimit()};
-            private readonly {responder.AddNewBucketFuncType()} {_addNewBucket()};
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
             private readonly string {_serviceName()};
             private readonly ConcurrentDictionary<string, {ResponseProcess.TypeFullName(responder)}> {_responseProcesses()} = new();
@@ -341,6 +351,8 @@ namespace KafkaExchanger.Generators.Responder
                     SingleReader = true,
                     SingleWriter = true
                 }});
+
+            private readonly KafkaExchanger.BucketStorage {_storage()};
 ");
 
             if(responder.UseLogger)
@@ -388,28 +400,34 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            public void Start(
+            public async Task Start(
                 string bootstrapServers,
-                string groupId
-                )
-            {{
-                StartConsume(bootstrapServers, groupId);
-            }}
-");
-        }
-
-        public static void StartConsume(
-            StringBuilder builder,
-            KafkaExchanger.Datas.Responder responder
-            )
-        {
-            builder.Append($@"
-            private void StartConsume(
-                string bootstrapServers,
-                string groupId
+                string groupId,
+                {responder.BucketsCountFuncType()} currentBucketsCount
                 )
             {{
                 {_cts()} = new CancellationTokenSource();
+                await {_storage()}.Init(currentBucketsCount: async () => 
+                {{
+                    return await currentBucketsCount(
+");
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var inputData = responder.InputDatas[i];
+                builder.Append($@"
+                            {_inputPartitions(inputData)},
+                            {_inputTopicName(inputData)}
+");
+            }
+            builder.Append($@"
+                            );
+                }}
+                );
                 StartHorizonRoutine();
                 StartInitializeRoutine();
                 {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
@@ -431,7 +449,7 @@ namespace KafkaExchanger.Generators.Responder
 ");
         }
 
-        public static void StartHorizonRoutine(
+        public static void StartCommitRoutine(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder
             )
@@ -443,19 +461,7 @@ namespace KafkaExchanger.Generators.Responder
                 {{
                     var reader = {_channel()}.Reader;
                     var writer = {_initializeChannel()}.Writer;
-                    var storage = new KafkaExchanger.BucketStorage(
-                        inFlyLimit: {_inFlyLimit()},
-                        inputs: {responder.InputDatas.Count},
-                        itemsInBucket: {_itemsInBucket()},
-                        addNewBucket: {_addNewBucket()}
-                        );
 
-                    await storage.Init(
-                        currentBucketsCount: static async () =>
-                        {{
-                            return await Task.FromResult(5);
-                        }}
-                        );
                     try
                     {{
                         var consumeStop = false;
@@ -465,13 +471,13 @@ namespace KafkaExchanger.Generators.Responder
                             if (info is {StartResponse.TypeFullName(responder)} startResponse)
                             {{
                                 var newMessage = new KafkaExchanger.MessageInfo({responder.InputDatas.Count});
-                                var bucketId = await storage.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
+                                var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
                                 startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.BucketId()} = bucketId;
                                 await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
                             }}
                             else if (info is {SetOffsetResponse.TypeFullName(responder)} setOffsetResponse)
                             {{
-                                var canStopConsume = storage.SetOffset(
+                                var canStopConsume = {_storage()}.SetOffset(
                                         setOffsetResponse.{SetOffsetResponse.BucketId()},
                                         setOffsetResponse.{SetOffsetResponse.Guid()},
                                         setOffsetResponse.{SetOffsetResponse.OffsetId()},
@@ -488,9 +494,9 @@ namespace KafkaExchanger.Generators.Responder
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
-                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
+                                {_storage()}.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
 
-                                var canFreeBuckets = storage.CanFreeBuckets();
+                                var canFreeBuckets = {_storage()}.CanFreeBuckets();
                                 if(canFreeBuckets.Count == 0)
                                 {{
                                     continue;

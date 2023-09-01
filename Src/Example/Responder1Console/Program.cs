@@ -30,7 +30,8 @@ namespace Responder0Console
                 bootstrapServers: bootstrapServers,
                 itemsInBucket: 100,
                 inFlyLimit: 5,
-                addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
+                addNewBucket: static async (bucketId, partitions, topicName) => { await Task.CompletedTask; },
+                bucketsCount: async (partitions, topicName) => { return await Task.FromResult(5); },
                 new ResponderOneToOneSimple.ProcessorConfig[]
                 {
                     new ResponderOneToOneSimple.ProcessorConfig(
@@ -95,7 +96,7 @@ namespace Responder0Console
                 }
                 );
             Console.WriteLine("Start Responder");
-            responder2.Start(config: responder1Config, output0Pool: pool);
+            await responder2.Start(config: responder1Config, output0Pool: pool);
             Console.WriteLine("Responder started");
 
             while (true)

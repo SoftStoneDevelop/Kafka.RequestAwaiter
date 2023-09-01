@@ -25,6 +25,7 @@ namespace KafkaExchanger.Generators.Responder
                 int itemsInBucket,
                 int inFlyLimit,
                 {responder.AddNewBucketFuncType()} addNewBucket,
+                {responder.BucketsCountFuncType()} bucketsCount,
                 {ProcessorConfig.TypeFullName(responder)}[] processors
                 )
             {{
@@ -34,6 +35,7 @@ namespace KafkaExchanger.Generators.Responder
                 {ItemsInBucket()} = itemsInBucket;
                 {InFlyLimit()} = inFlyLimit;
                 {AddNewBucket()} = addNewBucket;
+                {BucketsCount()} = bucketsCount;
                 {Processors()} = processors;
             }}
 
@@ -48,6 +50,8 @@ namespace KafkaExchanger.Generators.Responder
             public int {InFlyLimit()} {{ get; init; }}
 
             public {responder.AddNewBucketFuncType()} {AddNewBucket()} {{ get; init; }}
+
+            public {responder.BucketsCountFuncType()} {BucketsCount()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
         }}
@@ -67,6 +71,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string AddNewBucket()
         {
             return "AddNewBucket";
+        }
+
+        public static string BucketsCount()
+        {
+            return "BucketsCount";
         }
 
         public static string TypeFullName(KafkaExchanger.Datas.Responder responder)

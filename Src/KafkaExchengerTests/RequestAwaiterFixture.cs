@@ -171,14 +171,29 @@ namespace KafkaExchengerTests
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
                 itemsInBucket: 100,
                 inFlyLimit: 5,
-                addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
+                addNewBucket: static async (bucketId, partitions, topicName) => { await Task.CompletedTask; },
+                bucketsCount: async (partitions, topicName) => { return await Task.FromResult(5); },
                 processors: new ResponderOneToOneSimple.ProcessorConfig[]
                 {
                     new ResponderOneToOneSimple.ProcessorConfig(
                         createAnswer: createAnswer,
                         new ResponderOneToOneSimple.ConsumerInfo(
                             _outputSimpleTopic, 
-                            new int[] { 0, 1, 2 }
+                            new int[] { 0 }
+                            )
+                        ),
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        createAnswer: createAnswer,
+                        new ResponderOneToOneSimple.ConsumerInfo(
+                            _outputSimpleTopic,
+                            new int[] { 1 }
+                            )
+                        ),
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        createAnswer: createAnswer,
+                        new ResponderOneToOneSimple.ConsumerInfo(
+                            _outputSimpleTopic,
+                            new int[] { 2 }
                             )
                         )
                 }
@@ -330,8 +345,8 @@ namespace KafkaExchengerTests
                     }
                     );
 
-                _responder1.Start(config: _responder1Config, output0Pool: pool);
-                _responder2.Start(config: _responder2Config, output0Pool: pool);
+                await _responder1.Start(config: _responder1Config, output0Pool: pool);
+                await _responder2.Start(config: _responder2Config, output0Pool: pool);
 
                 var requestsCount = 1000;
                 var answers = new Task<(RequestAwaiterSimple.Response, string)>[requestsCount];
@@ -518,9 +533,9 @@ namespace KafkaExchengerTests
                     await reqAwaiterPrepare.StopAsync(cts.Token);
                     await reqAwaiterPrepare.DisposeAsync();
                 }
-                
-                _responder1.Start(config: _responder1Config, output0Pool: pool);
-                _responder2.Start(config: _responder2Config, output0Pool: pool);
+
+                await _responder1.Start(config: _responder1Config, output0Pool: pool);
+                await _responder2.Start(config: _responder2Config, output0Pool: pool);
 
                 var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
                 await using (var reqAwaiter = new RequestAwaiterSimple())

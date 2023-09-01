@@ -76,7 +76,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public void Start(
+        public async Task Start(
             {Config.TypeFullName(responder)} config");
 
             for (int i = 0; i < responder.OutputDatas.Count; i++)
@@ -142,9 +142,10 @@ namespace KafkaExchanger.Generators.Responder
                         processorConfig.{ProcessorConfig.CreateAnswer()}
                         );
 
-                {_items()}[i].Start(
+                await {_items()}[i].Start(
                     config.{Config.BootstrapServers()},
-                    config.{Config.GroupId()}
+                    config.{Config.GroupId()},
+                    config.{Config.BucketsCount()}
                     );
             }}
         }}
