@@ -429,6 +429,7 @@ namespace KafkaExchanger.Generators.Responder
                             );
                 }}
                 );
+                {_storage()}.Validate();
                 StartHorizonRoutine();
                 StartInitializeRoutine();
                 {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
