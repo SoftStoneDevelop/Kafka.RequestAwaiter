@@ -94,7 +94,6 @@ namespace KafkaExchanger.Generators.Responder
                 {_items()}[i] =
                     new {PartitionItem.TypeFullName(responder)}(
                         config.{Config.ServiceName()},
-                        config.{Config.MaxBuckets()},
                         config.{Config.ItemsInBucket()},
                         config.{Config.AddNewBucket()},
 ");

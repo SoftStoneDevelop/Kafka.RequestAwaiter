@@ -172,7 +172,6 @@ namespace KafkaExchengerTests
                 groupId: groupId,
                 serviceName: serviceName,
                 bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
-                maxBuckets: 5,
                 itemsInBucket: 100,
                 addNewBucket: static async (bucketId) => { await Task.CompletedTask; },
                 processors: new ResponderOneToOneSimple.ProcessorConfig[]

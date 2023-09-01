@@ -22,7 +22,6 @@ namespace KafkaExchanger.Generators.Responder
                 string groupId,
                 string serviceName,
                 string bootstrapServers,
-                int maxBuckets,
                 int itemsInBucket,
                 {responder.AddNewBucketFuncType()} addNewBucket,
                 {ProcessorConfig.TypeFullName(responder)}[] processors
@@ -31,7 +30,6 @@ namespace KafkaExchanger.Generators.Responder
                 {GroupId()} = groupId;
                 {ServiceName()} = serviceName;
                 {BootstrapServers()} = bootstrapServers;
-                {MaxBuckets()} = maxBuckets;
                 {ItemsInBucket()} = itemsInBucket;
                 {AddNewBucket()} = addNewBucket;
                 {Processors()} = processors;
@@ -43,18 +41,12 @@ namespace KafkaExchanger.Generators.Responder
 
             public string {BootstrapServers()} {{ get; init; }}
 
-            public int {MaxBuckets()} {{ get; init; }}
             public int {ItemsInBucket()} {{ get; init; }}
             public {responder.AddNewBucketFuncType()} {AddNewBucket()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
         }}
 ");
-        }
-
-        public static string MaxBuckets()
-        {
-            return "MaxBuckets";
         }
 
         public static string ItemsInBucket()

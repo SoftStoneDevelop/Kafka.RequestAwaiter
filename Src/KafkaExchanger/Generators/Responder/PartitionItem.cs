@@ -53,11 +53,6 @@ namespace KafkaExchanger.Generators.Responder
             return "_createAnswer";
         }
 
-        private static string _maxBuckets()
-        {
-            return "_maxBuckets";
-        }
-
         private static string _itemsInBucket()
         {
             return "_itemsInBucket";
@@ -134,7 +129,6 @@ namespace KafkaExchanger.Generators.Responder
             }
 
             var serviceNameParam = "serviceName";
-            var maxBucketsParam = "maxBuckets";
             var itemsInBucketParam = "itemsInBucket";
             var addNewBucketParam = "addNewBucket";
 
@@ -144,7 +138,6 @@ namespace KafkaExchanger.Generators.Responder
 
             public {TypeName()}(
                 string {serviceNameParam},
-                int {maxBucketsParam},
                 int {itemsInBucketParam},
                 {responder.AddNewBucketFuncType()} {addNewBucketParam},
 ");
@@ -198,7 +191,6 @@ namespace KafkaExchanger.Generators.Responder
                 )
             {{
                 {_serviceName()} = {serviceNameParam};
-                {_maxBuckets()} = {maxBucketsParam};
                 {_itemsInBucket()} = {itemsInBucketParam};
                 {_addNewBucket()} = {addNewBucketParam};
                 {_createAnswer()} = {createAnswerParam};");
@@ -311,7 +303,6 @@ namespace KafkaExchanger.Generators.Responder
             private System.Threading.Tasks.Task {_horizonRoutine()};
             private System.Threading.Tasks.Task {_initializeRoutine()};
             
-            private readonly int {_maxBuckets()};
             private readonly int {_itemsInBucket()};
             private readonly {responder.AddNewBucketFuncType()} {_addNewBucket()};
             private readonly {responder.CreateAnswerFuncType()} {_createAnswer()};
@@ -435,13 +426,12 @@ namespace KafkaExchanger.Generators.Responder
                     var reader = {_channel()}.Reader;
                     var writer = {_initializeChannel()}.Writer;
                     var storage = new KafkaExchanger.BucketStorage(
-                        maxBuckets: {_maxBuckets()},
+                        inputs: {responder.InputDatas.Count},
                         itemsInBucket: {_itemsInBucket()},
                         addNewBucket: {_addNewBucket()}
                         );
 
                     await storage.Init(
-                        minBuckets: 5,
                         currentBucketsCount: static async () =>
                         {{
                             return await Task.FromResult(5);
@@ -454,65 +444,61 @@ namespace KafkaExchanger.Generators.Responder
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
                             if (info is {StartResponse.TypeFullName(responder)} startResponse)
                             {{
-                                var newMessage = new KafkaExchanger.MessageInfo();
-                                newMessage.SetProcess(startResponse.{StartResponse.ResponseProcess()});
-                                var result = await storage.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
-                                if(result.NeedStart)
-                                {{
-                                    var process = ({ResponseProcess.TypeFullName(responder)})result.Process;
-                                    process.{ResponseProcess.BucketId()} = result.BucketId;
-
-                                    await writer.WriteAsync(process);
-                                }}
+                                var newMessage = new KafkaExchanger.MessageInfo({responder.InputDatas.Count});
+                                var bucketId = await storage.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
+                                startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.BucketId()} = bucketId;
+                                await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
                             }}
                             else if (info is {EndResponse.TypeFullName(responder)} endResponse)
                             {{
-                                var offsets = new Confluent.Kafka.TopicPartitionOffset[{responder.InputDatas.Count}];
 ");
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
                 builder.Append($@"
-                                offsets[{i}] = endResponse.{EndResponse.Offset(inputData)};
+                                storage.SetOffset(
+                                    endResponse.{EndResponse.BucketId()},
+                                    endResponse.{EndResponse.Guid()},
+                                    {i},
+                                    endResponse.{EndResponse.Offset(inputData)}
+                                    );
 ");
             }
             builder.Append($@"
-                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()}, offsets);
+                                storage.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
 
-                                while (storage.TryPop(out var bucketId, out var canFreeInfos, out var needInit))
+                                var canFreeBuckets = storage.CanFreeBuckets();
+                                if(canFreeBuckets.Count == 0)
                                 {{
-                                    var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                    Volatile.Write(ref {_commitOffsets()}, canFreeInfos.Values.OrderByDescending(or => or.TopicPartitionOffset[0].Offset).First().TopicPartitionOffset);
-                                    Interlocked.Exchange(ref {_tcsCommit()}, commit);
-                                    Interlocked.Exchange(ref {_needCommit()}, 1);
+                                    continue;
+                                }}
 
-                                    await commit.Task.ConfigureAwait(false);");
+                                var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                                var offset = canFreeBuckets[canFreeBuckets.Count - 1].MaxOffset;
+                                Volatile.Write(ref {_commitOffsets()}, offset);
+                                Interlocked.Exchange(ref {_tcsCommit()}, commit);
+                                Interlocked.Exchange(ref {_needCommit()}, 1);
+
+                                await commit.Task.ConfigureAwait(false);");
             if(responder.AfterCommit)
             {
                 builder.Append($@"
-                                await {_afterCommit()}(
-                                    bucketId");
+                                for (int i = 0; i < canFreeBuckets.Count; i++)
+                                {{
+                                    var freeBucket = canFreeBuckets[i];
+                                    await {_afterCommit()}(
+                                        freeBucket.BucketId");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     var inputData = responder.InputDatas[i];
                     builder.Append($@",
-                                    {_inputPartitions(inputData)}");
+                                        {_inputPartitions(inputData)}");
                 }
                 builder.Append($@"
-                                    ).ConfigureAwait(false);");
+                                        ).ConfigureAwait(false);
+                                }}");
             }
             builder.Append($@"
-                                    if(needInit != null)
-                                    {{
-                                        foreach (var message in needInit.Values)
-                                        {{
-                                            var process = ({ResponseProcess.TypeFullName(responder)})message.TakeProcess();
-                                            process.BucketId = bucketId;
-
-                                            await writer.WriteAsync(process);
-                                        }}
-                                    }}
-                                }}
                             }}
                             else
                             {{
