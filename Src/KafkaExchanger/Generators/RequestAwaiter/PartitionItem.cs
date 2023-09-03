@@ -12,15 +12,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
-            StartClassPartitionItem(sb, assemblyName, requestAwaiter);
+            StartClass(sb, assemblyName, requestAwaiter);
 
-            Bucket.Append(sb, assemblyName, requestAwaiter);
-
+            PropertiesAndFields(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
+
             Start(sb);
             StopAsync(sb);
             TryProduceDelay(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
+
             End(sb);
         }
 
@@ -34,7 +35,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "PartitionItem";
         }
 
-        private static void StartClassPartitionItem(
+        private static void StartClass(
             StringBuilder builder,
             string assemblyName,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
@@ -43,20 +44,125 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()}
         {{
-            private readonly {Bucket.TypeFullName(requestAwaiter)}[] {_buckets()};
             private uint {_current()};
 ");
-        }
-
-        private static string _buckets()
-        {
-            return "_buckets";
         }
 
         private static string _current()
         {
             return "_current";
         }
+
+        private static string _needCommit()
+        {
+            return "_needCommit";
+        }
+
+        private static string _commitOffsets()
+        {
+            return "_commitOffsets";
+        }
+
+        private static string _tcsCommit()
+        {
+            return "_tcsCommit";
+        }
+
+        private static string _cts()
+        {
+            return "_cts";
+        }
+
+        private static string _afterCommit()
+        {
+            return "_afterCommit";
+        }
+
+        private static string _currentState()
+        {
+            return "_currentState";
+        }
+
+        private static string _logger()
+        {
+            return "_logger";
+        }
+
+        private static string _loadOutputMessage(OutputData outputData)
+        {
+            return $@"_load{outputData.NamePascalCase}Message";
+        }
+
+        private static string _checkOutputStatus(OutputData outputData)
+        {
+            return $@"_check{outputData.NamePascalCase}Status";
+        }
+
+        private static string _inputTopicName(InputData inputData)
+        {
+            return $@"_{inputData.NameCamelCase}Name";
+        }
+
+        private static string _inputTopicPartitions(InputData inputData)
+        {
+            return $@"_{inputData.NameCamelCase}Partitions";
+        }
+
+        private static string _itemsInBucket()
+        {
+            return "_itemsInBucket";
+        }
+
+        private static string _inFlyItemsLimit()
+        {
+            return "_inFlyItemsLimit";
+        }
+
+        private static string _storage()
+        {
+            return "_storage";
+        }
+
+        private static string _afterSendOutput(OutputData outputData)
+        {
+            return $"_afterSend{outputData.NamePascalCase}";
+        }
+
+        private static string _outputTopicName(OutputData outputData)
+        {
+            return $@"_{outputData.NameCamelCase}Name";
+        }
+
+        private static string _outputPool(OutputData outputData)
+        {
+            return $@"_{outputData.NameCamelCase}Pool";
+        }
+
+        private static string _consumeRoutines()
+        {
+            return "_consumeRoutines";
+        }
+
+        private static string _horizonRoutine()
+        {
+            return "_horizonRoutine";
+        }
+
+        private static string _initializeRoutine()
+        {
+            return "_initializeRoutine";
+        }
+
+        private static string _responseAwaiters()
+        {
+            return "_responseAwaiters";
+        }
+
+        private static string _channel()
+        {
+            return "_channel";
+        }
+
 
         private static void Constructor(
             StringBuilder builder,
@@ -89,107 +195,254 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 return $"afterCommit";
             }
 
-            var bucketsParametr = "buckets";
-            var msxInFlyParametr = "maxInFly";
-            var fwsParametr = "fws";
+            string inputTopicName(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Name";
+            }
+
+            string inputTopicPartitions(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Partitions";
+            }
+
+            string outputTopicName(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Name";
+            }
+
+            string outputPool(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Pool";
+            }
+
+            var inFlyBucketsLimitParam = "inFlyBucketsLimit";
+            var itemsInBucketParam = "itemsInBucket";
+            var addNewBucketParam = "addNewBucket";
             builder.Append($@"
             public {TypeName()}(
-                KafkaExchanger.FreeWatcherSignal {fwsParametr},
-");
+                int {inFlyBucketsLimitParam},
+                int {itemsInBucketParam},
+                {requestAwaiter.AddNewBucketFuncType()} {addNewBucketParam},");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 if (i != 0)
                 {
                     builder.Append(',');
                 }
 
                 builder.Append($@"
-                string inputTopic{i}Name,
-                int[] inputTopic{i}Partitions
-");
+                string {inputTopicName(inputData)},
+                int[] {inputTopicPartitions(inputData)}");
             }
-            builder.Append($@",
-                int {bucketsParametr},
-                int {msxInFlyParametr}
-                {(requestAwaiter.UseLogger ? @",ILogger logger" : "")}
-                {(requestAwaiter.CheckCurrentState ? $",{requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {currentStateFunc()}" : "")}
-                {(requestAwaiter.AfterCommit ? $",{requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {afterCommitFunc()}" : "")}
-");
+
+            var loggerParam = "logger";
+            if(requestAwaiter.UseLogger)
+            {
+                builder.Append($@",
+                ILogger {loggerParam}");
+            }
+
+            if(requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@",
+                {requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {currentStateFunc()}");
+            }
+
+            if (requestAwaiter.AfterCommit)
+            {
+                builder.Append($@",
+                {requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {afterCommitFunc()}");
+            }
+
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                string {outputData.NameCamelCase}Name,
-                {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
+                string {outputTopicName(outputData)},
+                {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} {outputPool(outputData)}");
 
                 if (requestAwaiter.AfterSend)
                 {
-                    builder.Append($@",{requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {afterSendFunc(outputData)}
-");
+                    builder.Append($@",
+                {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {afterSendFunc(outputData)}");
                 }
 
                 if(requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
                 {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {loadOutputFunc(outputData)},
-                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {checkOutputStatusFunc(outputData)}
-");
+                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {checkOutputStatusFunc(outputData)}");
+
                 }
             }
 
             builder.Append($@"
                 )
             {{
-                {_buckets()} = new {Bucket.TypeFullName(requestAwaiter)}[{bucketsParametr}];
-                for (int bucketId = 0; bucketId < {bucketsParametr}; bucketId++)
-                {{
-                    {_buckets()}[bucketId] = new {Bucket.TypeFullName(requestAwaiter)}(
-                        {fwsParametr},
+                {_itemsInBucket()} = {itemsInBucketParam};
+                {_inFlyItemsLimit()} = {inFlyBucketsLimitParam} * {itemsInBucketParam};
 ");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        inputTopic{i}Name,
-                        inputTopic{i}Partitions,
-");
+                        {_inputTopicName(inputData)} = {inputTopicName(inputData)};
+                        {_inputTopicPartitions(inputData)} = {inputTopicPartitions(inputData)};");
             }
 
-            builder.Append($@"
-                        bucketId,
-                        {msxInFlyParametr}
-                        {(requestAwaiter.UseLogger ? @",logger" : "")}
-                        {(requestAwaiter.CheckCurrentState ? $",{currentStateFunc()}" : "")}
-                        {(requestAwaiter.AfterCommit ? $",{afterCommitFunc()}" : "")}
-");
+            if(requestAwaiter.UseLogger)
+            {
+                builder.Append($@"
+                {_logger()} = {loggerParam};");
+            }
+
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
+                {_currentState()} = {currentStateFunc()};");
+            }
+
+            if (requestAwaiter.AfterCommit)
+            {
+                builder.Append($@"
+                {_afterCommit()} = {afterCommitFunc()};");
+            }
+            
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
-                builder.Append($@",
-                        {outputData.NameCamelCase}Name,
-                        producerPool{i}
-");
+                builder.Append($@"
+                {_outputTopicName(outputData)} = {outputTopicName(outputData)};
+                {_outputPool(outputData)} = {outputPool(outputData)};");
 
                 if (requestAwaiter.AfterSend)
                 {
-                    builder.Append($@",{afterSendFunc(outputData)}
-");
+                    builder.Append($@"
+                {_afterSendOutput(outputData)} = {afterSendFunc(outputData)};");
+
                 }
 
                 if (requestAwaiter.AddAwaiterCheckStatus)
                 {
-                    builder.Append($@",
-                        {loadOutputFunc(outputData)},
-                        {checkOutputStatusFunc(outputData)}
-");
+                    builder.Append($@"
+                {_loadOutputMessage(outputData)} = {loadOutputFunc(outputData)};
+                {_checkOutputStatus(outputData)} = {checkOutputStatusFunc(outputData)};");
+
                 }
             }
 
             builder.Append($@"
-                        );
-                }}
+                {_storage()} = new KafkaExchanger.BucketStorage(
+                    inFlyLimit: {inFlyBucketsLimitParam},
+                    inputs: {requestAwaiter.InputDatas.Count},
+                    itemsInBucket: {_itemsInBucket()},
+                    addNewBucket: async (bucketId) =>
+                    {{
+                        await {addNewBucketParam}(
+                            bucketId,
+");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                            {_inputTopicPartitions(inputData)},
+                            {_inputTopicName(inputData)}");
+            }
+            builder.Append($@"
+                            );
+                    }}
+                    );
             }}
 ");
+        }
+
+        private static void PropertiesAndFields(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            private uint {_current()};
+            private int {_needCommit()};
+            private Confluent.Kafka.TopicPartitionOffset[] {_commitOffsets()};
+            private System.Threading.Tasks.TaskCompletionSource {_tcsCommit()} = new();
+            private System.Threading.CancellationTokenSource {_cts()};
+            private System.Threading.Thread[] {_consumeRoutines()};
+            private System.Threading.Tasks.Task {_horizonRoutine()};
+            private System.Threading.Tasks.Task {_initializeRoutine()};
+
+            private readonly ConcurrentDictionary<string, {TopicResponse.TypeFullName(requestAwaiter)}> {_responseAwaiters()};
+            private readonly Channel<{ChannelInfo.TypeFullName(requestAwaiter)}> {_channel()} = Channel.CreateUnbounded<{ChannelInfo.TypeFullName(requestAwaiter)}>(
+                new UnboundedChannelOptions()
+                {{
+                    AllowSynchronousContinuations = false,
+                    SingleReader = true,
+                    SingleWriter = false
+                }});
+
+            private readonly Channel<{TopicResponse.TypeFullName(requestAwaiter)}> _initializeChannel = Channel.CreateUnbounded<{TopicResponse.TypeFullName(requestAwaiter)}>(
+                new UnboundedChannelOptions()
+                {{
+                    AllowSynchronousContinuations = false,
+                    SingleReader = true,
+                    SingleWriter = true
+                }});
+
+            private readonly KafkaExchanger.BucketStorage {_storage()};
+            private readonly int {_itemsInBucket()};
+            private readonly int {_inFlyItemsLimit()};
+");
+            if(requestAwaiter.UseLogger)
+            {
+                builder.Append($@"
+            private readonly ILogger {_logger()};");
+            }
+
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
+            private readonly {requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {_currentState()};");
+            }
+
+            if (requestAwaiter.AfterCommit)
+            {
+                builder.Append($@"
+            private readonly {requestAwaiter.AfterCommitFunc(requestAwaiter.InputDatas)} {_afterCommit()};");
+            }
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+            private readonly string {_inputTopicName(inputData)};
+            private readonly int[] {_inputTopicPartitions(inputData)};");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+            private readonly string {_outputTopicName(outputData)};
+            private readonly {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} {_outputPool(outputData)};");
+
+                if (requestAwaiter.AfterSend)
+                {
+                    builder.Append($@"
+            private readonly {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {_afterSendOutput(outputData)};");
+
+                }
+
+                if (requestAwaiter.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@"
+            private readonly {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {_loadOutputMessage(outputData)};
+            private readonly {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {_checkOutputStatus(outputData)};");
+
+                }
+            }
         }
 
         private static void Start(
@@ -203,10 +456,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
-                for (int i = 0; i < {_buckets()}.Length; i++)
-                {{
-                    {_buckets()}[i].Start(bootstrapServers, groupId, changeConfig);
-                }}
+                
             }}
 ");
         }
@@ -216,10 +466,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public async ValueTask StopAsync(CancellationToken token = default)
             {{
-                for (int i = 0; i < {_buckets()}.Length; i++)
-                {{
-                    await {_buckets()}[i].StopAsync(token);
-                }}
+                
             }}
 ");
         }
@@ -232,61 +479,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public {TryDelayProduceResult.TypeFullName(requestAwaiter)} TryProduceDelay(
 ");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                if (!outputData.KeyType.IsKafkaNull())
-                {
-                    builder.Append($@"
-                {outputData.KeyType.GetFullTypeName(true)} key{i},
-");
-                }
-
-                builder.Append($@"
-                {outputData.ValueType.GetFullTypeName(true)} value{i},
-");
-            }
-            builder.Append($@"
-                int waitResponseTimeout = 0
-                )
-            {{
-                for (int i = 0; i < {_buckets()}.Length; i++)
-                {{
-                    var index = {_current()};
-                    var tp = {_buckets()}[index].TryProduceDelay(
-");
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                if (!outputData.KeyType.IsKafkaNull())
-                {
-                    builder.Append($@"
-                    key{i},
-");
-                }
-
-                builder.Append($@"
-                    value{i},
-");
-            }
-            builder.Append($@"
-                    waitResponseTimeout
-                    );
-                    if (tp.Succsess)
-                    {{
-                        return tp;
-                    }}
-
-                    uint nextIndex = (index + 1) % (uint){_buckets()}.Length;
-                    Interlocked.CompareExchange(ref {_current()}, nextIndex, index);
-                }}
-
-                return new {TryDelayProduceResult.TypeFullName(requestAwaiter)}
-                {{ 
-                    {TryDelayProduceResult.Succsess()}  = false 
-                }};
-            }}
-");
         }
 
         private static void TryAddAwaiter(
@@ -294,85 +486,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
-            var returnType = 
-                requestAwaiter.AddAwaiterCheckStatus ? 
-                    $"async ValueTask<{TryAddAwaiterResult.TypeFullName(requestAwaiter)}>" : 
-                    $"{TryAddAwaiterResult.TypeFullName(requestAwaiter)}"
-                    ;
             builder.Append($@"
-            public {returnType} TryAddAwaiter(
+            public TODO TryAddAwaiter(
                 string messageGuid,
                 int bucket,
-");
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                builder.Append($@"
-                int[] input{i}Partitions,
-");
-            }
-            builder.Append($@"
-                int waitResponseTimeout = 0
-                )
-            {{
-                for (int i = 0; i < {_buckets()}.Length; i++)
-                {{
-                    var currentBucket = {_buckets()}[i];
-                    if(currentBucket.{Bucket.BucketId()} != bucket)
-                    {{
-                        continue;
-                    }}
-
-                    var containAll = true;
-");
-
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
-            {
-                var inputData = requestAwaiter.InputDatas[i];
-                builder.Append($@"
-                    for(int j = 0; j < input{i}Partitions.Length; j++)
-                    {{
-                        var containPartition = false;
-                        for (int z = 0; z < currentBucket.{Bucket.Partitions(inputData)}.Length; z++)
-                        {{
-                            containPartition = input{i}Partitions[j] == currentBucket.{Bucket.Partitions(inputData)}[z];
-                            if (containPartition)
-                            {{
-                                break;
-                            }}
-                        }}
-
-                        if(!containPartition)
-                        {{
-                            containAll = false;
-                            break;
-                        }}
-                    }}
-
-                    if(!containAll)
-                    {{
-                        //check next bucket
-                        continue;
-                    }}
-");
-            }
-            builder.Append($@"
-                    var result = {(requestAwaiter.AddAwaiterCheckStatus ? "await " : "")}currentBucket.AddAwaiter(
-                        messageGuid,
-                        waitResponseTimeout
-                        );
-                    
-                    return new {TryAddAwaiterResult.TypeFullName(requestAwaiter)}() 
-                    {{
-                        {TryAddAwaiterResult.Succsess()} = true,
-                        {TryAddAwaiterResult.Response()} = result
-                    }};
-                }}
-
-                return new {TryAddAwaiterResult.TypeFullName(requestAwaiter)}()
-                {{
-                    {TryAddAwaiterResult.Succsess()} = false
-                }};
-            }}
 ");
         }
 

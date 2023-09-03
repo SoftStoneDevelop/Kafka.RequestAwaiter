@@ -56,7 +56,8 @@ namespace KafkaExchanger.Datas
             tempSb.Append("Func<int,");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" int[], Input{i}Message,");
+                var inputData = inputDatas[i];
+                tempSb.Append($" int[], {inputData.MessageTypeName},");
             }
             tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.RAState>>");
 
@@ -156,7 +157,7 @@ namespace KafkaExchanger.Datas
             tempSb.Append("Func<int, ");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
+                tempSb.Append($" int[],");
             }
             tempSb.Append(" Task>");
 
@@ -174,6 +175,34 @@ namespace KafkaExchanger.Datas
 
             AfterCommit = (bool)argument.Value;
             return true;
+        }
+
+        public string AddNewBucketFuncType()
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<int,");
+            for (int i = 0; i < InputDatas.Count; i++)
+            {
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], string,");
+            }
+            tempSb.Append("ValueTask>");
+
+            return tempSb.ToString();
+        }
+
+        public string BucketsCountFuncType()
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<");
+            for (int i = 0; i < InputDatas.Count; i++)
+            {
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], string,");
+            }
+            tempSb.Append("ValueTask<int>>");
+
+            return tempSb.ToString();
         }
     }
 }

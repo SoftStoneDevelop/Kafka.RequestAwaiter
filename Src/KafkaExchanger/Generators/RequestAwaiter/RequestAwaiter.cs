@@ -31,6 +31,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             InputMessages.Append(builder, assemblyName, requestAwaiter);
             OutputMessages.Append(builder, assemblyName, requestAwaiter);
             TopicResponse.Append(builder, assemblyName, requestAwaiter);
+
+            ChannelInfo.Append(builder, assemblyName, requestAwaiter);
+            StartResponse.Append(builder, assemblyName, requestAwaiter);
+            SetOffsetResponse.Append(builder, assemblyName, requestAwaiter);
+            EndResponse.Append(builder, assemblyName, requestAwaiter);
+
             PartitionItem.Append(builder, assemblyName, requestAwaiter);
 
             //methods

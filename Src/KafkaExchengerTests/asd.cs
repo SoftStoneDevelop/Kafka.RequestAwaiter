@@ -393,12 +393,13 @@ namespace KafkaExchengerTests
             public Task<RequestAwaiterFull.Response> _response;
             private CancellationTokenSource _cts;
             private readonly string _guid;
+            private int _waitResponseTimeout;
+
             public string Guid => _guid;
 
             public int Bucket
             {
                 get;
-
                 set;
             }
 
@@ -425,10 +426,15 @@ namespace KafkaExchengerTests
                 _input0Partitions = input0Partitions;
                 _input1Partitions = input1Partitions;
                 _getCurrentState = getCurrentState;
+                _waitResponseTimeout = waitResponseTimeout;
+            }
 
-                if (waitResponseTimeout != 0)
+            public void Init()
+            {
+                _response = CreateGetResponse();
+                if (_waitResponseTimeout != 0)
                 {
-                    _cts = new CancellationTokenSource(waitResponseTimeout);
+                    _cts = new CancellationTokenSource(_waitResponseTimeout);
                     _cts.Token.Register(() =>
                     {
                         _responseInput0RAResponder1.TrySetCanceled();
@@ -437,12 +443,7 @@ namespace KafkaExchengerTests
                     useSynchronizationContext: false
                     );
                 }
-            }
 
-            public void Init(
-                )
-            {
-                _response = CreateGetResponse();
                 _response.ContinueWith(task =>
                 {
                     if (task.IsFaulted)
@@ -541,7 +542,6 @@ namespace KafkaExchengerTests
 
             public void Dispose()
             {
-                _cts?.Cancel();
                 _cts?.Dispose();
 
                 _responseInput0RAResponder1.TrySetCanceled();
@@ -699,10 +699,10 @@ namespace KafkaExchengerTests
                 StartInitializeRoutine();
                 _consumeRoutines = new Thread[2];
 
-                //_consumeRoutines[0] = StartConsumeInput0(bootstrapServers, groupId);
+                _consumeRoutines[0] = StartConsumeInput0(bootstrapServers, groupId);
                 _consumeRoutines[0].Start();
 
-                //_consumeRoutines[1] = StartConsumeInput1(bootstrapServers, groupId);
+                _consumeRoutines[1] = StartConsumeInput1(bootstrapServers, groupId);
                 _consumeRoutines[1].Start();
             }
 
