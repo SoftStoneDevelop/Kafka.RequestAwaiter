@@ -477,7 +477,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public {TryDelayProduceResult.TypeFullName(requestAwaiter)} TryProduceDelay(
+            public {TryDelayProduceResult.TypeFullName(requestAwaiter)} TryProduceDelay()
+            {{
+");
+            builder.Append($@"
+            }}
 ");
         }
 
@@ -487,9 +491,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public TODO TryAddAwaiter(
+            public void TryAddAwaiter(
                 string messageGuid,
-                int bucket,
+                int bucket
+            {{
+");
+            builder.Append($@"
+            }}
 ");
         }
 
