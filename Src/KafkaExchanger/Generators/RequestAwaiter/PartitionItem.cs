@@ -17,7 +17,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             PropertiesAndFields(sb, assemblyName, requestAwaiter);
             Constructor(sb, assemblyName, requestAwaiter);
 
-            Start(sb);
+            Start(sb, requestAwaiter);
+            Setup(sb, requestAwaiter);
             StopAsync(sb);
             TryProduceDelay(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
@@ -446,7 +447,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         }
 
         private static void Start(
-            StringBuilder builder
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
@@ -456,7 +458,50 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
-                
+                {_cts()} = new CancellationTokenSource();
+                {_storage()}.Validate();
+                StartHorizonRoutine();
+                StartInitializeRoutine();
+                {_consumeRoutines()} = new Thread[{requestAwaiter.InputDatas.Count}];");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                _consumeRoutines[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
+                _consumeRoutines[{i}].Start();
+");
+            }
+            builder.Append($@"
+            }}
+");
+        }
+
+        private static void Setup(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public void Setup(
+                {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
+                )
+            {{
+                await _storage.Init(currentBucketsCount: async () =>
+                {{
+                    return await currentBucketsCount(");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                            {_inputTopicPartitions(inputData)},
+                            {_inputTopicName(inputData)},");
+            }
+            builder.Append($@"
+                            );
+                }}
+                );
             }}
 ");
         }

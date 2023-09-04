@@ -59,8 +59,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
         public class {TypeName()} : IDisposable
-        {{
-");
+        {{");
+
         }
 
         private static void Constructor(
@@ -69,6 +69,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            string message(InputData inputData, int serviceIndex = -1)
+            {
+                if(serviceIndex == -1)
+                {
+                    return $@"{inputData.NamePascalCase}";
+                }
+                else
+                {
+                    return $@"{inputData.NamePascalCase}{serviceIndex}";
+                }
+            }
+
             builder.Append($@"
             public {TypeName()}(
                 int bucket,
@@ -84,21 +96,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
-                int[] {partitions(inputData)}
-");
+                int[] {partitions(inputData)}");
+
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@",
-                {inputData.MessageTypeName} {inputData.MessageTypeNameCamel}
-");
+                {InputMessages.TypeFullName(requestAwaiter, inputData)} {message(inputData)}");
+
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@",
-                {inputData.MessageTypeName} {inputData.MessageTypeNameCamel}{j}
-");
+                {InputMessages.TypeFullName(requestAwaiter, inputData)} {message(inputData, j)}");
+
                     }
                 }
             }
@@ -114,20 +126,20 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                {Partitions(inputData)} = {partitions(inputData)};
-");
+                {Partitions(inputData)} = {partitions(inputData)};");
+
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                {inputData.MessageTypeName} = {inputData.MessageTypeNameCamel};
-");
+                {Message(inputData)} = {message(inputData)};");
+
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-                {inputData.MessageTypeName}{j} = {inputData.MessageTypeNameCamel}{j};
+                {Message(inputData, j)} = {message(inputData, j)};
 ");
                     }
                 }
@@ -137,9 +149,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        public static string Message(InputData inputData)
+        public static string Message(InputData inputData, int serviceIndex = -1)
         {
-            return $@"{inputData.NamePascalCase}";
+            if (serviceIndex == -1)
+            {
+                return $@"{inputData.NamePascalCase}";
+            }
+            else
+            {
+                return $@"{inputData.NamePascalCase}{serviceIndex}";
+            }
         }
 
         private static void PropertiesAndFields(
@@ -152,28 +171,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private TaskCompletionSource<bool> {_responseProcess()};
 
             public int {Bucket()} {{ get; init; }}
+            public KafkaExchanger.Attributes.Enums.RAState {CurrentState()} {{ get; init; }}");
 
-            public KafkaExchanger.Attributes.Enums.RAState {CurrentState()} {{ get; init; }}
-");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                public int[] {Partitions(inputData)} {{ get; init; }}
-");
+                public int[] {Partitions(inputData)} {{ get; init; }}");
+
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-            public {inputData.MessageTypeName} {inputData.MessageTypeName} {{ get; init; }}
-");
+            public {inputData.MessageTypeName} {Message(inputData)} {{ get; init; }}");
+
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-            public {inputData.MessageTypeName} {inputData.MessageTypeName}{j} {{ get; init; }}
-");
+            public {inputData.MessageTypeName} {Message(inputData, j)} {{ get; init; }}");
+
                     }
                 }
             }
