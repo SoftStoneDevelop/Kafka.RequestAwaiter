@@ -16,6 +16,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             FieldsAndProperties(builder, requestAwaiter);
             Constructor(builder, requestAwaiter);
 
+            CreateOutput(builder, assemblyName, requestAwaiter);
             Init(builder, assemblyName, requestAwaiter);
             CreateGetResponse(builder, assemblyName, requestAwaiter);
             GetResponse(builder, requestAwaiter);
@@ -44,6 +45,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static string _responseProcess()
         {
             return "_responseProcess";
+        }
+
+        private static string _outputTask()
+        {
+            return "_outputTask";
+        }
+
+        public static string OutputTask()
+        {
+            return "OutputTask";
         }
 
         public static string Guid()
@@ -98,6 +109,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $@"_{inputData.NameCamelCase}Partitions";
         }
 
+        public static string InputPartition(InputData inputData)
+        {
+            return $@"{inputData.NamePascalCase}Partitions";
+        }
+
         private static void StartClass(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
@@ -116,6 +132,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
+            private TaskCompletionSource<{OutputMessage.TypeFullName(requestAwaiter)}> {_outputTask()} = new(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<bool> {_responseProcess()} = new(TaskCreationOptions.RunContinuationsAsynchronously);
             private Task<{Response.TypeFullName(requestAwaiter)}> {_response()};
             private CancellationTokenSource {_cts()};
@@ -125,7 +142,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private Action<string> {_removeAction()};
 
             public string {Guid()} => {_guid()};
-
+            public TaskCompletionSource<{OutputMessage.TypeFullName(requestAwaiter)}> {OutputTask()} => {_outputTask()};
             public int {Bucket()}
             {{
                 get;
@@ -159,9 +176,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                builder.Append($@",
-                int[] {_inputPartition(inputData)}
-");
+                builder.Append($@"
+            private int[] {_inputPartition(inputData)};
+            public int[] {InputPartition(inputData)} => {_inputPartition(inputData)};");
             }
         }
 
@@ -181,12 +198,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public {TypeName()}(
                 string {guidParam},
-                Action<string> {removeActionParam},");
+                Action<string> {removeActionParam}");
             var getCurrentStateParam = "getCurrentState";
             if(requestAwaiter.CheckCurrentState)
             {
-                builder.Append($@"
-                {requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {getCurrentStateParam},");
+                builder.Append($@",
+                {requestAwaiter.GetCurrentStateFunc(requestAwaiter.InputDatas)} {getCurrentStateParam}");
             }
 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
@@ -197,7 +214,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             var waitResponseTimeoutParam = "waitResponseTimeout";
-            builder.Append($@"
+            builder.Append($@",
                 int {waitResponseTimeoutParam} = 0
                 )
             {{
@@ -214,9 +231,24 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                builder.Append($@",
+                builder.Append($@"
                 {_inputPartition(inputData)} = {inputPartition(inputData)};");
             }
+
+            builder.Append($@"
+            }}
+");
+        }
+
+        private static void CreateOutput(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public void CreateOutput()
+            {{");
 
             builder.Append($@"
             }}
@@ -230,7 +262,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public async Task<{requestAwaiter.TypeSymbol.Name}.Response> Init()
+            public void Init()
             {{
                 {_response()} = CreateGetResponse();
                 if ({_waitResponseTimeout()} != 0)
@@ -318,7 +350,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             if (requestAwaiter.CheckCurrentState)
             {
                 builder.Append($@"
-                var currentState = await getCurrentState(
+                var currentState = await {_getCurrentState()}(
                     {Bucket()},");
                 for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
@@ -400,7 +432,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public Task<{requestAwaiter.TypeSymbol.Name}.Response> GetResponse()
+            public Task<{Response.TypeFullName(requestAwaiter)}> GetResponse()
             {{
                 return {_response()};
             }}

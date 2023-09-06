@@ -9,7 +9,6 @@ using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Channels;
-using KafkaExchanger;
 
 namespace KafkaExchengerTests
 {
@@ -18,11 +17,13 @@ namespace KafkaExchengerTests
     {
 
         public Task<RequestAwaiterFull.Response> Produce(
+
             System.String value0,
             int waitResponseTimeout = 0
             );
 
         public Task<RequestAwaiterFull.DelayProduce> ProduceDelay(
+
             System.String value0,
             int waitResponseTimeout = 0
             );
@@ -30,8 +31,10 @@ namespace KafkaExchengerTests
         public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);
 
         public Task Setup(
-            RequestAwaiterFull.Config config,
+            RequestAwaiterFull.Config config
+,
             KafkaExchanger.Common.IProducerPoolNullString producerPool0
+
             )
             ;
 
@@ -54,6 +57,7 @@ namespace KafkaExchengerTests
         private string _bootstrapServers;
         private string _groupId;
         private volatile bool _isRun;
+        private KafkaExchanger.FreeWatcherSignal _fws;
 
         public RequestAwaiterFull(ILoggerFactory loggerFactory)
         {
@@ -63,49 +67,30 @@ namespace KafkaExchengerTests
         public class DelayProduce : IDisposable
         {
             private DelayProduce() { }
+
             public DelayProduce(
-                int[] input0Partitions,
-                int[] input1Partitions,
-                int bucketId,
-                string guid,
-                KafkaExchengerTests.RequestHeader output0Header,
-                Output0Message output0Message,
-                RequestAwaiterFull.TopicResponse response,
-                TaskCompletionSource endDelay
+                RequestAwaiterFull.TopicResponse topicResponse,
+                RequestAwaiterFull.OutputMessage outputRequest
                 )
             {
-                Input0Partitions = input0Partitions;
-                Input1Partitions = input1Partitions;
-                Bucket = bucketId;
-                Guid = guid;
-                Output0Header = output0Header;
-                Output0Message = output0Message;
-                _endDelay = endDelay;
-                _topicResponse = response;
+                _topicResponse = topicResponse;
+                OutputRequest = outputRequest;
             }
-
-            private TaskCompletionSource _endDelay;
             private RequestAwaiterFull.TopicResponse _topicResponse;
 
-            public int Bucket { get; init; }
-            public string Guid { get; init; }
-
-            public int[] Input0Partitions { get; init; }
-
-            public int[] Input1Partitions { get; init; }
-
-            public KafkaExchengerTests.RequestHeader Output0Header { get; init; }
-            public Output0Message Output0Message { get; init; }
-
+            public RequestAwaiterFull.OutputMessage OutputRequest;
+            public int Bucket => _topicResponse.Bucket;
+            public string Guid => _topicResponse.Guid;
+            public int[] Input0Partitions => _topicResponse.Input0Partitions;
+            public int[] Input1Partitions => _topicResponse.Input1Partitions;
             public async Task<RequestAwaiterFull.Response> Produce()
             {
-                _endDelay.TrySetResult();
+                _topicResponse.OutputTask.TrySetResult(OutputRequest);
                 return
                     await _topicResponse.GetResponse();
             }
 
             private bool _disposedValue;
-            private bool _produced;
 
             public void Dispose()
             {
@@ -117,12 +102,7 @@ namespace KafkaExchengerTests
             {
                 if (!_disposedValue)
                 {
-                    if (!_endDelay.Task.IsCompleted)
-                    {
-                        _endDelay.TrySetCanceled();
-                    }
-
-                    _endDelay = null;
+                    _topicResponse.OutputTask.TrySetCanceled();
                     _topicResponse = null;
                     _disposedValue = true;
                 }
@@ -135,38 +115,17 @@ namespace KafkaExchengerTests
 
         }
 
-        public class TryDelayProduceResult
-        {
-            public bool Succsess;
-            public RequestAwaiterFull.TopicResponse Response;
-
-            public KafkaExchengerTests.RequestHeader Output0Header;
-            public Output0Message Output0Message;
-
-        }
-
-        public class TryAddAwaiterResult
-        {
-            public bool Succsess;
-            public RequestAwaiterFull.TopicResponse Response;
-        }
-
         public class Response : IDisposable
         {
-
             public Response(
                 int bucket,
                 KafkaExchanger.Attributes.Enums.RAState currentState,
                 TaskCompletionSource<bool> responseProcess
 ,
-                int[] input0Partitions
-,
-                Input0Message input0Message0
-,
-                int[] input1Partitions
-,
-                Input1Message input1Message0
-
+                int[] input0Partitions,
+                RequestAwaiterFull.Input0Message Input00,
+                int[] input1Partitions,
+                RequestAwaiterFull.Input1Message Input10
                 )
             {
                 Bucket = bucket;
@@ -174,29 +133,21 @@ namespace KafkaExchengerTests
                 _responseProcess = responseProcess;
 
                 Input0Partitions = input0Partitions;
-
-                Input0Message0 = input0Message0;
+                Input00 = Input00;
 
                 Input1Partitions = input1Partitions;
-
-                Input1Message0 = input1Message0;
+                Input10 = Input10;
 
             }
 
             private TaskCompletionSource<bool> _responseProcess;
 
             public int Bucket { get; init; }
-
             public KafkaExchanger.Attributes.Enums.RAState CurrentState { get; init; }
-
             public int[] Input0Partitions { get; init; }
-
-            public Input0Message Input0Message0 { get; init; }
-
+            public Input0Message Input00 { get; init; }
             public int[] Input1Partitions { get; init; }
-
-            public Input1Message Input1Message0 { get; init; }
-
+            public Input1Message Input10 { get; init; }
             private bool _disposed;
 
             public void Dispose()
@@ -264,14 +215,21 @@ namespace KafkaExchengerTests
             private ProcessorConfig() { }
 
             public ProcessorConfig(
-                ConsumerInfo input0,
-                ConsumerInfo input1,
-                ProducerInfo output0,
-                Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> currentState,
-                Func<int, int[], int[], Task> afterCommit,
-                Func<KafkaExchengerTests.RequestHeader, Output0Message, Task> afterSendOutput0,
+
+                ConsumerInfo input0
+,
+                ConsumerInfo input1
+,
+                ProducerInfo output0
+
+                , Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> currentState
+                , Func<int, int[], int[], Task> afterCommit
+,
+                Func<KafkaExchengerTests.RequestHeader, Output0Message, Task> afterSendOutput0
+,
                 Func<string, int, int[], int[], Task<Output0Message>> loadOutput0Message,
-                Func<string, int, int[], int[], Task<KafkaExchanger.Attributes.Enums.RAState>> checkOutput0Status,
+                Func<string, int, int[], int[], Task<KafkaExchanger.Attributes.Enums.RAState>> checkOutput0Status
+,
                 int buckets,
                 int maxInFly
                 )
@@ -339,7 +297,7 @@ namespace KafkaExchengerTests
         public abstract class BaseInputMessage
         {
             public string TopicName { get; set; }
-            public Confluent.Kafka.Partition Partition { get; set; }
+            public Confluent.Kafka.TopicPartitionOffset TopicPartitionOffset { get; set; }
         }
 
         public class Input0Message : RequestAwaiterFull.BaseInputMessage
@@ -366,6 +324,13 @@ namespace KafkaExchengerTests
 
         }
 
+        public class OutputMessage
+        {
+
+            public KafkaExchengerTests.RequestHeader Output0Header { get; set; }
+            public RequestAwaiterFull.Output0Message Output0 { get; set; }
+        }
+
         public class Output0Message
         {
             private Output0Message() { }
@@ -387,35 +352,42 @@ namespace KafkaExchengerTests
 
         }
 
+        public class TryAddAwaiterResult
+        {
+            public bool Succsess;
+            public RequestAwaiterFull.TopicResponse Response;
+        }
+
         public class TopicResponse : IDisposable
         {
+
+            private TaskCompletionSource<RequestAwaiterFull.OutputMessage> _outputTask = new(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<bool> _responseProcess = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            public Task<RequestAwaiterFull.Response> _response;
+            private Task<RequestAwaiterFull.Response> _response;
             private CancellationTokenSource _cts;
             private readonly string _guid;
             private int _waitResponseTimeout;
 
-            public string Guid => _guid;
+            private Action<string> _removeAction;
 
+            public string Guid => _guid;
+            public TaskCompletionSource<RequestAwaiterFull.OutputMessage> OutputTask => _outputTask;
             public int Bucket
             {
                 get;
                 set;
             }
-
-            private TaskCompletionSource<Input0Message> _responseInput0RAResponder1 = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            private TaskCompletionSource<Input1Message> _responseInput1RAResponder2 = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            private Action<string> _removeAction;
-
-            private int[] _input0Partitions;
-            private int[] _input1Partitions;
             private Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> _getCurrentState;
-
+            private TaskCompletionSource<Input0Message> _input0RAResponder1Task = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<Input1Message> _input1RAResponder2Task = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int[] _input0Partitions;
+            public int[] Input0Partitions => _input0Partitions;
+            private int[] _input1Partitions;
+            public int[] Input1Partitions => _input1Partitions;
             public TopicResponse(
-                Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> getCurrentState,
                 string guid,
                 Action<string> removeAction,
+                Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> getCurrentState,
                 int[] input0Partitions,
                 int[] input1Partitions,
                 int waitResponseTimeout = 0
@@ -423,10 +395,14 @@ namespace KafkaExchengerTests
             {
                 _guid = guid;
                 _removeAction = removeAction;
+                _waitResponseTimeout = waitResponseTimeout;
+                _getCurrentState = getCurrentState;
                 _input0Partitions = input0Partitions;
                 _input1Partitions = input1Partitions;
-                _getCurrentState = getCurrentState;
-                _waitResponseTimeout = waitResponseTimeout;
+            }
+
+            public void CreateOutput()
+            {
             }
 
             public void Init()
@@ -437,8 +413,8 @@ namespace KafkaExchengerTests
                     _cts = new CancellationTokenSource(_waitResponseTimeout);
                     _cts.Token.Register(() =>
                     {
-                        _responseInput0RAResponder1.TrySetCanceled();
-                        _responseInput1RAResponder2.TrySetCanceled();
+                        _input0RAResponder1Task.TrySetCanceled();
+                        _input1RAResponder2Task.TrySetCanceled();
                     },
                     useSynchronizationContext: false
                     );
@@ -462,14 +438,15 @@ namespace KafkaExchengerTests
                 _responseProcess.Task.ContinueWith(task =>
                 {
                     _removeAction(_guid);
-                });
+                }
+                    );
             }
 
             private async Task<RequestAwaiterFull.Response> CreateGetResponse()
             {
 
-                var topic0RAResponder1 = await _responseInput0RAResponder1.Task.ConfigureAwait(false);
-                var topic1RAResponder2 = await _responseInput1RAResponder2.Task.ConfigureAwait(false);
+                var topic0RAResponder1 = await _input0RAResponder1Task.Task.ConfigureAwait(false);
+                var topic1RAResponder2 = await _input1RAResponder2Task.Task.ConfigureAwait(false);
                 var currentState = await _getCurrentState(
                     Bucket,
                     _input0Partitions,
@@ -503,12 +480,12 @@ namespace KafkaExchengerTests
 
                     case (0, 0):
                     {
-                        return _responseInput0RAResponder1.TrySetResult((Input0Message)response);
+                        return _input0RAResponder1Task.TrySetResult((Input0Message)response);
                     }
 
                     case (1, 0):
                     {
-                        return _responseInput1RAResponder2.TrySetResult((Input1Message)response);
+                        return _input1RAResponder2Task.TrySetResult((Input1Message)response);
                     }
 
                     default:
@@ -525,12 +502,12 @@ namespace KafkaExchengerTests
 
                     case (0, 0):
                     {
-                        return _responseInput0RAResponder1.TrySetException(exception);
+                        return _input0RAResponder1Task.TrySetException(exception);
                     }
 
                     case (1, 0):
                     {
-                        return _responseInput1RAResponder2.TrySetException(exception);
+                        return _input1RAResponder2Task.TrySetException(exception);
                     }
 
                     default:
@@ -543,11 +520,8 @@ namespace KafkaExchengerTests
             public void Dispose()
             {
                 _cts?.Dispose();
-
-                _responseInput0RAResponder1.TrySetCanceled();
-
-                _responseInput1RAResponder2.TrySetCanceled();
-
+                _input0RAResponder1Task.TrySetCanceled();
+                _input1RAResponder2Task.TrySetCanceled();
                 try
                 {
                     _response.Wait();
@@ -618,71 +592,63 @@ namespace KafkaExchengerTests
             private readonly int _inFlyItemsLimit;
 
             private readonly ILogger _logger;
-
             private readonly Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> _currentState;
-
             private readonly Func<int, int[], int[], Task> _afterCommit;
-
             private readonly string _input0Name;
-            public readonly int[] _input0Partitions;
-
+            private readonly int[] _input0Partitions;
             private readonly string _input1Name;
-            public readonly int[] _input1Partitions;
-
-            private readonly string _output0TopicName;
+            private readonly int[] _input1Partitions;
+            private readonly string _output0Name;
             private readonly KafkaExchanger.Common.IProducerPoolNullString _output0Pool;
             private readonly Func<KafkaExchengerTests.RequestHeader, Output0Message, Task> _afterSendOutput0;
             private readonly Func<string, int, int[], int[], Task<Output0Message>> _loadOutput0Message;
             private readonly Func<string, int, int[], int[], Task<KafkaExchanger.Attributes.Enums.RAState>> _checkOutput0Status;
-
             public PartitionItem(
-                int inFlyLimit,
+                int inFlyBucketsLimit,
                 int itemsInBucket,
-                Func<int, int[], string, Task> addNewBucket,
-
-                string inputTopic0Name,
-                int[] inputTopic0Partitions,
-                string inputTopic1Name,
-                int[] inputTopic1Partitions,
+                Func<int, int[], string, int[], string, ValueTask> addNewBucket,
+                string input0Name,
+                int[] input0Partitions,
+                string input1Name,
+                int[] input1Partitions,
                 ILogger logger,
                 Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> currentState,
                 Func<int, int[], int[], Task> afterCommit,
                 string output0Name,
-                KafkaExchanger.Common.IProducerPoolNullString producerPool0,
+                KafkaExchanger.Common.IProducerPoolNullString output0Pool,
                 Func<KafkaExchengerTests.RequestHeader, Output0Message, Task> afterSendOutput0,
                 Func<string, int, int[], int[], Task<Output0Message>> loadOutput0Message,
                 Func<string, int, int[], int[], Task<KafkaExchanger.Attributes.Enums.RAState>> checkOutput0Status
                 )
             {
-                _input0Name = inputTopic0Name;
-                _input0Partitions = inputTopic0Partitions;
-                _input1Name = inputTopic1Name;
-                _input1Partitions = inputTopic1Partitions;
+                _itemsInBucket = itemsInBucket;
+                _inFlyItemsLimit = inFlyBucketsLimit * itemsInBucket;
 
+                _input0Name = input0Name;
+                _input0Partitions = input0Partitions;
+                _input1Name = input1Name;
+                _input1Partitions = input1Partitions;
                 _logger = logger;
                 _currentState = currentState;
                 _afterCommit = afterCommit;
-                _output0TopicName = output0Name;
-                _output0Pool = producerPool0;
+                _output0Name = output0Name;
+                _output0Pool = output0Pool;
                 _afterSendOutput0 = afterSendOutput0;
                 _loadOutput0Message = loadOutput0Message;
                 _checkOutput0Status = checkOutput0Status;
-
-                _itemsInBucket = itemsInBucket;
-                _inFlyItemsLimit = inFlyLimit * itemsInBucket;
                 _storage = new KafkaExchanger.BucketStorage(
-                    inFlyLimit: inFlyLimit,
+                    inFlyLimit: inFlyBucketsLimit,
                     inputs: 2,
                     itemsInBucket: _itemsInBucket,
                     addNewBucket: async (bucketId) =>
                     {
                         await addNewBucket(
                             bucketId,
-
                             _input0Partitions,
-                            _input0Name
-
-                        );
+                            _input0Name,
+                            _input1Partitions,
+                            _input1Name
+                            );
                     }
                     );
             }
@@ -695,19 +661,19 @@ namespace KafkaExchengerTests
             {
                 _cts = new CancellationTokenSource();
                 _storage.Validate();
-                StartHorizonRoutine();
+                StartCommitRoutine();
                 StartInitializeRoutine();
                 _consumeRoutines = new Thread[2];
-
-                _consumeRoutines[0] = StartConsumeInput0(bootstrapServers, groupId);
+                _consumeRoutines[0] = StartConsumeInput0(bootstrapServers, groupId, changeConfig);
                 _consumeRoutines[0].Start();
 
-                _consumeRoutines[1] = StartConsumeInput1(bootstrapServers, groupId);
+                _consumeRoutines[1] = StartConsumeInput1(bootstrapServers, groupId, changeConfig);
                 _consumeRoutines[1].Start();
+
             }
 
             public async Task Setup(
-                Func<int[], string, int[], string, Task<int>> currentBucketsCount
+                Func<int[], string, int[], string, ValueTask<int>> currentBucketsCount
                 )
             {
                 await _storage.Init(currentBucketsCount: async () =>
@@ -722,7 +688,7 @@ namespace KafkaExchengerTests
                 );
             }
 
-            private void StartHorizonRoutine()
+            private void StartCommitRoutine()
             {
                 _horizonRoutine = Task.Factory.StartNew(async () =>
                 {
@@ -733,12 +699,13 @@ namespace KafkaExchengerTests
                     var inTheFlyCount = 0;
                     try
                     {
+                        var consumeStop = false;
                         while (!_cts.Token.IsCancellationRequested)
                         {
                             var info = await reader.ReadAsync(_cts.Token).ConfigureAwait(false);
                             if (info is RequestAwaiterFull.StartResponse startResponse)
                             {
-                                if(queue.Count != 0 || inTheFlyCount == _inFlyItemsLimit)
+                                if (queue.Count != 0 || inTheFlyCount == _inFlyItemsLimit)
                                 {
                                     queue.Enqueue(startResponse);
                                 }
@@ -844,42 +811,253 @@ namespace KafkaExchengerTests
                 });
             }
 
-            public async Task Stop()
+            private Thread StartConsumeInput0(
+                string bootstrapServers,
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
+                )
             {
-                _cts?.Cancel();
-
-                foreach (var consumeRoutine in _consumeRoutines)
+                return new Thread((param) =>
                 {
-                    while (consumeRoutine.IsAlive)
+                start:
+                    if (_cts.Token.IsCancellationRequested)
                     {
-                        await Task.Delay(15);
+                        return;
+                    }
+
+                    try
+                    {
+                        var conf = new Confluent.Kafka.ConsumerConfig();
+                        if (changeConfig != null)
+                        {
+                            changeConfig(conf);
+                        }
+
+                        conf.GroupId = groupId;
+                        conf.BootstrapServers = bootstrapServers;
+                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                        conf.AllowAutoCreateTopics = false;
+                        conf.EnableAutoCommit = false;
+
+                        var consumer =
+                            new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign(_input0Partitions.Select(sel => new Confluent.Kafka.TopicPartition(_input0Name, sel)));
+
+                        try
+                        {
+                            while (!_cts.Token.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    var consumeResult = consumer.Consume(50);
+                                    if (Interlocked.CompareExchange(ref _needCommit, 0, 1) == 1)
+                                    {
+                                        var offsets = Volatile.Read(ref _commitOffsets);
+                                        consumer.Commit(offsets);
+                                        Volatile.Read(ref _tcsCommit).SetResult();
+                                    }
+
+                                    if (consumeResult == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var inputMessage = new Input0Message();
+                                    inputMessage.TopicPartitionOffset = consumeResult.TopicPartitionOffset;
+                                    inputMessage.OriginalMessage = consumeResult.Message;
+
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
+                                    {
+                                        continue;
+                                    }
+
+                                    inputMessage.Header = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                    if (!_responseAwaiters.TryGetValue(inputMessage.Header.AnswerToMessageGuid, out var awaiter))
+                                    {
+                                        continue;
+                                    }
+                                    switch (inputMessage.Header.AnswerFrom)
+                                    {
+                                        default:
+                                        {
+                                            //ignore
+                                            break;
+                                        }
+
+                                        case "RAResponder1":
+                                        {
+                                            awaiter.TrySetResponse(0, inputMessage, 0);
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch (ConsumeException)
+                                {
+                                    throw;
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            consumer.Close();
+                        }
+                        finally
+                        {
+                            consumer.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"RequestAwaiterFull{groupId}_input0Name");
+                        goto start;
                     }
                 }
-
-                _tcsCommit.TrySetCanceled();
-                _channel.Writer.Complete();
-                _initializeChannel.Writer.Complete();
-
-                try
+                    )
                 {
-                    await _horizonRoutine;
-                }
-                catch
-                {
-                    //ignore
-                }
-
-                try
-                {
-                    await _initializeRoutine;
-                }
-                catch
-                {
-                    //ignore
-                }
-
-                _cts?.Dispose();
+                    IsBackground = true,
+                    Priority = ThreadPriority.AboveNormal,
+                    Name = $"RequestAwaiterFull{groupId}_input0Name"
+                };
             }
+
+            private Thread StartConsumeInput1(
+                string bootstrapServers,
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
+                )
+            {
+                return new Thread((param) =>
+                {
+                start:
+                    if (_cts.Token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        var conf = new Confluent.Kafka.ConsumerConfig();
+                        if (changeConfig != null)
+                        {
+                            changeConfig(conf);
+                        }
+
+                        conf.GroupId = groupId;
+                        conf.BootstrapServers = bootstrapServers;
+                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                        conf.AllowAutoCreateTopics = false;
+                        conf.EnableAutoCommit = false;
+
+                        var consumer =
+                            new ConsumerBuilder<Confluent.Kafka.Null, System.String>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign(_input1Partitions.Select(sel => new Confluent.Kafka.TopicPartition(_input1Name, sel)));
+
+                        try
+                        {
+                            while (!_cts.Token.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    var consumeResult = consumer.Consume(50);
+                                    if (Interlocked.CompareExchange(ref _needCommit, 0, 1) == 1)
+                                    {
+                                        var offsets = Volatile.Read(ref _commitOffsets);
+                                        consumer.Commit(offsets);
+                                        Volatile.Read(ref _tcsCommit).SetResult();
+                                    }
+
+                                    if (consumeResult == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    var inputMessage = new Input1Message();
+                                    inputMessage.TopicPartitionOffset = consumeResult.TopicPartitionOffset;
+                                    inputMessage.OriginalMessage = consumeResult.Message;
+
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes("Info", out var infoBytes))
+                                    {
+                                        continue;
+                                    }
+
+                                    inputMessage.Header = KafkaExchengerTests.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                    if (!_responseAwaiters.TryGetValue(inputMessage.Header.AnswerToMessageGuid, out var awaiter))
+                                    {
+                                        continue;
+                                    }
+                                    switch (inputMessage.Header.AnswerFrom)
+                                    {
+                                        default:
+                                        {
+                                            //ignore
+                                            break;
+                                        }
+
+                                        case "RAResponder2":
+                                        {
+                                            awaiter.TrySetResponse(1, inputMessage, 0);
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch (ConsumeException)
+                                {
+                                    throw;
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            consumer.Close();
+                        }
+                        finally
+                        {
+                            consumer.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"RequestAwaiterFull{groupId}_input1Name");
+                        goto start;
+                    }
+                }
+                    )
+                {
+                    IsBackground = true,
+                    Priority = ThreadPriority.AboveNormal,
+                    Name = $"RequestAwaiterFull{groupId}_input1Name"
+                };
+            }
+
+            public async ValueTask StopAsync(CancellationToken token = default)
+            {
+
+            }
+
+            public Task<RequestAwaiterFull.DelayProduce> ProduceDelay()
+            {
+
+            }
+
+            public Task<RequestAwaiterFull.Response> Produce()
+            {
+
+            }
+
+            public Task<RequestAwaiterFull.TryAddAwaiterResult> TryAddAwaiter(
+                string messageGuid,
+                int bucket
+                )
+            {
+
+            }
+
         }
 
         public void Start(
@@ -902,9 +1080,11 @@ namespace KafkaExchengerTests
             }
         }
 
-        public async Task Setup(
-            RequestAwaiterFull.Config config,
+        public void Setup(
+            RequestAwaiterFull.Config config
+,
             KafkaExchanger.Common.IProducerPoolNullString producerPool0
+
             )
         {
             if (_items != null)
@@ -915,18 +1095,18 @@ namespace KafkaExchengerTests
             _items = new RequestAwaiterFull.PartitionItem[config.Processors.Length];
             _bootstrapServers = config.BootstrapServers;
             _groupId = config.GroupId;
+            _fws = new(config.Processors.Sum(s => s.Buckets));
             for (int i = 0; i < config.Processors.Length; i++)
             {
                 var processorConfig = config.Processors[i];
                 _items[i] =
                     new RequestAwaiterFull.PartitionItem(
-                        1,//TODO    
-                        2,//TODO
-                        null,//TODO
                         processorConfig.Input0.TopicName,
                         processorConfig.Input0.Partitions,
                         processorConfig.Input1.TopicName,
                         processorConfig.Input1.Partitions,
+                        processorConfig.Buckets,
+                        processorConfig.MaxInFly,
                         _loggerFactory.CreateLogger(config.GroupId),
                         processorConfig.CurrentState,
                         processorConfig.AfterCommit,
@@ -936,53 +1116,89 @@ namespace KafkaExchengerTests
                         processorConfig.LoadOutput0Message,
                         processorConfig.CheckOutput0Status
                         );
-
-                //TODO pass bucketsCount to Setup
-                await _items[i].Setup(null);
             }
         }
 
-        public async Task<RequestAwaiterFull.Response> Produce(
+        public async ValueTask<RequestAwaiterFull.Response> Produce(
 
             System.String value0,
 
             int waitResponseTimeout = 0
             )
         {
-            var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-            var item = _items[index];
-            return await item.Produce(
-                value0,
-                waitResponseTimeout
-            );
+
+            while (true)
+            {
+                var waitFree = _fws.WaitFree();
+                await waitFree.ConfigureAwait(false);
+                for (int i = 0; i < _items.Length; i++)
+                {
+                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                    var item = _items[index];
+                    return await
+                        item.Produce(
+                        value0,
+                        waitResponseTimeout
+                        );
+                }
+
+                waitFree = _fws.WaitFree();
+                await waitFree.ConfigureAwait(false);
+            }
         }
         private uint _currentItemIndex = 0;
 
-        public async Task<RequestAwaiterFull.DelayProduce> ProduceDelay(
+        public async ValueTask<RequestAwaiterFull.DelayProduce> ProduceDelay(
 
             System.String value0,
 
             int waitResponseTimeout = 0
             )
         {
-            var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-            var item = _items[index];
-            return await item.DelayProduce(
-                value0,
-                waitResponseTimeout
-                );
+
+            while (true)
+            {
+                var waitFree = _fws.WaitFree();
+                await waitFree.ConfigureAwait(false);
+                for (int i = 0; i < _items.Length; i++)
+                {
+                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+                    var item = _items[index];
+                    var tp =
+                        item.TryProduceDelay(
+
+                            value0,
+
+                            waitResponseTimeout
+                    );
+
+                    if (tp.Succsess)
+                    {
+                        return new RequestAwaiterFull.DelayProduce(tp);
+                    }
+                }
+
+                waitFree = _fws.WaitFree();
+                await waitFree.ConfigureAwait(false);
+            }
         }
 
-        public async Task<RequestAwaiterFull.Response> AddAwaiter(
+        public async ValueTask<RequestAwaiterFull.Response> AddAwaiter(
             string messageGuid,
             int bucket,
+
             int[] input0partitions,
+
             int[] input1partitions,
+
             int waitResponseTimeout = 0
             )
         {
-            //TODO find PartitionItem
-            return await _items[i].AddAwaiter(
+
+            for (var i = 0; i < _items.Length; i++)
+            {
+                var taw =
+                    await _items[i].TryAddAwaiter(
                         messageGuid,
                         bucket,
 
@@ -992,6 +1208,14 @@ namespace KafkaExchengerTests
 
                         waitResponseTimeout
                         );
+
+                if (taw.Succsess)
+                {
+                    return await taw.Response.GetResponse().ConfigureAwait(false);
+                }
+            }
+
+            throw new System.Exception("No matching bucket found in combination with partitions");
         }
 
         public async ValueTask StopAsync(CancellationToken token = default)
@@ -1009,7 +1233,7 @@ namespace KafkaExchengerTests
             var disposeTasks = new Task[items.Length];
             for (var i = 0; i < items.Length; i++)
             {
-                disposeTasks[i] = items[i].Stop();
+                disposeTasks[i] = items[i].StopAsync(token).AsTask();
             }
 
             await Task.WhenAll(disposeTasks);

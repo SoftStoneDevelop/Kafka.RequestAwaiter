@@ -75,11 +75,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public {TypeName()}(
                 {TopicResponse.TypeFullName(requestAwaiter)} {topicResponseParam},
-                {OutputReques.TypeFullName(requestAwaiter)} {outputRequestParam}
+                {OutputMessage.TypeFullName(requestAwaiter)} {outputRequestParam}
                 )
             {{
-                {_topicResponse()} = topicResponseParam;
-                {_outputRequest()} = outputRequestParam;
+                {_topicResponse()} = {topicResponseParam};
+                {OutputRequest()} = {outputRequestParam};
             }}");
         }
 
@@ -92,9 +92,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static string _outputRequest()
+        private static string OutputRequest()
         {
-            return "_outputRequest";
+            return "OutputRequest";
         }
 
         private static string _topicResponse()
@@ -111,15 +111,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private {TopicResponse.TypeFullName(requestAwaiter)} {_topicResponse()};
 
-            public {OutputReques.TypeFullName(requestAwaiter)} {_outputRequest()};
+            public {OutputMessage.TypeFullName(requestAwaiter)} {OutputRequest()};
             public int {Bucket()} => {_topicResponse()}.{TopicResponse.Bucket()};
-            public string Guid => {_topicResponse()}.{TopicResponse.Guid()}");
+            public string Guid => {_topicResponse()}.{TopicResponse.Guid()};");
 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] {Partitions(inputData)} => {_topicResponse()}.{TopicResponse.Partitions(inputData)}");
+            public int[] {Partitions(inputData)} => {_topicResponse()}.{TopicResponse.InputPartition(inputData)};");
             }
         }
 
@@ -129,9 +129,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public Task<{Response.TypeFullName(requestAwaiter)}> Produce()
+            public async Task<{Response.TypeFullName(requestAwaiter)}> Produce()
             {{
-                {_topicResponse()}.{TopicResponse.OutputRequest()}.TrySetResult({_outputRequest()});
+                {_topicResponse()}.{TopicResponse.OutputTask()}.TrySetResult({OutputRequest()});
                 return
                     await {_topicResponse()}.GetResponse();
             }}
@@ -156,7 +156,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 if (!_disposedValue)
                 {{
-                    {_topicResponse()}.{TopicResponse.OutputRequest()}.TrySetCanceled();
+                    {_topicResponse()}.{TopicResponse.OutputTask()}.TrySetCanceled();
                     {_topicResponse()} = null;
                     _disposedValue = true;
                 }}

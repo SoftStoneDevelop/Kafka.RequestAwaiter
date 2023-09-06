@@ -14,10 +14,10 @@ namespace KafkaExchengerTests
     }
 
     //[RequestAwaiter(
-    //    useLogger: true, 
-    //    afterSend: true, 
-    //    AddAwaiterCheckStatus: true, 
-    //    useAfterCommit: true, 
+    //    useLogger: true,
+    //    afterSend: true,
+    //    AddAwaiterCheckStatus: true,
+    //    useAfterCommit: true,
     //    checkCurrentState: true
     //    ),
     //    Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),

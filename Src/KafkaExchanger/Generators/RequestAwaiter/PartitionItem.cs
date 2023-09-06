@@ -1,5 +1,4 @@
 ﻿using KafkaExchanger.Datas;
-using KafkaExchanger.Generators.Responder;
 using KafkaExchanger.Helpers;
 using System.Text;
 
@@ -20,10 +19,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             Start(sb, requestAwaiter);
             Setup(sb, requestAwaiter);
+            StartCommitRoutine(sb, requestAwaiter);
+            StartInitializeRoutine(sb, requestAwaiter);
             StartConsumeInput(sb, assemblyName, requestAwaiter);
 
             StopAsync(sb);
-            TryProduceDelay(sb, requestAwaiter);
+            ProduceDelay(sb, requestAwaiter);
+            Produce(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
 
             End(sb);
@@ -47,9 +49,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
         public class {TypeName()}
-        {{
-            private uint {_current()};
-");
+        {{");
         }
 
         private static string _current()
@@ -165,6 +165,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static string _channel()
         {
             return "_channel";
+        }
+
+        private static string _initializeChannel()
+        {
+            return "_initializeChannel";
         }
 
 
@@ -345,11 +350,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     addNewBucket: async (bucketId) =>
                     {{
                         await {addNewBucketParam}(
-                            bucketId,
-");
+                            bucketId,");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 builder.Append($@"
                             {_inputTopicPartitions(inputData)},
                             {_inputTopicName(inputData)}");
@@ -387,7 +397,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     SingleWriter = false
                 }});
 
-            private readonly Channel<{TopicResponse.TypeFullName(requestAwaiter)}> _initializeChannel = Channel.CreateUnbounded<{TopicResponse.TypeFullName(requestAwaiter)}>(
+            private readonly Channel<{TopicResponse.TypeFullName(requestAwaiter)}> {_initializeChannel()} = Channel.CreateUnbounded<{TopicResponse.TypeFullName(requestAwaiter)}>(
                 new UnboundedChannelOptions()
                 {{
                     AllowSynchronousContinuations = false,
@@ -463,7 +473,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 {_cts()} = new CancellationTokenSource();
                 {_storage()}.Validate();
-                StartHorizonRoutine();
+                StartCommitRoutine();
                 StartInitializeRoutine();
                 {_consumeRoutines()} = new Thread[{requestAwaiter.InputDatas.Count}];");
 
@@ -486,7 +496,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public void Setup(
+            public async Task Setup(
                 {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
                 )
             {{
@@ -497,14 +507,168 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 builder.Append($@"
                             {_inputTopicPartitions(inputData)},
-                            {_inputTopicName(inputData)},");
+                            {_inputTopicName(inputData)}");
             }
             builder.Append($@"
                             );
                 }}
                 );
+            }}
+");
+        }
+
+        public static void StartCommitRoutine(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            private void StartCommitRoutine()
+            {{
+                {_horizonRoutine()} = Task.Factory.StartNew(async () => 
+                {{
+                    var reader = {_channel()}.Reader;
+                    var writer = {_initializeChannel()}.Writer;
+
+                    var queue = new Queue<{StartResponse.TypeFullName(requestAwaiter)}>();
+                    var inTheFlyCount = 0;
+                    try
+                    {{
+                        var consumeStop = false;
+                        while (!{_cts()}.Token.IsCancellationRequested)
+                        {{
+                            var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            if (info is {StartResponse.TypeFullName(requestAwaiter)} startResponse)
+                            {{
+                                if (queue.Count != 0 || inTheFlyCount == {_inFlyItemsLimit()})
+                                {{
+                                    queue.Enqueue(startResponse);
+                                }}
+
+                                var newMessage = new KafkaExchanger.MessageInfo({requestAwaiter.InputDatas.Count});
+                                var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
+                                startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
+                                await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
+                                inTheFlyCount++;
+                            }}
+                            else if (info is {SetOffsetResponse.TypeFullName(requestAwaiter)} setOffsetResponse)
+                            {{
+                                _ = {_storage()}.SetOffset(
+                                    setOffsetResponse.{SetOffsetResponse.BucketId()},
+                                    setOffsetResponse.{SetOffsetResponse.Guid()},
+                                    setOffsetResponse.{SetOffsetResponse.OffsetId()},
+                                    setOffsetResponse.{SetOffsetResponse.Offset()}
+                                    );
+                            }}
+                            else if (info is {EndResponse.TypeFullName(requestAwaiter)} endResponse)
+                            {{
+                                {_storage()}.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
+
+                                var canFreeBuckets = {_storage()}.CanFreeBuckets();
+                                if(canFreeBuckets.Count == 0)
+                                {{
+                                    continue;
+                                }}
+
+                                inTheFlyCount -= canFreeBuckets.Count * {_itemsInBucket()};
+                                while (queue.Count != 0)
+                                {{
+                                    if (inTheFlyCount == {_inFlyItemsLimit()})
+                                    {{
+                                        break;
+                                    }}
+
+                                    startResponse = queue.Dequeue();
+                                    var newMessage = new KafkaExchanger.MessageInfo({requestAwaiter.InputDatas.Count});
+                                    var bucketId = await _storage.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
+                                    startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
+                                    await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
+                                    inTheFlyCount++;
+                                }}
+
+                                var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                                var offset = canFreeBuckets[^1].MaxOffset;
+                                Volatile.Write(ref {_commitOffsets()}, offset);
+                                Interlocked.Exchange(ref {_tcsCommit()}, commit);
+                                Interlocked.Exchange(ref {_needCommit()}, 1);
+
+                                await commit.Task.ConfigureAwait(false);");
+            if (requestAwaiter.AfterCommit)
+            {
+                builder.Append($@"
+                                for (int i = 0; i < canFreeBuckets.Count; i++)
+                                {{
+                                    var freeBucket = canFreeBuckets[i];
+                                    await {_afterCommit()}(
+                                        freeBucket.BucketId");
+                for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+                {
+                    var inputData = requestAwaiter.InputDatas[i];
+                    builder.Append($@",
+                                        {_inputTopicPartitions(inputData)}");
+                }
+                builder.Append($@"
+                                        ).ConfigureAwait(false);
+                                }}");
+            }
+            builder.Append($@"
+                            }}
+                            else
+                            {{
+                                {(requestAwaiter.UseLogger ? $@"{_logger()}.LogError(""Unknown info type"");" : "//ignore")}
+                            }}
+                        }}
+                    }}
+                    catch (OperationCanceledException)
+                    {{
+                        //ignore
+                    }}
+                    catch (ChannelClosedException)
+                    {{
+                        //ignore
+                    }}
+                    catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
+                    {{
+                        {(requestAwaiter.UseLogger ? $@"{_logger()}.LogError(ex, ""Error commit task"");" : string.Empty)}
+                        throw;
+                    }}
+                }});
+            }}
+");
+        }
+
+        public static void StartInitializeRoutine(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            private void StartInitializeRoutine()
+            {{
+                {_initializeRoutine()} = Task.Factory.StartNew(async () => 
+                {{
+                    var reader = {_initializeChannel()}.Reader;
+                    try
+                    {{
+                        while (!{_cts()}.Token.IsCancellationRequested)
+                        {{
+                            var propessResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            propessResponse.Init();
+                        }}
+                    }}
+                    catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
+                    {{
+                        {(requestAwaiter.UseLogger ? $@"{_logger()}.LogError(ex, ""Error init task"");" : string.Empty)}
+                        throw;
+                    }}
+                }});
             }}
 ");
         }
@@ -598,8 +762,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         continue;
                                     }}
 
-                                    inputMessage.{InputMessages.Header()} = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
-                                    if (!{_responseAwaiters()}.TryGetValue(inputMessage.{InputMessages.Header()}.MessageGuid, out awaiter))
+                                    inputMessage.{InputMessages.Header()} = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                    if (!{_responseAwaiters()}.TryGetValue(inputMessage.{InputMessages.Header()}.AnswerToMessageGuid, out var awaiter))
                                     {{
                                         continue;
                                     }}");
@@ -678,13 +842,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void TryProduceDelay(
+        private static void ProduceDelay(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public {TryDelayProduceResult.TypeFullName(requestAwaiter)} TryProduceDelay()
+            public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay()
+            {{
+");
+            builder.Append($@"
+            }}
+");
+        }
+
+        private static void Produce(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public Task<{Response.TypeFullName(requestAwaiter)}> Produce()
             {{
 ");
             builder.Append($@"
@@ -698,9 +876,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public void TryAddAwaiter(
+            public Task<{TryAddAwaiterResult.TypeFullName(requestAwaiter)}> TryAddAwaiter(
                 string messageGuid,
                 int bucket
+                )
             {{
 ");
             builder.Append($@"

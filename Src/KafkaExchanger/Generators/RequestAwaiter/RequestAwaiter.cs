@@ -18,8 +18,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             //inner classes
             DelayProduce.Append(builder, assemblyName, requestAwaiter);
 
-            TryDelayProduceResult.Append(builder, assemblyName, requestAwaiter);
-            TryAddAwaiterResult.Append(builder, requestAwaiter);
             Response.Append(builder, assemblyName, requestAwaiter);
 
             Config.Append(builder);
@@ -29,7 +27,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             BaseInputMessage.Append(builder, assemblyName, requestAwaiter);
             InputMessages.Append(builder, assemblyName, requestAwaiter);
+
+            OutputMessage.Append(builder, assemblyName, requestAwaiter);
             OutputMessages.Append(builder, assemblyName, requestAwaiter);
+
+            TryAddAwaiterResult.Append(builder, requestAwaiter);
             TopicResponse.Append(builder, assemblyName, requestAwaiter);
 
             ChannelInfo.Append(builder, assemblyName, requestAwaiter);

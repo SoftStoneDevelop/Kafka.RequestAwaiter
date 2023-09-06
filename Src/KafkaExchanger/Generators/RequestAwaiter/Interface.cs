@@ -44,7 +44,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
+        public Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -52,13 +52,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
-");
+            {outputData.KeyType.GetFullTypeName(true, true)} key{i},");
+
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
-");
+            {outputData.ValueType.GetFullTypeName(true, true)} value{i},");
+
             }
 
             builder.Append($@"
@@ -74,7 +74,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.DelayProduce> ProduceDelay(
+        public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
@@ -82,13 +82,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
-");
+            {outputData.KeyType.GetFullTypeName(true, true)} key{i},");
+
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
-");
+            {outputData.ValueType.GetFullTypeName(true, true)} value{i},");
+
             }
 
             builder.Append($@"
@@ -115,7 +115,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Setup(
+        public Task Setup(
             {requestAwaiter.TypeSymbol.Name}.Config config
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
@@ -137,15 +137,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> AddAwaiter(
+        public Task<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
             string messageGuid,
-            int bucket,
-");
+            int bucket,");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 builder.Append($@"
-            int[] input{i}partitions,
-");
+            int[] input{i}partitions,");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
