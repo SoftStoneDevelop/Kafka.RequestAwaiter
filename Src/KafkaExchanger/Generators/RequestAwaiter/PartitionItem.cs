@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Datas;
+using KafkaExchanger.Generators.Responder;
 using KafkaExchanger.Helpers;
 using System.Text;
 
@@ -19,6 +20,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             Start(sb, requestAwaiter);
             Setup(sb, requestAwaiter);
+            StartConsumeInput(sb, assemblyName, requestAwaiter);
+
             StopAsync(sb);
             TryProduceDelay(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
@@ -468,7 +471,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                _consumeRoutines[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
+                _consumeRoutines[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId, changeConfig);
                 _consumeRoutines[{i}].Start();
 ");
             }
@@ -504,6 +507,165 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 );
             }}
 ");
+        }
+
+        public static void StartConsumeInput(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                var threadName = $@"{requestAwaiter.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}";
+                builder.Append($@"
+            private Thread StartConsume{inputData.NamePascalCase}(
+                string bootstrapServers,
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
+                )
+            {{
+                return new Thread((param) =>
+                {{
+                    start:
+                    if({_cts()}.Token.IsCancellationRequested)
+                    {{
+                        return;
+                    }}
+
+                    try
+                    {{
+                        var conf = new Confluent.Kafka.ConsumerConfig();
+                        if(changeConfig != null)
+                        {{
+                            changeConfig(conf);
+                        }}
+
+                        conf.GroupId = groupId;
+                        conf.BootstrapServers = bootstrapServers;
+                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                        conf.AllowAutoCreateTopics = false;
+                        conf.EnableAutoCommit = false;
+
+                        var consumer =
+                            new ConsumerBuilder<{inputData.TypesPair}>(conf)
+                            .Build()
+                            ;
+
+                        consumer.Assign({_inputTopicPartitions(inputData)}.Select(sel => new Confluent.Kafka.TopicPartition({_inputTopicName(inputData)}, sel)));
+
+                        try
+                        {{
+                            while (!_cts.Token.IsCancellationRequested)
+                            {{
+                                try
+                                {{
+                                    var consumeResult = consumer.Consume(50);
+                                    if (Interlocked.CompareExchange(ref {_needCommit()}, 0, 1) == 1)
+                                    {{
+                                        var offsets = Volatile.Read(ref {_commitOffsets()});
+                                        consumer.Commit(offsets);
+                                        Volatile.Read(ref {_tcsCommit()}).SetResult();
+                                    }}
+
+                                    if (consumeResult == null)
+                                    {{
+                                        continue;
+                                    }}
+
+                                    var inputMessage = new {inputData.MessageTypeName}();
+                                    inputMessage.{BaseInputMessage.TopicPartitionOffset()} = consumeResult.TopicPartitionOffset;
+                                    inputMessage.{InputMessages.OriginalMessage()} = consumeResult.Message;
+");
+                if (inputData.KeyType.IsProtobuffType())
+                {
+                    builder.Append($@"
+                                    inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());
+");
+                }
+
+                if (inputData.ValueType.IsProtobuffType())
+                {
+                    builder.Append($@"
+                                    inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());
+");
+                }
+
+                builder.Append($@"
+                                    if (!consumeResult.Message.Headers.TryGetLastBytes(""Info"", out var infoBytes))
+                                    {{
+                                        continue;
+                                    }}
+
+                                    inputMessage.{InputMessages.Header()} = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                    if (!{_responseAwaiters()}.TryGetValue(inputMessage.{InputMessages.Header()}.MessageGuid, out awaiter))
+                                    {{
+                                        continue;
+                                    }}");
+                if (inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
+                                    awaiter.TrySetResponse({inputData.Id}, inputMessage);");
+                }
+                else
+                {
+                    builder.Append($@"
+                                    switch(inputMessage.Header.AnswerFrom)
+                                    {{
+                                        default:
+                                        {{
+                                            //ignore
+                                            break;
+                                        }}
+");
+
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        var acceptedService = inputData.AcceptedService[j];
+                        var acceptedServiceId = j;
+                        builder.Append($@"
+                                        case ""{acceptedService}"":
+                                        {{
+                                            awaiter.TrySetResponse({inputData.Id}, inputMessage, {acceptedServiceId});
+                                            break;
+                                        }}");
+                    }
+                    builder.Append($@"
+                                    }}");
+                }
+                builder.Append($@"
+                                }}
+                                catch (ConsumeException)
+                                {{
+                                    throw;
+                                }}
+                            }}
+                        }}
+                        catch (OperationCanceledException)
+                        {{
+                            consumer.Close();
+                        }}
+                        finally
+                        {{
+                            consumer.Dispose();
+                        }}
+                    }}
+                    catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
+                    {{
+                        {(requestAwaiter.UseLogger ? $@"{_logger()}.LogError(ex, $""{threadName}"");" : string.Empty)}
+                        goto start;
+                    }}
+                }}
+                    )
+                    {{
+                        IsBackground = true,
+                        Priority = ThreadPriority.AboveNormal,
+                        Name = $""{threadName}""
+                    }};
+            }}
+");
+            }
         }
 
         private static void StopAsync(StringBuilder builder)

@@ -14,7 +14,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public abstract class BaseInputMessage
         {{
             public string {TopicName()} {{ get; set; }}
-            public Confluent.Kafka.Partition {Partition()} {{ get; set; }}
+            public Confluent.Kafka.Partition {TopicPartitionOffset()} {{ get; set; }}
         }}
 ");
         }
@@ -29,9 +29,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "BaseInputMessage";
         }
 
-        public static string Partition()
+        public static string TopicPartitionOffset()
         {
-            return "Partition";
+            return "TopicPartitionOffset";
         }
 
         public static string TopicName()
