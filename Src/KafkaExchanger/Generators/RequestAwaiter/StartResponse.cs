@@ -13,7 +13,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()} : {ChannelInfo.TypeFullName(requestAwaiter)}
         {{
-            public {KafkaExchanger.Generators.RequestAwaiter.TopicResponse.TypeFullName(requestAwaiter)} ResponseProcess {{ get; set; }}
+            public {KafkaExchanger.Generators.RequestAwaiter.TopicResponse.TypeFullName(requestAwaiter)} {ResponseProcess()};
+
+            public readonly TaskCompletionSource {BucketReserve()} = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }}
 ");
         }
@@ -31,6 +33,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static string ResponseProcess()
         {
             return "ResponseProcess";
+        }
+
+        public static string BucketReserve()
+        {
+            return "BucketReserve";
         }
     }
 }

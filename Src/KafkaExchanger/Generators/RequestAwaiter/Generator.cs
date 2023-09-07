@@ -34,9 +34,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
 {{

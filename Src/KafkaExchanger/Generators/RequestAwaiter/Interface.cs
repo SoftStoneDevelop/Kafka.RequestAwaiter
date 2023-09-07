@@ -43,21 +43,30 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
-");
+        public Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},");
+            {outputData.KeyType.GetFullTypeName(true, true)} {outputKeyParam(outputData)},");
 
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},");
+            {outputData.ValueType.GetFullTypeName(true, true)} {outputValueParam(outputData)},");
 
             }
 
@@ -73,21 +82,30 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(
-");
+        public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},");
+            {outputData.KeyType.GetFullTypeName(true, true)} {outputKeyParam(outputData)},");
 
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},");
+            {outputData.ValueType.GetFullTypeName(true, true)} {outputValueParam(outputData)},");
 
             }
 

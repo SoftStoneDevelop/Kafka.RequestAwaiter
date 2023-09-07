@@ -5,10 +5,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
-using System.Threading.Channels;
+using System.Runtime.CompilerServices;
 
 namespace KafkaExchengerTests
 {
@@ -17,14 +18,12 @@ namespace KafkaExchengerTests
     {
 
         public Task<RequestAwaiterFull.Response> Produce(
-
-            System.String value0,
+            System.String output0Value,
             int waitResponseTimeout = 0
             );
 
         public Task<RequestAwaiterFull.DelayProduce> ProduceDelay(
-
-            System.String value0,
+            System.String output0Value,
             int waitResponseTimeout = 0
             );
 
@@ -57,7 +56,6 @@ namespace KafkaExchengerTests
         private string _bootstrapServers;
         private string _groupId;
         private volatile bool _isRun;
-        private KafkaExchanger.FreeWatcherSignal _fws;
 
         public RequestAwaiterFull(ILoggerFactory loggerFactory)
         {
@@ -120,12 +118,11 @@ namespace KafkaExchengerTests
             public Response(
                 int bucket,
                 KafkaExchanger.Attributes.Enums.RAState currentState,
-                TaskCompletionSource<bool> responseProcess
-,
+                TaskCompletionSource<bool> responseProcess,
                 int[] input0Partitions,
-                RequestAwaiterFull.Input0Message Input00,
+                RequestAwaiterFull.Input0Message input00,
                 int[] input1Partitions,
-                RequestAwaiterFull.Input1Message Input10
+                RequestAwaiterFull.Input1Message input10
                 )
             {
                 Bucket = bucket;
@@ -133,10 +130,10 @@ namespace KafkaExchengerTests
                 _responseProcess = responseProcess;
 
                 Input0Partitions = input0Partitions;
-                Input00 = Input00;
+                Input00 = input00;
 
                 Input1Partitions = input1Partitions;
-                Input10 = Input10;
+                Input10 = input10;
 
             }
 
@@ -367,16 +364,13 @@ namespace KafkaExchengerTests
             private CancellationTokenSource _cts;
             private readonly string _guid;
             private int _waitResponseTimeout;
+            ChannelWriter<RequestAwaiterFull.ChannelInfo> _writer;
 
             private Action<string> _removeAction;
 
             public string Guid => _guid;
             public TaskCompletionSource<RequestAwaiterFull.OutputMessage> OutputTask => _outputTask;
-            public int Bucket
-            {
-                get;
-                set;
-            }
+            public int Bucket;
             private Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> _getCurrentState;
             private TaskCompletionSource<Input0Message> _input0RAResponder1Task = new(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<Input1Message> _input1RAResponder2Task = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -387,6 +381,7 @@ namespace KafkaExchengerTests
             public TopicResponse(
                 string guid,
                 Action<string> removeAction,
+                ChannelWriter<RequestAwaiterFull.ChannelInfo> writer,
                 Func<int, int[], Input0Message, int[], Input1Message, Task<KafkaExchanger.Attributes.Enums.RAState>> getCurrentState,
                 int[] input0Partitions,
                 int[] input1Partitions,
@@ -396,13 +391,10 @@ namespace KafkaExchengerTests
                 _guid = guid;
                 _removeAction = removeAction;
                 _waitResponseTimeout = waitResponseTimeout;
+                _writer = writer;
                 _getCurrentState = getCurrentState;
                 _input0Partitions = input0Partitions;
                 _input1Partitions = input1Partitions;
-            }
-
-            public void CreateOutput()
-            {
             }
 
             public void Init()
@@ -435,24 +427,57 @@ namespace KafkaExchengerTests
                     }
                 });
 
-                _responseProcess.Task.ContinueWith(task =>
+                _responseProcess.Task.ContinueWith(async task =>
                 {
+                    try
+                    {
+                        var endResponse = new RequestAwaiterFull.EndResponse
+                        {
+                            BucketId = this.Bucket,
+                            Guid = this.Guid
+                        };
+
+                        await _writer.WriteAsync(endResponse).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        //ignore
+                    }
+
                     _removeAction(_guid);
                 }
-                    );
+                );
             }
 
             private async Task<RequestAwaiterFull.Response> CreateGetResponse()
             {
 
-                var topic0RAResponder1 = await _input0RAResponder1Task.Task.ConfigureAwait(false);
-                var topic1RAResponder2 = await _input1RAResponder2Task.Task.ConfigureAwait(false);
+                var input0RAResponder1 = await _input0RAResponder1Task.Task.ConfigureAwait(false);
+                await _writer.WriteAsync(
+                    new RequestAwaiterFull.SetOffsetResponse
+                    {
+                        BucketId = this.Bucket,
+                        Guid = this.Guid,
+                        OffsetId = 0,
+                        Offset = input0RAResponder1.TopicPartitionOffset
+                    }
+                    ).ConfigureAwait(false);
+                var input1RAResponder2 = await _input1RAResponder2Task.Task.ConfigureAwait(false);
+                await _writer.WriteAsync(
+                    new RequestAwaiterFull.SetOffsetResponse
+                    {
+                        BucketId = this.Bucket,
+                        Guid = this.Guid,
+                        OffsetId = 1,
+                        Offset = input1RAResponder2.TopicPartitionOffset
+                    }
+                    ).ConfigureAwait(false);
                 var currentState = await _getCurrentState(
                     Bucket,
                     _input0Partitions,
-                    topic0RAResponder1,
+                    input0RAResponder1,
                     _input1Partitions,
-                    topic1RAResponder2
+                    input1RAResponder2
                     );
 
                 var response = new RequestAwaiterFull.Response(
@@ -460,9 +485,9 @@ namespace KafkaExchengerTests
                     currentState,
                     _responseProcess,
                     _input0Partitions,
-                    topic0RAResponder1,
+                    input0RAResponder1,
                     _input1Partitions,
-                    topic1RAResponder2
+                    input1RAResponder2
                     );
 
                 return response;
@@ -537,7 +562,9 @@ namespace KafkaExchengerTests
 
         public class StartResponse : RequestAwaiterFull.ChannelInfo
         {
-            public RequestAwaiterFull.TopicResponse ResponseProcess { get; set; }
+            public RequestAwaiterFull.TopicResponse ResponseProcess;
+
+            public readonly TaskCompletionSource BucketReserve = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         public class SetOffsetResponse : RequestAwaiterFull.ChannelInfo
@@ -699,7 +726,6 @@ namespace KafkaExchengerTests
                     var inTheFlyCount = 0;
                     try
                     {
-                        var consumeStop = false;
                         while (!_cts.Token.IsCancellationRequested)
                         {
                             var info = await reader.ReadAsync(_cts.Token).ConfigureAwait(false);
@@ -713,6 +739,7 @@ namespace KafkaExchengerTests
                                 var newMessage = new KafkaExchanger.MessageInfo(2);
                                 var bucketId = await _storage.Push(startResponse.ResponseProcess.Guid, newMessage);
                                 startResponse.ResponseProcess.Bucket = bucketId;
+                                startResponse.BucketReserve.SetResult();
                                 await writer.WriteAsync(startResponse.ResponseProcess);
                                 inTheFlyCount++;
                             }
@@ -752,8 +779,7 @@ namespace KafkaExchengerTests
                                 }
 
                                 var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                var offset = canFreeBuckets[^1].MaxOffset;
-                                Volatile.Write(ref _commitOffsets, offset);
+                                Volatile.Write(ref _commitOffsets, canFreeBuckets[^1].MaxOffset);
                                 Interlocked.Exchange(ref _tcsCommit, commit);
                                 Interlocked.Exchange(ref _needCommit, 1);
 
@@ -1040,14 +1066,68 @@ namespace KafkaExchengerTests
 
             }
 
-            public Task<RequestAwaiterFull.DelayProduce> ProduceDelay()
+            public async Task<RequestAwaiterFull.DelayProduce> ProduceDelay(
+                System.String output0Value,
+                int waitResponseTimeout = 0
+                )
             {
+                var topicResponse = new RequestAwaiterFull.TopicResponse(
+                        Guid.NewGuid().ToString("D"),
+                        RemoveAwaiter,
+                        _channel.Writer,
+                        _currentState,
+                        _input0Partitions,
+                        _input1Partitions,
+                        waitResponseTimeout
+                        );
 
+                var output = CreateOutput(
+                    output0Value
+                    );
+
+                var startResponse = new RequestAwaiterFull.StartResponse
+                {
+                    ResponseProcess = topicResponse
+                };
+
+                await _channel.Writer.WriteAsync(startResponse).ConfigureAwait(false);
+                await startResponse.BucketReserve.Task.ConfigureAwait(false);
+                return
+                    new RequestAwaiterFull.DelayProduce(
+                        topicResponse,
+                        output
+                        );
             }
 
-            public Task<RequestAwaiterFull.Response> Produce()
+            public async Task<RequestAwaiterFull.Response> Produce(
+                System.String output0Value,
+                int waitResponseTimeout = 0
+                )
             {
+                var topicResponse = new RequestAwaiterFull.TopicResponse(
+                        Guid.NewGuid().ToString("D"),
+                        RemoveAwaiter,
+                        _channel.Writer,
+                        _currentState,
+                        _input0Partitions,
+                        _input1Partitions,
+                        waitResponseTimeout
+                        );
 
+                topicResponse.OutputTask.SetResult(CreateOutput(
+                    output0Value
+                    )
+                );
+
+                var startResponse = new RequestAwaiterFull.StartResponse
+                {
+                    ResponseProcess = topicResponse
+                };
+
+                await _channel.Writer.WriteAsync(startResponse).ConfigureAwait(false);
+                await startResponse.BucketReserve.Task.ConfigureAwait(false);
+                return
+                    await topicResponse.GetResponse().ConfigureAwait(false);
             }
 
             public Task<RequestAwaiterFull.TryAddAwaiterResult> TryAddAwaiter(
@@ -1056,6 +1136,54 @@ namespace KafkaExchengerTests
                 )
             {
 
+            }
+
+            public void RemoveAwaiter(string guid)
+            {
+                if (_responseAwaiters.TryRemove(guid, out var awaiter))
+                {
+                    awaiter.Dispose();
+                }
+            }
+
+            private RequestAwaiterFull.OutputMessage CreateOutput(
+                System.String output0Value
+                )
+            {
+                var output = new RequestAwaiterFull.OutputMessage
+                {
+                    Output0Header = CreateOutputHeader(),
+                    Output0 = new RequestAwaiterFull.Output0Message(
+                        new Confluent.Kafka.Message<Confluent.Kafka.Null, System.String>
+                        {
+                            Value = output0Value
+                        }
+                        )
+                }
+                ;
+                return output;
+            }
+
+            private KafkaExchengerTests.RequestHeader CreateOutputHeader()
+            {
+                var header = new KafkaExchengerTests.RequestHeader()
+                {
+                };
+                var topic = new KafkaExchengerTests.Topic()
+                {
+                    Name = _input0Name
+                };
+                topic.Partitions.Add(_input0Partitions);
+                topic.CanAnswerFrom.Add(new string[] { "RAResponder1" });
+                header.TopicsForAnswer.Add(topic);
+                topic = new KafkaExchengerTests.Topic()
+                {
+                    Name = _input1Name
+                };
+                topic.Partitions.Add(_input1Partitions);
+                topic.CanAnswerFrom.Add(new string[] { "RAResponder2" });
+                header.TopicsForAnswer.Add(topic);
+                return header;
             }
 
         }
@@ -1095,7 +1223,6 @@ namespace KafkaExchengerTests
             _items = new RequestAwaiterFull.PartitionItem[config.Processors.Length];
             _bootstrapServers = config.BootstrapServers;
             _groupId = config.GroupId;
-            _fws = new(config.Processors.Sum(s => s.Buckets));
             for (int i = 0; i < config.Processors.Length; i++)
             {
                 var processorConfig = config.Processors[i];
@@ -1119,68 +1246,39 @@ namespace KafkaExchengerTests
             }
         }
 
-        public async ValueTask<RequestAwaiterFull.Response> Produce(
+        public async Task<RequestAwaiterFull.Response> Produce(
 
-            System.String value0,
+            System.String output0Value,
 
             int waitResponseTimeout = 0
             )
         {
+            var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+            return await
+                _items[index].Produce(
 
-            while (true)
-            {
-                var waitFree = _fws.WaitFree();
-                await waitFree.ConfigureAwait(false);
-                for (int i = 0; i < _items.Length; i++)
-                {
-                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                    var item = _items[index];
-                    return await
-                        item.Produce(
-                        value0,
-                        waitResponseTimeout
-                        );
-                }
+                    output0Value,
 
-                waitFree = _fws.WaitFree();
-                await waitFree.ConfigureAwait(false);
-            }
+                    waitResponseTimeout
+                );
         }
         private uint _currentItemIndex = 0;
 
         public async ValueTask<RequestAwaiterFull.DelayProduce> ProduceDelay(
 
-            System.String value0,
+            System.String output0Value,
 
             int waitResponseTimeout = 0
             )
         {
+            var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
+            return await
+                _items[index].ProduceDelay(
 
-            while (true)
-            {
-                var waitFree = _fws.WaitFree();
-                await waitFree.ConfigureAwait(false);
-                for (int i = 0; i < _items.Length; i++)
-                {
-                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint)_items.Length;
-                    var item = _items[index];
-                    var tp =
-                        item.TryProduceDelay(
+                    output0Value,
 
-                            value0,
-
-                            waitResponseTimeout
-                    );
-
-                    if (tp.Succsess)
-                    {
-                        return new RequestAwaiterFull.DelayProduce(tp);
-                    }
-                }
-
-                waitFree = _fws.WaitFree();
-                await waitFree.ConfigureAwait(false);
-            }
+                    waitResponseTimeout
+                );
         }
 
         public async ValueTask<RequestAwaiterFull.Response> AddAwaiter(

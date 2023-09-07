@@ -28,6 +28,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Produce(sb, requestAwaiter);
             TryAddAwaiter(sb, requestAwaiter);
 
+            RemoveAwaiter(sb, requestAwaiter);
+            CreateOutput(sb, assemblyName, requestAwaiter);
+            CreateOutputHeader(sb, assemblyName, requestAwaiter);
+
             End(sb);
         }
 
@@ -345,7 +349,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
                 {_storage()} = new KafkaExchanger.BucketStorage(
                     inFlyLimit: {inFlyBucketsLimitParam},
-                    inputs: {requestAwaiter.InputDatas.Count},
+                    inputs: {InputsSize(requestAwaiter)},
                     itemsInBucket: {_itemsInBucket()},
                     addNewBucket: async (bucketId) =>
                     {{
@@ -370,6 +374,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     );
             }}
 ");
+        }
+
+        private static int InputsSize(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
+        {
+            var size = 0;
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                if(inputData.AcceptFromAny)
+                {
+                    size++;
+                }
+                else
+                {
+                    size += inputData.AcceptedService.Length;
+                }
+            }
+
+            return size;
         }
 
         private static void PropertiesAndFields(
@@ -541,7 +564,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     var inTheFlyCount = 0;
                     try
                     {{
-                        var consumeStop = false;
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
                             var info = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
@@ -555,6 +577,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 var newMessage = new KafkaExchanger.MessageInfo({requestAwaiter.InputDatas.Count});
                                 var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
                                 startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
+                                startResponse.{StartResponse.BucketReserve()}.SetResult();
                                 await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
                                 inTheFlyCount++;
                             }}
@@ -594,8 +617,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 }}
 
                                 var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                var offset = canFreeBuckets[^1].MaxOffset;
-                                Volatile.Write(ref {_commitOffsets()}, offset);
+                                Volatile.Write(ref {_commitOffsets()}, canFreeBuckets[^1].MaxOffset);
                                 Interlocked.Exchange(ref {_tcsCommit()}, commit);
                                 Interlocked.Exchange(ref {_needCommit()}, 1);
 
@@ -847,12 +869,90 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-            public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay()
+            public async Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                {outputData.KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
+                }
+
+                builder.Append($@"
+                {outputData.ValueType.GetFullTypeName(true)} {outputValueParam(outputData)}");
+            }
+
+            builder.Append($@",
+                int waitResponseTimeout = 0
+                )
             {{
-");
+                var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
+                        Guid.NewGuid().ToString(""D""),
+                        RemoveAwaiter,
+                        {_channel()}.Writer,
+                        {_currentState()},");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                        {_inputTopicPartitions(inputData)},");
+            }
             builder.Append($@"
-            }}
+                        waitResponseTimeout
+                        );
+                
+                var output = CreateOutput(");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                    {outputKeyParam(outputData)},");
+                }
+
+                builder.Append($@"
+                    {outputValueParam(outputData)}");
+            }
+            builder.Append($@"
+                    );
+
+                var startResponse = new {StartResponse.TypeFullName(requestAwaiter)}
+                {{
+                    {StartResponse.ResponseProcess()} = topicResponse
+                }};
+
+                await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
+                await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
+                return 
+                    new {DelayProduce.TypeFullName(requestAwaiter)}(
+                        topicResponse,
+                        output
+                        );
+            }}             
 ");
         }
 
@@ -861,12 +961,87 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-            public Task<{Response.TypeFullName(requestAwaiter)}> Produce()
+            public async Task<{Response.TypeFullName(requestAwaiter)}> Produce(");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                {outputData.KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
+                }
+
+                builder.Append($@"
+                {outputData.ValueType.GetFullTypeName(true)} {outputValueParam(outputData)}");
+            }
+            builder.Append($@",
+                int waitResponseTimeout = 0
+                )
             {{
-");
+                var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
+                        Guid.NewGuid().ToString(""D""),
+                        RemoveAwaiter,
+                        {_channel()}.Writer,
+                        {_currentState()},");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                        {_inputTopicPartitions(inputData)},");
+            }
             builder.Append($@"
-            }}
+                        waitResponseTimeout
+                        );
+                
+                topicResponse.{TopicResponse.OutputTask()}.SetResult(CreateOutput(");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var outputData = requestAwaiter.OutputDatas[i];
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                    {outputKeyParam(outputData)},");
+                }
+
+                builder.Append($@"
+                    {outputValueParam(outputData)}");
+            }
+            builder.Append($@"
+                    )
+                );
+
+                var startResponse = new {StartResponse.TypeFullName(requestAwaiter)}
+                {{
+                    {StartResponse.ResponseProcess()} = topicResponse
+                }};
+
+                await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
+                await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
+                return 
+                    await topicResponse.GetResponse().ConfigureAwait(false);
+            }}             
 ");
         }
 
@@ -883,6 +1058,161 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
 ");
             builder.Append($@"
+            }}
+");
+        }
+
+        private static void RemoveAwaiter(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public void RemoveAwaiter(string guid)
+            {{
+                if ({_responseAwaiters()}.TryRemove(guid, out var awaiter))
+                {{
+                    awaiter.Dispose();
+                }}
+            }}
+");
+        }
+
+        private static void CreateOutputHeader(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            private {assemblyName}.RequestHeader CreateOutputHeader()
+            {{
+                var header = new {assemblyName}.RequestHeader()
+                {{
+                }};");
+
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                var variable = i == 0 ? $"var topic" : $"topic";
+                builder.Append($@"
+                {variable} = new {assemblyName}.Topic()
+                {{
+                    Name = {_inputTopicName(inputData)}
+                }};
+                topic.Partitions.Add({_inputTopicPartitions(inputData)});");
+
+                if (!inputData.AcceptFromAny)
+                {
+                    builder.Append($@"
+                topic.CanAnswerFrom.Add(new string[]{{");
+                    for (int j = 0; j < inputData.AcceptedService.Length; j++)
+                    {
+                        if (j != 0)
+                        {
+                            builder.Append(',');
+                        }
+
+                        builder.Append('"');
+                        builder.Append(inputData.AcceptedService[j]);
+                        builder.Append('"');
+                    }
+                    builder.Append($@"}});");
+                }
+                builder.Append($@"
+                header.TopicsForAnswer.Add(topic);");
+
+            }
+            builder.Append($@"
+                return header;
+            }}
+");
+        }
+
+        private static void CreateOutput(
+            StringBuilder builder,
+            string assemblyName,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
+            builder.Append($@"
+            private {OutputMessage.TypeFullName(requestAwaiter)} CreateOutput(");
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
+                var outputData = requestAwaiter.OutputDatas[i];
+                if(!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                {outputData.KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
+                }
+
+                builder.Append($@"
+                {outputData.ValueType.GetFullTypeName(true)} {outputValueParam(outputData)}");
+            }
+            builder.Append($@"
+                )
+            {{
+                var output = new {OutputMessage.TypeFullName(requestAwaiter)}
+                {{");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(',');
+                }
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+                    {OutputMessage.Header(outputData)} = CreateOutputHeader(),
+                    {OutputMessage.Message(outputData)} = new {OutputMessages.TypeFullName(requestAwaiter, outputData)}(
+                        new Confluent.Kafka.Message<{outputData.TypesPair}>
+                        {{");
+                if (!outputData.KeyType.IsKafkaNull())
+                {
+                    builder.Append($@"
+                        Key = {outputKeyParam(outputData)}{(outputData.KeyType.IsProtobuffType() ? $".ToByteArray()" : string.Empty)},");
+                }
+                builder.Append($@"
+                        Value = {outputValueParam(outputData)}{(outputData.ValueType.IsProtobuffType() ? $".ToByteArray()" : string.Empty)}
+                        }}");
+
+                if (outputData.KeyType.IsProtobuffType())
+                {
+                    builder.Append($@",
+                        {outputKeyParam(outputData)}
+");
+                }
+
+                if (outputData.ValueType.IsProtobuffType())
+                {
+                    builder.Append($@",
+                        {outputValueParam(outputData)}
+");
+                }
+                builder.Append($@"
+                        )");
+            }
+            builder.Append($@"
+                }}
+                ;");
+
+            builder.Append($@"
+                return output;
             }}
 ");
         }

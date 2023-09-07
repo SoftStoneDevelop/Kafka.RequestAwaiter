@@ -73,11 +73,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 if(serviceIndex == -1)
                 {
-                    return $@"{inputData.NamePascalCase}";
+                    return $@"{inputData.NameCamelCase}";
                 }
                 else
                 {
-                    return $@"{inputData.NamePascalCase}{serviceIndex}";
+                    return $@"{inputData.NameCamelCase}{serviceIndex}";
                 }
             }
 
@@ -85,8 +85,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public {TypeName()}(
                 int bucket,
                 KafkaExchanger.Attributes.Enums.RAState currentState,
-                TaskCompletionSource<bool> responseProcess
-");
+                TaskCompletionSource<bool> responseProcess");
+
             string partitions(InputData inputData)
             {
                 return $"{inputData.NameCamelCase}Partitions";

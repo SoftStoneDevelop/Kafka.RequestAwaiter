@@ -1,5 +1,4 @@
 ﻿using KafkaExchanger.Datas;
-using System.Net.Sockets;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -16,7 +15,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             FieldsAndProperties(builder, requestAwaiter);
             Constructor(builder, requestAwaiter);
 
-            CreateOutput(builder, assemblyName, requestAwaiter);
             Init(builder, assemblyName, requestAwaiter);
             CreateGetResponse(builder, assemblyName, requestAwaiter);
             GetResponse(builder, requestAwaiter);
@@ -87,6 +85,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "_removeAction";
         }
 
+        private static string _writer()
+        {
+            return "_writer";
+        }
+
         public static string _inputMessageTask(InputData inputData, int serviceId = -1)
         {
             if(serviceId == -1)
@@ -114,6 +117,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $@"{inputData.NamePascalCase}Partitions";
         }
 
+        private static string ChannelWriterType(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
+        {
+            return $"ChannelWriter<{ChannelInfo.TypeFullName(requestAwaiter)}>";
+        }
+
         private static void StartClass(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
@@ -138,16 +146,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private CancellationTokenSource {_cts()};
             private readonly string {_guid()};
             private int {_waitResponseTimeout()};
+            {ChannelWriterType(requestAwaiter)} {_writer()};
 
             private Action<string> {_removeAction()};
 
             public string {Guid()} => {_guid()};
             public TaskCompletionSource<{OutputMessage.TypeFullName(requestAwaiter)}> {OutputTask()} => {_outputTask()};
-            public int {Bucket()}
-            {{
-                get;
-                set;
-            }}");
+            public int {Bucket()};");
 
             if(requestAwaiter.CheckCurrentState)
             {
@@ -198,7 +203,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             public {TypeName()}(
                 string {guidParam},
-                Action<string> {removeActionParam}");
+                Action<string> {removeActionParam},
+                {ChannelWriterType(requestAwaiter)} writer");
             var getCurrentStateParam = "getCurrentState";
             if(requestAwaiter.CheckCurrentState)
             {
@@ -220,7 +226,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 {_guid()} = {guidParam};
                 {_removeAction()} = {removeActionParam};
-                {_waitResponseTimeout()} = {waitResponseTimeoutParam};");
+                {_waitResponseTimeout()} = {waitResponseTimeoutParam};
+                {_writer()} = writer;");
 
             if (requestAwaiter.CheckCurrentState)
             {
@@ -234,21 +241,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
                 {_inputPartition(inputData)} = {inputPartition(inputData)};");
             }
-
-            builder.Append($@"
-            }}
-");
-        }
-
-        private static void CreateOutput(
-            StringBuilder builder,
-            string assemblyName,
-            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
-            )
-        {
-            builder.Append($@"
-            public void CreateOutput()
-            {{");
 
             builder.Append($@"
             }}
@@ -310,11 +302,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }}
                 }});
 
-                {_responseProcess()}.Task.ContinueWith(task =>
+                {_responseProcess()}.Task.ContinueWith(async task =>
+                {{
+                    try
                     {{
-                        {_removeAction()}({_guid()});
+                        var endResponse = new {EndResponse.TypeFullName(requestAwaiter)}
+                        {{
+                            {EndResponse.BucketId()} = this.{Bucket()},
+                            {EndResponse.Guid()} = this.{Guid()}
+                        }};
+
+                        await {_writer()}.WriteAsync(endResponse).ConfigureAwait(false);
                     }}
-                    );
+                    catch
+                    {{
+                        //ignore
+                    }}
+
+                    {_removeAction()}({_guid()});
+                }}
+                );
             }}
 ");
         }
@@ -329,22 +336,43 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse()
             {{
 ");
+            var offsetIndex = 0;
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
-                var topic{i} = await {_inputMessageTask(inputData)}.Task.ConfigureAwait(false);");
+                var {inputData.NameCamelCase} = await {_inputMessageTask(inputData)}.Task.ConfigureAwait(false);
+                await {_writer()}.WriteAsync(
+                    new {SetOffsetResponse.TypeFullName(requestAwaiter)}
+                    {{
+                        {SetOffsetResponse.BucketId()} = this.{Bucket()},
+                        {SetOffsetResponse.Guid()} = this.{Guid()},
+                        {SetOffsetResponse.OffsetId()} = {offsetIndex++},
+                        {SetOffsetResponse.Offset()} = {inputData.NameCamelCase}.{BaseInputMessage.TopicPartitionOffset()}
+                    }}
+                    ).ConfigureAwait(false);");
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@"
-                var topic{i}{inputData.AcceptedService[j]} = await {_inputMessageTask(inputData, j)}.Task.ConfigureAwait(false);");
+                var {inputData.NameCamelCase}{inputData.AcceptedService[j]} = await {_inputMessageTask(inputData, j)}.Task.ConfigureAwait(false);
+                await {_writer()}.WriteAsync(
+                    new {SetOffsetResponse.TypeFullName(requestAwaiter)}
+                    {{
+                        {SetOffsetResponse.BucketId()} = this.{Bucket()},
+                        {SetOffsetResponse.Guid()} = this.{Guid()},
+                        {SetOffsetResponse.OffsetId()} = {offsetIndex++},
+                        {SetOffsetResponse.Offset()} = {inputData.NameCamelCase}{inputData.AcceptedService[j]}.{BaseInputMessage.TopicPartitionOffset()}
+                    }}
+                    ).ConfigureAwait(false);");
                     }
                 }
+
+
             }
 
             if (requestAwaiter.CheckCurrentState)
@@ -366,7 +394,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     if (inputData.AcceptFromAny)
                     {
                         builder.Append($@"
-                    topic{i}");
+                    {inputData.NameCamelCase}");
                     }
                     else
                     {
@@ -378,7 +406,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             }
 
                             builder.Append($@"
-                    topic{i}{inputData.AcceptedService[j]}");
+                    {inputData.NameCamelCase}{inputData.AcceptedService[j]}");
                         }
                     }
                 }
@@ -407,14 +435,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (inputData.AcceptFromAny)
                 {
                     builder.Append($@",
-                    topic{i}");
+                    {inputData.NameCamelCase}");
                 }
                 else
                 {
                     for (int j = 0; j < inputData.AcceptedService.Length; j++)
                     {
                         builder.Append($@",
-                    topic{i}{inputData.AcceptedService[j]}");
+                    {inputData.NameCamelCase}{inputData.AcceptedService[j]}");
                     }
                 }
             }
