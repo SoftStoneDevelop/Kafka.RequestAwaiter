@@ -186,7 +186,7 @@ namespace KafkaExchanger.Datas
                 var inputData = InputDatas[i];
                 tempSb.Append($"int[], string,");
             }
-            tempSb.Append("ValueTask>");
+            tempSb.Append("Task>");
 
             return tempSb.ToString();
         }
@@ -200,7 +200,7 @@ namespace KafkaExchanger.Datas
                 var inputData = InputDatas[i];
                 tempSb.Append($"int[], string,");
             }
-            tempSb.Append("ValueTask<int>>");
+            tempSb.Append("Task<int>>");
 
             return tempSb.ToString();
         }

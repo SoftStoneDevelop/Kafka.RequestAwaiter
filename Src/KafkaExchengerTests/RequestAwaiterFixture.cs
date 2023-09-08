@@ -212,13 +212,15 @@ namespace KafkaExchengerTests
                     }
                     ))
             {
+                int currentBuckets = 0;
                 await using var reqAwaiter = new RequestAwaiterSimple();
                 RequestAwaiterSimple.Config reqAwaiterConfitg;
                 CreateConfig();
 
-                reqAwaiter.Setup(
+                await reqAwaiter.Setup(
                     config: reqAwaiterConfitg,
-                    producerPool0: pool
+                    producerPool0: pool,
+                    currentBucketsCount: reqAwaiterConfitg.BucketsCount
                     );
 
                 reqAwaiter.Start(
@@ -235,7 +237,7 @@ namespace KafkaExchengerTests
                 var tasks = new Task[120];
                 for (int i = 0; i < 120; i++)
                 {
-                    tasks[i] = reqAwaiter.Produce("Hello", 1_000).AsTask();
+                    tasks[i] = reqAwaiter.Produce("Hello", 1_000);
                 }
 
                 foreach (var task in tasks)
@@ -249,6 +251,17 @@ namespace KafkaExchengerTests
                     new RequestAwaiterSimple.Config(
                         groupId: "SimpleProduce",
                         bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                        itemsInBucket: 50,
+                        inFlyBucketsLimit: 5,
+                        addNewBucket: (bucketId, partitions0, topic0Name, partitions1, topic1Name) => 
+                        {
+                            currentBuckets++;
+                            return Task.CompletedTask; 
+                        },
+                        bucketsCount: async (partitions0, topic0Name, partitions1, topic1Name) => 
+                        { 
+                            return await Task.FromResult(currentBuckets); 
+                        },
                         processors: new RequestAwaiterSimple.ProcessorConfig[]
                         {
                         //From _inputSimpleTopic1
@@ -262,8 +275,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -281,8 +292,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -300,8 +309,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 10,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -326,15 +333,17 @@ namespace KafkaExchengerTests
                         config.AllowAutoCreateTopics = false;
                     }))
             {
+                int currentBuckets = 0;
                 await using var reqAwaiter = new RequestAwaiterSimple();
                 RequestAwaiterSimple.Config reqAwaiterConfitg;
                 CreateConfig();
 
                 await _responder1.Setup(config: _responder1Config, output0Pool: pool);
                 await _responder2.Setup(config: _responder2Config, output0Pool: pool);
-                reqAwaiter.Setup(
+                await reqAwaiter.Setup(
                     config: reqAwaiterConfitg,
-                    producerPool0: pool
+                    producerPool0: pool, 
+                    currentBucketsCount: reqAwaiterConfitg.BucketsCount
                     );
 
                 reqAwaiter.Start(
@@ -378,7 +387,7 @@ namespace KafkaExchengerTests
                         Assert.That(result.result.CurrentState, Is.EqualTo(RAState.Sended));
                     });
 
-                    var answerFrom1 = result.result.Input0Message0;
+                    var answerFrom1 = result.result.Input00;
                     Assert.That(answerFrom1 != null, Is.True);
                     Assert.Multiple(() =>
                     {
@@ -387,7 +396,7 @@ namespace KafkaExchengerTests
                         Assert.That(unique1.Add(answerFrom1.Value), Is.True);
                     });
 
-                    var answerFrom2 = result.result.Input1Message0;
+                    var answerFrom2 = result.result.Input10;
                     Assert.That(answerFrom2 != null, Is.True);
                     Assert.Multiple(() =>
                     {
@@ -406,6 +415,17 @@ namespace KafkaExchengerTests
                     new RequestAwaiterSimple.Config(
                         groupId: "SimpleProduce",
                         bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                        itemsInBucket: 50,
+                        inFlyBucketsLimit: 5,
+                        addNewBucket: (bucketId, partitions0, topic0Name, partitions1, topic1Name) =>
+                        {
+                            currentBuckets++;
+                            return Task.CompletedTask;
+                        },
+                        bucketsCount: async (partitions0, topic0Name, partitions1, topic1Name) =>
+                        {
+                            return await Task.FromResult(currentBuckets);
+                        },
                         processors: new RequestAwaiterSimple.ProcessorConfig[]
                         {
                         //From _inputSimpleTopic1
@@ -419,8 +439,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -438,8 +456,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -457,8 +473,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: (header, message) =>
                             {
                                 return Task.CompletedTask;
@@ -489,6 +503,7 @@ namespace KafkaExchengerTests
                         config.AllowAutoCreateTopics = false;
                     }))
             {
+                int currentBuckets = 0;
                 var sended = new ConcurrentDictionary<string, AddAwaiterInfo>();
                 var sendedFromAwaiter = new ConcurrentDictionary<string, AddAwaiterInfo>();
                 TaskCompletionSource waitSended = new();
@@ -502,9 +517,10 @@ namespace KafkaExchengerTests
                 var reqAwaiterPrepare = new RequestAwaiterSimple();
                 try
                 {
-                    reqAwaiterPrepare.Setup(
+                    await reqAwaiterPrepare.Setup(
                         config: reqAwaiterConfitg,
-                        producerPool0: pool
+                        producerPool0: pool,
+                        currentBucketsCount: reqAwaiterConfitg.BucketsCount
                         );
 
                     var sendedCount = 0;
@@ -522,10 +538,10 @@ namespace KafkaExchengerTests
                         {
                             var info = new AddAwaiterInfo()
                             {
-                                Value = delayProduce.Output0Message.Value + "LOM",
-                                Header = delayProduce.Output0Header,
+                                Value = delayProduce.OutputRequest.Output0.Value + "LOM",
+                                Header = delayProduce.OutputRequest.Output0Header,
                             };
-                            sendedFromAwaiter.TryAdd(delayProduce.MessageGuid, info);
+                            sendedFromAwaiter.TryAdd(delayProduce.Guid, info);
                         }
                     }
 
@@ -544,9 +560,10 @@ namespace KafkaExchengerTests
                 var answers = new List<Task<(string, RequestAwaiterSimple.Response, string)>>(requestsCount);
                 await using (var reqAwaiter = new RequestAwaiterSimple())
                 {
-                    reqAwaiter.Setup(
+                    await reqAwaiter.Setup(
                         config: reqAwaiterConfitg,
-                        producerPool0: pool
+                        producerPool0: pool,
+                        currentBucketsCount: reqAwaiterConfitg.BucketsCount
                         );
 
                     foreach (var pair in sended)
@@ -618,7 +635,7 @@ namespace KafkaExchengerTests
                             Assert.That(result.result.CurrentState, Is.EqualTo(RAState.Sended));
                         });
 
-                        var answerFrom1 = result.result.Input0Message0;
+                        var answerFrom1 = result.result.Input00;
                         Assert.That(answerFrom1 != null, Is.True);
                         Assert.Multiple(() =>
                         {
@@ -634,7 +651,7 @@ namespace KafkaExchengerTests
                             Assert.That(unique1.Add(answerFrom1.Value), Is.True);
                         });
 
-                        var answerFrom2 = result.result.Input1Message0;
+                        var answerFrom2 = result.result.Input10;
                         Assert.That(answerFrom2 != null, Is.True);
                         Assert.Multiple(() =>
                         {
@@ -661,6 +678,17 @@ namespace KafkaExchengerTests
                     new RequestAwaiterSimple.Config(
                         groupId: "SimpleProduce",
                         bootstrapServers: GlobalSetUp.Configuration["BootstrapServers"],
+                        itemsInBucket: 50,
+                        inFlyBucketsLimit: 5,
+                        addNewBucket: (bucketId, partitions0, topic0Name, partitions1, topic1Name) =>
+                        {
+                            currentBuckets++;
+                            return Task.CompletedTask;
+                        },
+                        bucketsCount: async (partitions0, topic0Name, partitions1, topic1Name) =>
+                        {
+                            return await Task.FromResult(currentBuckets);
+                        },
                         processors: new RequestAwaiterSimple.ProcessorConfig[]
                         {
                         //From _inputSimpleTopic1
@@ -674,8 +702,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
                             checkOutput0Status: AddAwaiterCheckStatus
@@ -690,8 +716,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
                             checkOutput0Status: AddAwaiterCheckStatus
@@ -706,8 +730,6 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            buckets: 2,
-                            maxInFly: 50,
                             afterSendOutput0: AfterSend,
                             loadOutput0Message: LoadOutputMessage,
                             checkOutput0Status: AddAwaiterCheckStatus
