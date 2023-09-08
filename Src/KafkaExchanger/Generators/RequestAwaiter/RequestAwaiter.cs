@@ -285,21 +285,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{
             var index = Interlocked.Increment(ref {_currentItemIndex()}) % (uint){_items()}.Length;
             return await
-                {_items()}[index].Produce(
-");
+                {_items()}[index].Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                    {outputKeyParam(outputData)},
-");
+                    {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-                    {outputValueParam(outputData)},
-");
+                    {outputValueParam(outputData)},");
             }
             builder.Append($@"
                     waitResponseTimeout
@@ -345,21 +342,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{
             var index = Interlocked.Increment(ref {_currentItemIndex()}) % (uint){_items()}.Length;
             return await
-                {_items()}[index].ProduceDelay(
-");
+                {_items()}[index].ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                    {outputKeyParam(outputData)},
-");
+                    {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-                    {outputValueParam(outputData)},
-");
+                    {outputValueParam(outputData)},");
             }
             builder.Append($@"
                     waitResponseTimeout
