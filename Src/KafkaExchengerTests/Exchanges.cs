@@ -13,21 +13,21 @@ namespace KafkaExchengerTests
 
     }
 
-    //[RequestAwaiter(
-    //    useLogger: true,
-    //    afterSend: true,
-    //    AddAwaiterCheckStatus: true,
-    //    useAfterCommit: true,
-    //    checkCurrentState: true
-    //    ),
-    //    Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),
-    //    Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder2" }),
-    //    Output(keyType: typeof(Null), valueType: typeof(string))
-    //    ]
-    //public partial class RequestAwaiterFull
-    //{
+    [RequestAwaiter(
+        useLogger: true,
+        afterSend: true,
+        AddAwaiterCheckStatus: true,
+        useAfterCommit: true,
+        checkCurrentState: true
+        ),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder2" }),
+        Output(keyType: typeof(Null), valueType: typeof(string))
+        ]
+    public partial class RequestAwaiterFull
+    {
 
-    //}
+    }
 
     [Responder(useLogger: false),
         Input(keyType: typeof(Null), valueType: typeof(string)),

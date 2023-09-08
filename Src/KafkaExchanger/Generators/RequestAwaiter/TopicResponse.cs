@@ -254,9 +254,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public void Init(bool skipSend = false)
+            public void Init(
+                {PartitionItem.SendFuncType(requestAwaiter)} sendTask,
+                bool skipSend = false
+                )
             {{
-                {_response()} = CreateGetResponse(skipSend);
+                {_response()} = CreateGetResponse(sendTask, skipSend);
                 if ({_waitResponseTimeout()} != 0)
                 {{
                     {_cts()} = new CancellationTokenSource({_waitResponseTimeout()});
@@ -333,12 +336,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            private async Task<{requestAwaiter.TypeSymbol.Name}.Response> CreateGetResponse(bool skipSend)
+            private async Task<{Response.TypeFullName(requestAwaiter)}> CreateGetResponse(
+                {PartitionItem.SendFuncType(requestAwaiter)} sendTask,
+                bool skipSend
+                )
             {{
                 if(!skipSend)
                 {{
                     var output = await {OutputTask()}.Task;
-                    //TODO send
+                    await sendTask(output);
                 }}
 ");
             var offsetIndex = 0;

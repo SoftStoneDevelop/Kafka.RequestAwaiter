@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Datas;
+using KafkaExchanger.Generators.Responder;
 using KafkaExchanger.Helpers;
 using System.Text;
 
@@ -27,6 +28,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             ProduceDelay(sb, requestAwaiter);
             Produce(sb, requestAwaiter);
             AddAwaiter(sb, requestAwaiter);
+            Send(sb, requestAwaiter);
 
             RemoveAwaiter(sb, requestAwaiter);
             CreateOutput(sb, assemblyName, requestAwaiter);
@@ -676,7 +678,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
                             var propessResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
-                            propessResponse.Init();
+                            propessResponse.Init(Send);
                         }}
                     }}
                     catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
@@ -1148,8 +1150,56 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     topicResponse.Dispose();
                     throw new InvalidOperationException();
                 }}
-                topicResponse.Init(true);
+                topicResponse.Init(Send, true);
                 return topicResponse;
+            }}
+");
+        }
+
+        public static string SendFuncType(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
+        {
+            return $"Func<{OutputMessage.TypeFullName(requestAwaiter)}, Task>";
+        }
+
+        private static void Send(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            private async Task Send({OutputMessage.TypeFullName(requestAwaiter)} outputMessage)
+            {{");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+                {{
+                    outputMessage.{OutputMessage.Message(outputData)}.{OutputMessages.Message()}.Headers = new Headers
+                    {{
+                        {{ ""Info"", outputMessage.{OutputMessage.Header(outputData)}.ToByteArray() }}
+                    }};
+
+                    var producer = {_outputPool(outputData)}.Rent();
+                    try
+                    {{
+                        var deliveryResult = await producer.ProduceAsync(
+                            {_outputTopicName(outputData)},
+                            outputMessage.{OutputMessage.Message(outputData)}.{OutputMessages.Message()}
+                            ).ConfigureAwait(false)
+                            ;
+                    }}
+                    catch (ProduceException<{outputData.TypesPair}>)
+                    {{
+                        //ignore
+                    }}
+                    finally
+                    {{
+                        {_outputPool(outputData)}.Return(producer);
+                    }}
+                }}
+");
+            }
+            builder.Append($@"
             }}
 ");
         }
