@@ -154,6 +154,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string partitionsParam(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Partitions";
+            }
+
             builder.Append($@"
         public Task<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
             string messageGuid,
@@ -161,8 +166,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            int[] input{i}partitions,");
+            int[] {partitionsParam(inputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0

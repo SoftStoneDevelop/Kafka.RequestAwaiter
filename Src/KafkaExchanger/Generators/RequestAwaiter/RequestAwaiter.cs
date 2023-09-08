@@ -264,21 +264,20 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@"
-        public async Task<{Response.TypeFullName(requestAwaiter)}> Produce(
-");
+        public async Task<{Response.TypeFullName(requestAwaiter)}> Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},
-");
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
+
                 }
 
                 builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},
-");
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},");
+
             }
             builder.Append($@"
             int waitResponseTimeout = 0
@@ -327,21 +326,18 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
 
             builder.Append($@"
-        public async ValueTask<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(
-");
+        public async Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},
-");
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},
-");
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
@@ -377,43 +373,64 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string partitionsParam(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Partitions";
+            }
+
             builder.Append($@"
-        public async ValueTask<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
+        public async Task<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
             string messageGuid,
-            int bucket,
-");
+            int bucket,");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            int[] input{i}partitions,
-");
+            int[] {partitionsParam(inputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
             )
         {{
-
-            for (var i = 0; i < {_items()}.Length; i++ )
+            for (int i = 0; i < {_items()}.Length; i++ )
             {{
-                var taw =
-                    {(requestAwaiter.AddAwaiterCheckStatus ? "await " : "")}{_items()}[i].TryAddAwaiter(
-                        messageGuid,
-                        bucket,
-");
+                bool skipItem = false;
+                var item = {_items()}[i];");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        input{i}partitions,
+                if({partitionsParam(inputData)} == null || {partitionsParam(inputData)}.Length == 0)
+                {{
+                    throw new System.Exception(""Partitions not specified"");
+                }}
+
+                for(int j = 0; j < {partitionsParam(inputData)}.Length; j++)
+                {{
+                    if(!item.{PartitionItem.InputTopicPartitions(inputData)}.Contains({partitionsParam(inputData)}[j]))
+                    {{
+                        skipItem = true;
+                        break;
+                    }}
+                }}
+
+                if(skipItem)
+                {{
+                    continue;
+                }}
 ");
             }
             builder.Append($@"
-                        waitResponseTimeout
-                        );
-
-                if(taw.Succsess)
-                {{
-                    return await taw.Response.GetResponse().ConfigureAwait(false);
-                }}
+                return await item.AddAwaiter(
+                    messageGuid,
+                    bucket,
+                    waitResponseTimeout
+                    )
+                    .GetResponse()
+                    .ConfigureAwait(false)
+                    ;
             }}
 
             throw new System.Exception(""No matching bucket found in combination with partitions"");

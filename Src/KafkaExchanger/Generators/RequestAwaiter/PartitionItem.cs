@@ -26,7 +26,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             StopAsync(sb);
             ProduceDelay(sb, requestAwaiter);
             Produce(sb, requestAwaiter);
-            TryAddAwaiter(sb, requestAwaiter);
+            AddAwaiter(sb, requestAwaiter);
 
             RemoveAwaiter(sb, requestAwaiter);
             CreateOutput(sb, assemblyName, requestAwaiter);
@@ -111,9 +111,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return $@"_{inputData.NameCamelCase}Name";
         }
 
-        private static string _inputTopicPartitions(InputData inputData)
+        public static string InputTopicPartitions(InputData inputData)
         {
-            return $@"_{inputData.NameCamelCase}Partitions";
+            return $@"{inputData.NamePascalCase}Partitions";
         }
 
         private static string _itemsInBucket()
@@ -302,7 +302,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                         {_inputTopicName(inputData)} = {inputTopicName(inputData)};
-                        {_inputTopicPartitions(inputData)} = {inputTopicPartitions(inputData)};");
+                        {InputTopicPartitions(inputData)} = {inputTopicPartitions(inputData)};");
             }
 
             if(requestAwaiter.UseLogger)
@@ -365,7 +365,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-                            {_inputTopicPartitions(inputData)},
+                            {InputTopicPartitions(inputData)},
                             {_inputTopicName(inputData)}");
             }
             builder.Append($@"
@@ -455,7 +455,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
             private readonly string {_inputTopicName(inputData)};
-            private readonly int[] {_inputTopicPartitions(inputData)};");
+            public readonly int[] {InputTopicPartitions(inputData)};");
             }
 
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
@@ -536,7 +536,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
 
                 builder.Append($@"
-                            {_inputTopicPartitions(inputData)},
+                            {InputTopicPartitions(inputData)},
                             {_inputTopicName(inputData)}");
             }
             builder.Append($@"
@@ -574,7 +574,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     queue.Enqueue(startResponse);
                                 }}
 
-                                var newMessage = new KafkaExchanger.MessageInfo({requestAwaiter.InputDatas.Count});
+                                var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
                                 var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
                                 startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
                                 startResponse.{StartResponse.BucketReserve()}.SetResult();
@@ -609,7 +609,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     }}
 
                                     startResponse = queue.Dequeue();
-                                    var newMessage = new KafkaExchanger.MessageInfo({requestAwaiter.InputDatas.Count});
+                                    var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
                                     var bucketId = await _storage.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
                                     startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
                                     await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
@@ -634,7 +634,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {
                     var inputData = requestAwaiter.InputDatas[i];
                     builder.Append($@",
-                                        {_inputTopicPartitions(inputData)}");
+                                        {InputTopicPartitions(inputData)}");
                 }
                 builder.Append($@"
                                         ).ConfigureAwait(false);
@@ -739,7 +739,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                             .Build()
                             ;
 
-                        consumer.Assign({_inputTopicPartitions(inputData)}.Select(sel => new Confluent.Kafka.TopicPartition({_inputTopicName(inputData)}, sel)));
+                        consumer.Assign({InputTopicPartitions(inputData)}.Select(sel => new Confluent.Kafka.TopicPartition({_inputTopicName(inputData)}, sel)));
 
                         try
                         {{
@@ -913,7 +913,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        {_inputTopicPartitions(inputData)},");
+                        {InputTopicPartitions(inputData)},");
             }
             builder.Append($@"
                         waitResponseTimeout
@@ -944,6 +944,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     {StartResponse.ResponseProcess()} = topicResponse
                 }};
+
+                if(!{_responseAwaiters()}.TryAdd(topicResponse.Guid, topicResponse))
+                {{
+                    topicResponse.Dispose();
+                    throw new InvalidOperationException();
+                }}
 
                 await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
                 await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
@@ -1004,7 +1010,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        {_inputTopicPartitions(inputData)},");
+                        {InputTopicPartitions(inputData)},");
             }
             builder.Append($@"
                         waitResponseTimeout
@@ -1037,6 +1043,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {StartResponse.ResponseProcess()} = topicResponse
                 }};
 
+                if(!{_responseAwaiters()}.TryAdd(topicResponse.Guid, topicResponse))
+                {{
+                    topicResponse.Dispose();
+                    throw new InvalidOperationException();
+                }}
+
                 await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
                 await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
                 return 
@@ -1045,19 +1057,41 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void TryAddAwaiter(
+        private static void AddAwaiter(
             StringBuilder builder,
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            public Task<{TryAddAwaiterResult.TypeFullName(requestAwaiter)}> TryAddAwaiter(
-                string messageGuid,
-                int bucket
+            public {TopicResponse.TypeFullName(requestAwaiter)} AddAwaiter(
+                string guid,
+                int bucket,
+                int waitResponseTimeout = 0
                 )
             {{
-");
+                var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
+                {_storage()}.Push(bucket, guid, newMessage);
+                var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
+                    guid,
+                    RemoveAwaiter,
+                    {_channel()}.Writer,
+                    {_currentState()},");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                builder.Append($@"
+                        {InputTopicPartitions(inputData)},");
+            }
             builder.Append($@"
+                        waitResponseTimeout
+                        );
+                if(!{_responseAwaiters()}.TryAdd(topicResponse.Guid, topicResponse))
+                {{
+                    topicResponse.Dispose();
+                    throw new InvalidOperationException();
+                }}
+                topicResponse.Init(true);
+                return topicResponse;
             }}
 ");
         }
@@ -1100,7 +1134,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {{
                     Name = {_inputTopicName(inputData)}
                 }};
-                topic.Partitions.Add({_inputTopicPartitions(inputData)});");
+                topic.Partitions.Add({InputTopicPartitions(inputData)});");
 
                 if (!inputData.AcceptFromAny)
                 {
