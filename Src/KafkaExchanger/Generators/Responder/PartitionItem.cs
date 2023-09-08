@@ -26,7 +26,6 @@ namespace KafkaExchanger.Generators.Responder
             PushMessage(builder, responder);
 
             Stop(builder, responder);
-            StopConsume(builder, responder);
 
             EndClass(builder);
         }
@@ -943,13 +942,13 @@ namespace KafkaExchanger.Generators.Responder
 ");
         }
 
-        public static void StopConsume(
+        public static void Stop(
             StringBuilder builder,
             KafkaExchanger.Datas.Responder responder
             )
         {
             builder.Append($@"
-            private async Task StopConsume()
+            public async Task Stop()
             {{
                 {_cts()}?.Cancel();
 
@@ -984,19 +983,6 @@ namespace KafkaExchanger.Generators.Responder
                 }}
 
                 {_cts()}?.Dispose();
-            }}
-");
-        }
-
-        public static void Stop(
-            StringBuilder builder,
-            KafkaExchanger.Datas.Responder responder
-            )
-        {
-            builder.Append($@"
-            public Task Stop()
-            {{
-                return StopConsume();
             }}
 ");
         }

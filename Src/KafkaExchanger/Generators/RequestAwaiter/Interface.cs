@@ -1,9 +1,6 @@
 ﻿using KafkaExchanger.Datas;
-using KafkaExchanger.Enums;
 using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
-using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -34,8 +31,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
     {requestAwaiter.TypeSymbol.DeclaredAccessibility.ToName()} partial interface I{requestAwaiter.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
-    {{
-");
+    {{");
         }
 
         private static void InterfaceProduceMethod(
@@ -122,8 +118,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);
-");
+        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);");
         }
 
         private static void InterfaceSetupMethod(
@@ -134,15 +129,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
         public Task Setup(
-            {requestAwaiter.TypeSymbol.Name}.Config config
-");
+            {Config.TypeFullName(requestAwaiter)} config");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}");
+
             }
-            builder.Append($@"
+            builder.Append($@",
+            {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
             )
             ;
 ");
@@ -181,8 +176,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask StopAsync(CancellationToken token = default);
-");
+        public Task StopAsync(CancellationToken token = default);");
         }
 
         private static void EndInterfaceOrClass(

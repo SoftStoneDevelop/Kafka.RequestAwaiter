@@ -56,11 +56,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {{");
         }
 
-        private static string _current()
-        {
-            return "_current";
-        }
-
         private static string _needCommit()
         {
             return "_needCommit";
@@ -151,9 +146,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "_consumeRoutines";
         }
 
-        private static string _horizonRoutine()
+        private static string _commitRoutine()
         {
-            return "_horizonRoutine";
+            return "_commitRoutine";
         }
 
         private static string _initializeRoutine()
@@ -402,16 +397,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            private uint {_current()};
             private int {_needCommit()};
             private Confluent.Kafka.TopicPartitionOffset[] {_commitOffsets()};
             private System.Threading.Tasks.TaskCompletionSource {_tcsCommit()} = new();
             private System.Threading.CancellationTokenSource {_cts()};
             private System.Threading.Thread[] {_consumeRoutines()};
-            private System.Threading.Tasks.Task {_horizonRoutine()};
+            private System.Threading.Tasks.Task {_commitRoutine()};
             private System.Threading.Tasks.Task {_initializeRoutine()};
 
-            private readonly ConcurrentDictionary<string, {TopicResponse.TypeFullName(requestAwaiter)}> {_responseAwaiters()};
+            private readonly ConcurrentDictionary<string, {TopicResponse.TypeFullName(requestAwaiter)}> {_responseAwaiters()} = new();
             private readonly Channel<{ChannelInfo.TypeFullName(requestAwaiter)}> {_channel()} = Channel.CreateUnbounded<{ChannelInfo.TypeFullName(requestAwaiter)}>(
                 new UnboundedChannelOptions()
                 {{
@@ -555,7 +549,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
             private void StartCommitRoutine()
             {{
-                {_horizonRoutine()} = Task.Factory.StartNew(async () => 
+                {_commitRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_channel()}.Reader;
                     var writer = {_initializeChannel()}.Writer;
@@ -857,9 +851,63 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StopAsync(StringBuilder builder)
         {
             builder.Append($@"
-            public async ValueTask StopAsync(CancellationToken token = default)
+            public async Task StopAsync(CancellationToken token = default)
             {{
-                
+                while(token == default || !token.IsCancellationRequested)
+                {{
+                    if({_responseAwaiters()}.Count == 0)
+                    {{
+                        break;
+                    }}
+
+                    await Task.Delay(25);
+                }}
+
+                {_cts()}?.Cancel();
+
+                foreach (var consumeRoutine in {_consumeRoutines()})
+                {{
+                    while (consumeRoutine.IsAlive)
+                    {{
+                        await Task.Delay(15);
+                    }}
+                }}
+
+                {_tcsCommit()}.TrySetCanceled();
+                {_channel()}.Writer.Complete();
+                {_initializeChannel()}.Writer.Complete();
+
+                try
+                {{
+                    await {_commitRoutine()};
+                }}
+                catch
+                {{
+                    //ignore
+                }}
+
+                try
+                {{
+                    await {_initializeRoutine()};
+                }}
+                catch
+                {{
+                    //ignore
+                }}
+
+                foreach(var awaiter in {_responseAwaiters()}.Values)
+                {{
+                    try
+                    {{
+                        awaiter.Dispose(); 
+                    }}
+                    catch
+                    {{ 
+                        //ignore
+                    }}
+                }}
+
+                {_cts()}?.Dispose();
             }}
 ");
         }
@@ -906,9 +954,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
                         Guid.NewGuid().ToString(""D""),
                         RemoveAwaiter,
-                        {_channel()}.Writer,
-                        {_currentState()},");
-
+                        {_channel()}.Writer,");
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
+                    {_currentState()},");
+            }
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
@@ -1003,9 +1054,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
                         Guid.NewGuid().ToString(""D""),
                         RemoveAwaiter,
-                        {_channel()}.Writer,
-                        {_currentState()},");
-
+                        {_channel()}.Writer,");
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
+                    {_currentState()},");
+            }
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
@@ -1074,8 +1128,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var topicResponse = new {TopicResponse.TypeFullName(requestAwaiter)}(
                     guid,
                     RemoveAwaiter,
-                    {_channel()}.Writer,
+                    {_channel()}.Writer,");
+            if(requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
                     {_currentState()},");
+            }
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];

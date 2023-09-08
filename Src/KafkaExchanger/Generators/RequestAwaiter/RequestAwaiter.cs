@@ -20,7 +20,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             Response.Append(builder, assemblyName, requestAwaiter);
 
-            Config.Append(builder);
+            Config.Append(builder, requestAwaiter);
             ProcessorConfig.Append(builder, assemblyName, requestAwaiter);
             ConsumerInfo.Append(builder);
             ProducerInfo.Append(builder);
@@ -73,6 +73,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "_groupId";
         }
 
+        private static string _loggerFactory()
+        {
+            return "_loggerFactory";
+        }
+
         private static string _isRun()
         {
             return "_isRun";
@@ -86,7 +91,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
     {requestAwaiter.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.TypeSymbol.Name} : I{requestAwaiter.TypeSymbol.Name}RequestAwaiter
     {{
-        {(requestAwaiter.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
+        {(requestAwaiter.UseLogger ? $@"private readonly ILoggerFactory {_loggerFactory()};" : "")}
         private {PartitionItem.TypeFullName(requestAwaiter)}[] {_items()};
         private string {_bootstrapServers()};
         private string {_groupId()};
@@ -94,7 +99,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public {requestAwaiter.TypeSymbol.Name}({(requestAwaiter.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
-            {(requestAwaiter.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
+            {(requestAwaiter.UseLogger ? $@"{_loggerFactory()} = loggerFactory;" : "")}
         }}
 ");
         }
@@ -140,16 +145,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Setup(
-            {requestAwaiter.TypeSymbol.Name}.Config config
-");
+        public async Task Setup(
+            {requestAwaiter.TypeSymbol.Name}.Config config");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}");
             }
-            builder.Append($@"
+            builder.Append($@",
+            {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
             )
         {{
             if({_items()} != null)
@@ -164,22 +168,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 var processorConfig = config.{Config.Processors()}[i];
                 {_items()}[i] =
-                    new {PartitionItem.TypeFullName(requestAwaiter)}(");
+                    new {PartitionItem.TypeFullName(requestAwaiter)}(
+                        config.{Config.InFlyBucketsLimit()},
+                        config.{Config.ItemsInBucket()},
+                        config.{Config.AddNewBucket()},");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
                         processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.TopicName()},
-                        processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.Partitions()},");
+                        processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.Partitions()}");
             }
-            builder.Append($@"
-                        processorConfig.{ProcessorConfig.Buckets()},
-                        processorConfig.{ProcessorConfig.MaxInFly()}");
 
             if(requestAwaiter.UseLogger)
             {
                 builder.Append($@",
-                        _loggerFactory.CreateLogger(config.GroupId)");
+                        {_loggerFactory()}.CreateLogger(config.{Config.GroupId()})");
             }
 
             if (requestAwaiter.CheckCurrentState)
@@ -198,7 +207,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                        processorConfig.{ProcessorConfig.ProducerInfo(outputData)}.TopicName,
+                        processorConfig.{ProcessorConfig.ProducerInfo(outputData)}.{ProducerInfo.TopicName()},
                         producerPool{i}");
                 if (requestAwaiter.AfterSend)
                 {
@@ -216,6 +225,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         );
+                await {_items()}[i].Setup(currentBucketsCount);
             }}
         }}
 ");
@@ -224,7 +234,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StopAsync(StringBuilder builder)
         {
             builder.Append($@"
-        public async ValueTask StopAsync(CancellationToken token = default)
+        public async Task StopAsync(CancellationToken token = default)
         {{
             var items = {_items()};
             if(items == null)
@@ -239,7 +249,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             var disposeTasks = new Task[items.Length];
             for (var i = 0; i < items.Length; i++)
             {{
-                disposeTasks[i] = items[i].StopAsync(token).AsTask();
+                disposeTasks[i] = items[i].StopAsync(token);
             }}
             
             await Task.WhenAll(disposeTasks);
