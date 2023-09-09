@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Datas;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -12,8 +13,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             StartClass(builder, requestAwaiter, assemblyName);
-            FieldsAndProperties(builder, requestAwaiter);
-            Constructor(builder, requestAwaiter);
+            FieldsAndProperties(builder, requestAwaiter, assemblyName);
+            Constructor(builder, requestAwaiter, assemblyName);
 
             Init(builder, assemblyName, requestAwaiter);
             CreateGetResponse(builder, assemblyName, requestAwaiter);
@@ -136,7 +137,8 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void FieldsAndProperties(
             StringBuilder builder,
-            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
+            string assemblyName
             )
         {
             builder.Append($@"
@@ -163,7 +165,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                if(inputData.AcceptFromAny)
+                builder.Append($@"
+            private int[] {_inputPartition(inputData)};
+            public int[] {InputPartition(inputData)} => {_inputPartition(inputData)};");
+
+                if (inputData.AcceptFromAny)
                 {
                     builder.Append($@"
             private TaskCompletionSource<{inputData.MessageTypeName}> {_inputMessageTask(inputData)} = new(TaskCreationOptions.RunContinuationsAsynchronously);");
@@ -178,23 +184,86 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }
             }
 
-            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            if (requestAwaiter.AddAwaiterCheckStatus)
             {
-                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            private int[] {_inputPartition(inputData)};
-            public int[] {InputPartition(inputData)} => {_inputPartition(inputData)};");
+            private {PartitionItem.CreateOutputHeaderFuncType(requestAwaiter, assemblyName)} {_createOutputHeader()};");
             }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+            private {PartitionItem.SendFuncType(requestAwaiter, assemblyName, outputData)} {_sendOutput(outputData)};");
+                if(requestAwaiter.AfterSend)
+                {
+                    builder.Append($@"
+            private {requestAwaiter.AfterSendFunc(assemblyName, outputData)} {_afterSendOutput(outputData)};");
+                }
+
+                if (requestAwaiter.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@"
+            private {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData)} {_loadOutput(outputData)};
+            private {requestAwaiter.AddAwaiterStatusFunc(assemblyName)} {_checkStatusOutput(outputData)};");
+                }
+            }
+        }
+
+        public static string _sendOutput(OutputData outputData)
+        {
+            return $"_send{outputData.NamePascalCase}";
+        }
+
+        public static string _afterSendOutput(OutputData outputData)
+        {
+            return $"_afterSend{outputData.NamePascalCase}";
+        }
+
+        private static string _createOutputHeader()
+        {
+            return $"_createOutputHeader";
+        }
+
+        private static string _loadOutput(OutputData outputData)
+        {
+            return $@"_load{outputData.NameCamelCase}";
+        }
+
+        private static string _checkStatusOutput(OutputData outputData)
+        {
+            return $@"_checkStatus{outputData.NameCamelCase}";
         }
 
         private static void Constructor(
             StringBuilder builder,
-            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
+            string assemblyName
             )
         {
             string inputPartition(InputData inputData)
             {
                 return $@"{inputData.NameCamelCase}Partitions";
+            }
+
+            string sendOutput(OutputData outputData)
+            {
+                return $"send{outputData.NamePascalCase}";
+            }
+
+            string afterSendOutput(OutputData outputData)
+            {
+                return $"afterSend{outputData.NamePascalCase}";
+            }
+
+            string loadOutput(OutputData outputData)
+            {
+                return $@"load{outputData.NameCamelCase}";
+            }
+
+            string checkStatusOutput(OutputData outputData)
+            {
+                return $@"checkStatus{outputData.NameCamelCase}";
             }
 
             var removeActionParam = "removeAction";
@@ -217,6 +286,32 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@",
                 int[] {inputPartition(inputData)}");
+            }
+
+            var createOutputHeaderParam = "createOutputHeader";
+            if (requestAwaiter.AddAwaiterCheckStatus)
+            {
+                builder.Append($@",
+                {PartitionItem.CreateOutputHeaderFuncType(requestAwaiter, assemblyName)} {createOutputHeaderParam}");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@",
+                {PartitionItem.SendFuncType(requestAwaiter, assemblyName, outputData)} {sendOutput(outputData)}");
+                if (requestAwaiter.AfterSend)
+                {
+                    builder.Append($@",
+                {requestAwaiter.AfterSendFunc(assemblyName, outputData)} {afterSendOutput(outputData)}");
+                }
+
+                if (requestAwaiter.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@",
+                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData)} {loadOutput(outputData)},
+                {requestAwaiter.AddAwaiterStatusFunc(assemblyName)} {checkStatusOutput(outputData)}");
+                }
             }
 
             var waitResponseTimeoutParam = "waitResponseTimeout";
@@ -242,6 +337,32 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {_inputPartition(inputData)} = {inputPartition(inputData)};");
             }
 
+            if (requestAwaiter.AddAwaiterCheckStatus)
+            {
+                builder.Append($@"
+                {_createOutputHeader()} = {createOutputHeaderParam};");
+            }
+
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@"
+                {_sendOutput(outputData)} = {sendOutput(outputData)};");
+
+                if (requestAwaiter.AfterSend)
+                {
+                    builder.Append($@"
+                {_afterSendOutput(outputData)} = {afterSendOutput(outputData)};");
+                }
+
+                if (requestAwaiter.AddAwaiterCheckStatus)
+                {
+                    builder.Append($@"
+                {_loadOutput(outputData)} = {loadOutput(outputData)};
+                {_checkStatusOutput(outputData)} = {checkStatusOutput(outputData)};");
+                }
+            }
+
             builder.Append($@"
             }}
 ");
@@ -255,11 +376,10 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             public void Init(
-                {PartitionItem.SendFuncType(requestAwaiter)} sendTask,
-                bool skipSend = false
+                bool fromAddAwaiter = false
                 )
             {{
-                {_response()} = CreateGetResponse(sendTask, skipSend);
+                {_response()} = CreateGetResponse(fromAddAwaiter);
                 if ({_waitResponseTimeout()} != 0)
                 {{
                     {_cts()} = new CancellationTokenSource({_waitResponseTimeout()});
@@ -337,16 +457,73 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             private async Task<{Response.TypeFullName(requestAwaiter)}> CreateGetResponse(
-                {PartitionItem.SendFuncType(requestAwaiter)} sendTask,
-                bool skipSend
+                bool fromAddAwaiter
                 )
             {{
-                if(!skipSend)
+                if(!fromAddAwaiter)
                 {{
-                    var output = await {OutputTask()}.Task;
-                    await sendTask(output);
+                    var output = await {OutputTask()}.Task.ConfigureAwait(false);");
+            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+            {
+                var outputData = requestAwaiter.OutputDatas[i];
+                builder.Append($@" 
+                    await {_sendOutput(outputData)}(output.{OutputMessage.Message(outputData)}, output.{OutputMessage.Header(outputData)}).ConfigureAwait(false);");
+                if(requestAwaiter.AfterSend)
+                {
+                    builder.Append($@" 
+                    await {_afterSendOutput(outputData)}({Bucket()}, output.{OutputMessage.Message(outputData)}, output.{OutputMessage.Header(outputData)}).ConfigureAwait(false);");
+                }
+            }
+            builder.Append($@"
+                }}");
+            if (requestAwaiter.CheckCurrentState)
+            {
+                builder.Append($@"
+                else
+                {{");
+                for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
+                {
+                    var outputData = requestAwaiter.OutputDatas[i];
+                    builder.Append($@" 
+                    var {outputData.NameCamelCase}Status = await {_checkStatusOutput(outputData)}(
+                        {Guid()},
+                        {Bucket()}");
+                    for (int z = 0; z < requestAwaiter.InputDatas.Count; z++)
+                    {
+                        var inputData = requestAwaiter.InputDatas[z];
+                        builder.Append($@",
+                        {_inputPartition(inputData)}");
+                    }
+                    builder.Append($@" 
+                        ).ConfigureAwait(false);
+                    if({outputData.NameCamelCase}Status != KafkaExchanger.Attributes.Enums.RAState.Sended)
+                    {{");
+                    builder.Append($@" 
+                        var message = await {_loadOutput(outputData)}(
+                            {Guid()},
+                            {Bucket()}");
+                    for (int z = 0; z < requestAwaiter.InputDatas.Count; z++)
+                    {
+                        var inputData = requestAwaiter.InputDatas[z];
+                        builder.Append($@",
+                            {_inputPartition(inputData)}");
+                    }
+                    builder.Append($@" 
+                            ).ConfigureAwait(false);
+                        var header = {_createOutputHeader()}({Guid()});
+                        await {_sendOutput(outputData)}(message, header).ConfigureAwait(false);");
+                    if (requestAwaiter.AfterSend)
+                    {
+                        builder.Append($@" 
+                        await {_afterSendOutput(outputData)}({Bucket()}, message, header).ConfigureAwait(false);");
+                    }
+                    builder.Append($@"
+                    }}");
+                }
+                builder.Append($@" 
                 }}
 ");
+            }
             var offsetIndex = 0;
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
@@ -422,7 +599,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     }
                 }
                 builder.Append($@"
-                    );
+                    ).ConfigureAwait(false);
 ");
             }
             else

@@ -275,7 +275,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -292,7 +292,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -309,7 +309,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -439,7 +439,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 0 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -456,7 +456,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 1 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -473,7 +473,7 @@ namespace KafkaExchengerTests
                                 partitions: new int[] { 2 }
                                 ),
                             new RequestAwaiterSimple.ProducerInfo(_outputSimpleTopic),
-                            afterSendOutput0: (header, message) =>
+                            afterSendOutput0: (bucketId, header, message) =>
                             {
                                 return Task.CompletedTask;
                             },
@@ -738,7 +738,7 @@ namespace KafkaExchengerTests
                         );
                 }
 
-                Task AfterSend(KafkaExchengerTests.RequestHeader header, RequestAwaiterSimple.Output0Message message)
+                Task AfterSend(int bucketId, RequestAwaiterSimple.Output0Message message, KafkaExchengerTests.RequestHeader header)
                 {
                     var info = new AddAwaiterInfo()
                     {

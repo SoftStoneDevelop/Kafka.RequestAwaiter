@@ -126,15 +126,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@",
-                {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {afterSendFunc(outputData)}");
+                {requestAwaiter.AfterSendFunc(assemblyName, outputData)} {afterSendFunc(outputData)}");
 
                 }
 
                 if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@",
-                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {loadOutputFunc(outputData)},
-                {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {checkOutputStatusFunc(outputData)}");
+                {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData)} {loadOutputFunc(outputData)},
+                {requestAwaiter.AddAwaiterStatusFunc(assemblyName)} {checkOutputStatusFunc(outputData)}");
 
                 }
             }
@@ -229,14 +229,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 if (requestAwaiter.AfterSend)
                 {
                     builder.Append($@"
-            public {requestAwaiter.AfterSendFunc(assemblyName, outputData, i)} {AfterSend(outputData)} {{ get; init; }}");
+            public {requestAwaiter.AfterSendFunc(assemblyName, outputData)} {AfterSend(outputData)} {{ get; init; }}");
                 }
 
                 if (requestAwaiter.AddAwaiterCheckStatus)
                 {
                     builder.Append($@"
-            public {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData, requestAwaiter.InputDatas)} {LoadOutput(outputData)} {{ get; init; }}
-            public {requestAwaiter.AddAwaiterStatusFunc(assemblyName, requestAwaiter.InputDatas)} {CheckOutputStatus(outputData)} {{ get; init; }}");
+            public {requestAwaiter.LoadOutputMessageFunc(assemblyName, outputData)} {LoadOutput(outputData)} {{ get; init; }}
+            public {requestAwaiter.AddAwaiterStatusFunc(assemblyName)} {CheckOutputStatus(outputData)} {{ get; init; }}");
                 }
             }
         }

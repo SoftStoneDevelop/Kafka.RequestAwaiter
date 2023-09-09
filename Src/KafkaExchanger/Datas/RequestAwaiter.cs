@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Enums;
+using KafkaExchanger.Generators.RequestAwaiter;
 using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
@@ -81,11 +82,10 @@ namespace KafkaExchanger.Datas
 
         public string AfterSendFunc(
             string assemblyName,
-            OutputData outputData,
-            int outputIndex
+            OutputData outputData
             )
         {
-            return $"Func<{assemblyName}.RequestHeader, Output{outputIndex}Message, Task>";
+            return $"Func<int, {OutputMessages.TypeFullName(this, outputData)}, {assemblyName}.RequestHeader, Task>";
         }
 
         internal bool SetAfterSend(TypedConstant argument)
@@ -104,13 +104,12 @@ namespace KafkaExchanger.Datas
         public bool AddAwaiterCheckStatus { get; private set; }
 
         public string AddAwaiterStatusFunc(
-            string assemblyName,
-            List<InputData> inputDatas
+            string assemblyName
             )
         {
             var builder = new StringBuilder(200);
             builder.Append($"Func<string, int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 builder.Append($@" int[],");
             }
@@ -121,13 +120,12 @@ namespace KafkaExchanger.Datas
 
         public string LoadOutputMessageFunc(
             string assemblyName,
-            OutputData outputData,
-            List<InputData> inputDatas
+            OutputData outputData
             )
         {
             var builder = new StringBuilder(200);
             builder.Append($"Func<string, int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 builder.Append($@" int[],");
             }
