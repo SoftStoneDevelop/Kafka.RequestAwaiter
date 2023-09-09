@@ -523,6 +523,8 @@ namespace KafkaExchengerTests
                         currentBucketsCount: reqAwaiterConfitg.BucketsCount
                         );
 
+                    reqAwaiterPrepare.Start();
+
                     var sendedCount = 0;
                     for (int i = 0; i < requestsCount; i++)
                     {
