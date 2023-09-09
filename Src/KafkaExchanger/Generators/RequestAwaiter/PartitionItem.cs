@@ -612,30 +612,39 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     inTheFlyCount++;
                                 }}
 
-                                var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                Volatile.Write(ref {_commitOffsets()}, canFreeBuckets[^1].MaxOffset);
-                                Interlocked.Exchange(ref {_tcsCommit()}, commit);
-                                Interlocked.Exchange(ref {_needCommit()}, 1);
+                                var commitOffsets = canFreeBuckets[^1].MaxOffset.Where(wh => wh != null).ToArray();
+                                if(commitOffsets.Length != 0)
+                                {{
+                                    var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                                    Volatile.Write(ref {_commitOffsets()}, commitOffsets);
+                                    Interlocked.Exchange(ref {_tcsCommit()}, commit);
+                                    Interlocked.Exchange(ref {_needCommit()}, 1);
 
-                                await commit.Task.ConfigureAwait(false);");
+                                    await commit.Task.ConfigureAwait(false);");
             if (requestAwaiter.AfterCommit)
             {
                 builder.Append($@"
-                                for (int i = 0; i < canFreeBuckets.Count; i++)
-                                {{
-                                    var freeBucket = canFreeBuckets[i];
-                                    await {_afterCommit()}(
-                                        freeBucket.BucketId");
+                                    for (int i = 0; i < canFreeBuckets.Count; i++)
+                                    {{
+                                        var freeBucket = canFreeBuckets[i];
+                                        await {_afterCommit()}(
+                                            freeBucket.BucketId");
                 for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
                 {
                     var inputData = requestAwaiter.InputDatas[i];
                     builder.Append($@",
-                                        {InputTopicPartitions(inputData)}");
+                                            {InputTopicPartitions(inputData)}");
                 }
                 builder.Append($@"
-                                        ).ConfigureAwait(false);
-                                }}");
+                                            ).ConfigureAwait(false);
+                                    }}");
             }
+            builder.Append($@"
+                                }}
+                                else
+                                {{
+                                    int s = 45;
+                                }}");
             builder.Append($@"
                             }}
                             else

@@ -488,8 +488,10 @@ namespace KafkaExchengerTests
 
         private class AddAwaiterInfo
         {
-            public KafkaExchengerTests.RequestHeader Header;
+            public string Guid;
+            public int Bucket;
             public string Value;
+            public KafkaExchengerTests.RequestHeader Header;
         }
 
         [Test]
@@ -541,7 +543,9 @@ namespace KafkaExchengerTests
                             var info = new AddAwaiterInfo()
                             {
                                 Value = delayProduce.OutputRequest.Output0.Value + "LOM",
-                                Header = delayProduce.OutputRequest.Output0Header,
+                                Guid = delayProduce.Guid,
+                                Bucket = delayProduce.Bucket,
+                                Header = delayProduce.OutputRequest.Output0Header
                             };
                             sendedFromAwaiter.TryAdd(delayProduce.Guid, info);
                         }
@@ -572,8 +576,8 @@ namespace KafkaExchengerTests
                     {
                         answers.Add(
                         AddAwaiter(
-                                pair.Value.Header.MessageGuid,
-                                pair.Value.Header.Bucket,
+                                pair.Value.Guid,
+                                pair.Value.Bucket,
                                 pair.Value.Header.TopicsForAnswer[0].Partitions.ToArray(),
                                 pair.Value.Header.TopicsForAnswer[1].Partitions.ToArray(),
                                 pair.Value.Value
@@ -585,8 +589,8 @@ namespace KafkaExchengerTests
                     {
                         answers.Add(
                         AddAwaiter(
-                                pair.Value.Header.MessageGuid,
-                                pair.Value.Header.Bucket,
+                                pair.Value.Guid,
+                                pair.Value.Bucket,
                                 pair.Value.Header.TopicsForAnswer[0].Partitions.ToArray(),
                                 pair.Value.Header.TopicsForAnswer[1].Partitions.ToArray(),
                                 pair.Value.Value
@@ -745,6 +749,8 @@ namespace KafkaExchengerTests
                     var info = new AddAwaiterInfo()
                     {
                         Value = message.Value,
+                        Guid = header.MessageGuid,
+                        Bucket = bucketId,
                         Header = header,
                     };
 
