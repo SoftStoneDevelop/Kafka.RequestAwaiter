@@ -417,7 +417,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     SingleWriter = false
                 }});
 
-            private readonly Channel<{TopicResponse.TypeFullName(requestAwaiter)}> {_initializeChannel()} = Channel.CreateUnbounded<{TopicResponse.TypeFullName(requestAwaiter)}>(
+            private readonly Channel<{StartResponse.TypeFullName(requestAwaiter)}> {_initializeChannel()} = Channel.CreateUnbounded<{StartResponse.TypeFullName(requestAwaiter)}>(
                 new UnboundedChannelOptions()
                 {{
                     AllowSynchronousContinuations = false,
@@ -574,8 +574,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
                                 var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
                                 startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
-                                startResponse.{StartResponse.BucketReserve()}.SetResult();
-                                await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
+                                await writer.WriteAsync(startResponse);
                                 inTheFlyCount++;
                             }}
                             else if (info is {SetOffsetResponse.TypeFullName(requestAwaiter)} setOffsetResponse)
@@ -609,7 +608,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
                                     var bucketId = await _storage.Push(startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Guid()}, newMessage);
                                     startResponse.{StartResponse.ResponseProcess()}.{TopicResponse.Bucket()} = bucketId;
-                                    await writer.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
+                                    await writer.WriteAsync(startResponse);
                                     inTheFlyCount++;
                                 }}
 
@@ -678,8 +677,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
-                            var propessResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
-                            propessResponse.Init();
+                            var startResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            startResponse.{StartResponse.ResponseProcess()}.Init();
+                            startResponse.{StartResponse.Inited()}.SetResult();
                         }}
                     }}
                     catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
@@ -991,7 +991,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
 
                 await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
-                await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
+                await startResponse.{StartResponse.Inited()}.Task.ConfigureAwait(false);
                 return 
                     new {DelayProduce.TypeFullName(requestAwaiter)}(
                         topicResponse,
@@ -1077,7 +1077,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 }}
 
                 await {_channel()}.Writer.WriteAsync(startResponse).ConfigureAwait(false);
-                await startResponse.{StartResponse.BucketReserve()}.Task.ConfigureAwait(false);
+                await startResponse.{StartResponse.Inited()}.Task.ConfigureAwait(false);
                 return 
                     await topicResponse.GetResponse().ConfigureAwait(false);
             }}             

@@ -154,7 +154,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public string {Guid()} => {_guid()};
             public TaskCompletionSource<{OutputMessage.TypeFullName(requestAwaiter)}> {OutputTask()} => {_outputTask()};
-            public int {Bucket()};");
+            public volatile int {Bucket()};");
 
             if(requestAwaiter.CheckCurrentState)
             {
