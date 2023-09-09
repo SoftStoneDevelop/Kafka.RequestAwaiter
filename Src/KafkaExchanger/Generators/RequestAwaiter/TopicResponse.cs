@@ -227,12 +227,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static string _loadOutput(OutputData outputData)
         {
-            return $@"_load{outputData.NameCamelCase}";
+            return $@"_load{outputData.NamePascalCase}";
         }
 
         private static string _checkStatusOutput(OutputData outputData)
         {
-            return $@"_checkStatus{outputData.NameCamelCase}";
+            return $@"_checkStatus{outputData.NamePascalCase}";
         }
 
         private static void Constructor(
@@ -258,12 +258,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             string loadOutput(OutputData outputData)
             {
-                return $@"load{outputData.NameCamelCase}";
+                return $@"load{outputData.NamePascalCase}";
             }
 
             string checkStatusOutput(OutputData outputData)
             {
-                return $@"checkStatus{outputData.NameCamelCase}";
+                return $@"checkStatus{outputData.NamePascalCase}";
             }
 
             var removeActionParam = "removeAction";
@@ -476,7 +476,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }
             builder.Append($@"
                 }}");
-            if (requestAwaiter.CheckCurrentState)
+            if (requestAwaiter.AddAwaiterCheckStatus)
             {
                 builder.Append($@"
                 else
