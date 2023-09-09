@@ -757,22 +757,20 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         continue;
                                     }}
 
-                                    var inputMessage = new {inputData.MessageTypeName}();
+                                    var inputMessage = new {InputMessages.TypeFullName(requestAwaiter, inputData)}();
+                                    inputMessage.{BaseInputMessage.TopicName()} = {_inputTopicName(inputData)};
                                     inputMessage.{BaseInputMessage.TopicPartitionOffset()} = consumeResult.TopicPartitionOffset;
-                                    inputMessage.{InputMessages.OriginalMessage()} = consumeResult.Message;
-");
+                                    inputMessage.{InputMessages.OriginalMessage()} = consumeResult.Message;");
                 if (inputData.KeyType.IsProtobuffType())
                 {
                     builder.Append($@"
-                                    inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());
-");
+                                    inputMessage.{InputMessages.Key()} = {inputData.KeyType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Key.AsSpan());");
                 }
 
                 if (inputData.ValueType.IsProtobuffType())
                 {
                     builder.Append($@"
-                                    inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());
-");
+                                    inputMessage.{InputMessages.Value()} = {inputData.ValueType.GetFullTypeName(true)}.Parser.ParseFrom(consumeResult.Message.Value.AsSpan());");
                 }
 
                 builder.Append($@"
