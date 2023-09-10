@@ -940,7 +940,6 @@ namespace KafkaExchanger.Generators.Responder
                         }};
 
                         var header = CreateOutputHeader(
-                            inputMessage.{InputMessage.Message(inputData)}.{InputMessages.Header()}.Bucket,
                             inputMessage.{InputMessage.Message(inputData)}.{InputMessages.Header()}.MessageGuid
                             );
                         message.Headers = new Headers
@@ -994,13 +993,12 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            private {assemblyName}.ResponseHeader CreateOutputHeader(int bucket, string answerToMessageGuid)
+            private {assemblyName}.ResponseHeader CreateOutputHeader(string answerToMessageGuid)
             {{
                 var header = new {assemblyName}.ResponseHeader()
                 {{
                     AnswerToMessageGuid = answerToMessageGuid,
-                    AnswerFrom = {_serviceName()},
-                    Bucket = bucket
+                    AnswerFrom = {_serviceName()}
                 }};
 
                 return header;
