@@ -537,13 +537,13 @@ namespace KafkaExchanger.Generators.Responder
                                     continue;
                                 }}
 
+                                var offset = canFreeBuckets[canFreeBuckets.Count - 1].MaxOffset.ToArray();
                                 foreach (var popItem in canFreeBuckets)
                                 {{
                                     {_storage()}.Pop(popItem);
                                 }}
 
                                 var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                                var offset = canFreeBuckets[canFreeBuckets.Count - 1].MaxOffset;
                                 Volatile.Write(ref {_commitOffsets()}, offset);
                                 Interlocked.Exchange(ref {_tcsCommit()}, commit);
                                 Interlocked.Exchange(ref {_needCommit()}, 1);

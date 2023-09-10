@@ -597,6 +597,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 }}
 
                                 inTheFlyCount -= canFreeBuckets.Count * {_itemsInBucket()};
+                                var commitOffsets = canFreeBuckets[^1].MaxOffset.Where(wh => wh != null).ToArray();
                                 foreach (var popItem in canFreeBuckets)
                                 {{
                                     {_storage()}.Pop(popItem);
@@ -617,7 +618,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     inTheFlyCount++;
                                 }}
 
-                                var commitOffsets = canFreeBuckets[^1].MaxOffset.Where(wh => wh != null).ToArray();
                                 if(commitOffsets.Length != 0)
                                 {{
                                     var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
