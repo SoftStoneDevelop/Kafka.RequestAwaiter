@@ -154,8 +154,8 @@ namespace RequestAwaiterConsole
                 new RequestAwaiter.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: bootstrapServers,
-                    itemsInBucket: 20000,
-                    inFlyBucketsLimit: 2,
+                    itemsInBucket: 1000,
+                    inFlyBucketsLimit: 5,
                     addNewBucket: (bucketId, partitions0, topic0Name, partitions1, topic1Name) =>
                     {
                         return Task.CompletedTask;

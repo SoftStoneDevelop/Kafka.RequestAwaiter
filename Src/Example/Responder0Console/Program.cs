@@ -28,7 +28,7 @@ namespace Responder0Console
                 groupId: responderName,
                 serviceName: responderName,
                 bootstrapServers: bootstrapServers,
-                itemsInBucket: 100,
+                itemsInBucket: 1000,
                 inFlyLimit: 5,
                 addNewBucket: static async (bucketId, partitions, topicName) => { await Task.CompletedTask; },
                 bucketsCount: async (partitions, topicName) => { return await Task.FromResult(5); },

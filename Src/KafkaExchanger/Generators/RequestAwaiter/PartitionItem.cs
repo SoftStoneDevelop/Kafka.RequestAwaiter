@@ -645,10 +645,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                     }}");
             }
             builder.Append($@"
-                                }}
-                                else
-                                {{
-                                    int s = 45;
                                 }}");
             builder.Append($@"
                             }}
