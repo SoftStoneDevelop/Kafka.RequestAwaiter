@@ -525,8 +525,7 @@ namespace KafkaExchanger.Generators.Responder
                     var processChannel = {_processChannel()}.Reader;
                     var initializeChannel = {_initializeChannel()}.Writer;
 
-                    var inFlyItems = 0;
-                    var inFlyItemsLimit = {_itemsInBucket()} * {_inFlyLimit()};
+                    var notFinished = 0;
                     try
                     {{
                         var consumeStop = false;
@@ -540,12 +539,9 @@ namespace KafkaExchanger.Generators.Responder
                                 {{
                                     processInfo = await processChannel.ReadAsync(_cts.Token).ConfigureAwait(false);
                                 }}
-                                else
+                                else if(sw.ElapsedMilliseconds > 5 || !processChannel.TryRead(out processInfo))
                                 {{
-                                    if(sw.ElapsedMilliseconds > 5 || !processChannel.TryRead(out processInfo))
-                                    {{
-                                        break;
-                                    }}
+                                    break;
                                 }}
 
                                 if (processInfo is {SetOffsetResponse.TypeFullName(responder)} setOffsetResponse)
@@ -569,7 +565,7 @@ namespace KafkaExchanger.Generators.Responder
                                 else if (processInfo is {EndResponse.TypeFullName(responder)} endResponse)
                                 {{
                                     {_storage()}.Finish(endResponse.{EndResponse.BucketId()}, endResponse.{EndResponse.Guid()});
-
+                                    notFinished--;
                                     var canFreeBuckets = {_storage()}.CanFreeBuckets();
                                     if(canFreeBuckets.Count == 0)
                                     {{
@@ -580,7 +576,6 @@ namespace KafkaExchanger.Generators.Responder
                                     foreach (var popItem in canFreeBuckets)
                                     {{
                                         {_storage()}.Pop(popItem);
-                                        inFlyItems -= _itemsInBucket;
                                     }}
 
                                     var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -625,7 +620,7 @@ namespace KafkaExchanger.Generators.Responder
                             }}
 
                             {StartResponse.TypeFullName(responder)} startResponse;
-                            if(inFlyItems == 0)
+                            if(notFinished == 0)
                             {{
                                 startResponse = await startChannel.ReadAsync({_cts()}.Token).ConfigureAwait(false);
                             }}
@@ -640,7 +635,7 @@ namespace KafkaExchanger.Generators.Responder
                                 var bucketId = await {_storage()}.Push(startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.Guid()}, newMessage);
                                 startResponse.{StartResponse.ResponseProcess()}.{ResponseProcess.BucketId()} = bucketId;
                                 await initializeChannel.WriteAsync(startResponse.{StartResponse.ResponseProcess()});
-                                inFlyItems++;
+                                notFinished++;
                             }}
                         }}
                     }}
