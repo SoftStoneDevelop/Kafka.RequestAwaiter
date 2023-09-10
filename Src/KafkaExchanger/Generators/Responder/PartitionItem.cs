@@ -668,12 +668,24 @@ namespace KafkaExchanger.Generators.Responder
                 {_initializeRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_initializeChannel()}.Reader;
+                    var waitInitList = new List<{ResponseProcess.TypeFullName(responder)}>();
                     try
                     {{
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
-                            var propessResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
-                            propessResponse.Init();
+                            await reader.WaitToReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            var sw = Stopwatch.StartNew();
+                            while (sw.ElapsedMilliseconds < 1 && reader.TryRead(out var waitInit))
+                            {{
+                                waitInitList.Add(waitInit);
+                            }}
+
+                            Parallel.ForEach(waitInitList, (propessResponse) =>
+                            {{
+                                propessResponse.Init();
+                            }});
+
+                            waitInitList.Clear();
                         }}
                     }}
                     catch (Exception {(responder.UseLogger ? $"ex" : string.Empty)})

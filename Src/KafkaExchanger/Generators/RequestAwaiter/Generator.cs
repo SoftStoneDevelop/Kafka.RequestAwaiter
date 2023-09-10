@@ -39,6 +39,7 @@ using Google.Protobuf;
 using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace {requestAwaiter.TypeSymbol.ContainingNamespace}
 {{

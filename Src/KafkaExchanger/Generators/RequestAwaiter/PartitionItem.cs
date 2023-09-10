@@ -683,13 +683,25 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {_initializeRoutine()} = Task.Factory.StartNew(async () => 
                 {{
                     var reader = {_initializeChannel()}.Reader;
+                    var notStartedList = new List<{StartResponse.TypeFullName(requestAwaiter)}>();
                     try
                     {{
                         while (!{_cts()}.Token.IsCancellationRequested)
                         {{
-                            var startResponse = await reader.ReadAsync({_cts()}.Token).ConfigureAwait(false);
-                            startResponse.{StartResponse.ResponseProcess()}.Init();
-                            startResponse.{StartResponse.Inited()}.SetResult();
+                            await reader.WaitToReadAsync({_cts()}.Token).ConfigureAwait(false);
+                            var sw = Stopwatch.StartNew();
+                            while (sw.ElapsedMilliseconds < 1 && reader.TryRead(out var notStarted))
+                            {{
+                                notStartedList.Add(notStarted);
+                            }}
+
+                            Parallel.ForEach(notStartedList, (startResponse) =>
+                            {{
+                                startResponse.{StartResponse.ResponseProcess()}.Init();
+                                startResponse.{StartResponse.Inited()}.SetResult();
+                            }});
+
+                            notStartedList.Clear();
                         }}
                     }}
                     catch (Exception {(requestAwaiter.UseLogger ? $"ex" : string.Empty)})
