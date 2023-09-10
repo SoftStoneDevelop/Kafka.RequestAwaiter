@@ -9,7 +9,7 @@ using System.Linq;
 namespace KafkaExchanger
 {
     [Generator]
-    public class Genarator : IIncrementalGenerator
+    public class Generator : IIncrementalGenerator
     {
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -94,7 +94,7 @@ namespace KafkaExchanger
                 throw new System.NotSupportedException("Assembly don`t have name");
             }
 
-            var headerGenerator = new HeaderGenarator();
+            var headerGenerator = new HeaderGenerator();
             headerGenerator.Generate(compilation.AssemblyName, context);
 
             var distinctTypes = types.Distinct().GroupBy(gr => gr.Identifier.ValueText);

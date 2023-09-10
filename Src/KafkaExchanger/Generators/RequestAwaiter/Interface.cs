@@ -1,9 +1,6 @@
 ﻿using KafkaExchanger.Datas;
-using KafkaExchanger.Enums;
 using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
-using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -34,8 +31,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
     {requestAwaiter.TypeSymbol.DeclaredAccessibility.ToName()} partial interface I{requestAwaiter.TypeSymbol.Name}RequestAwaiter : IAsyncDisposable
-    {{
-");
+    {{");
         }
 
         private static void InterfaceProduceMethod(
@@ -43,22 +39,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce(
-");
+        public Task<{requestAwaiter.TypeSymbol.Name}.Response> Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
-");
+            {outputData.KeyType.GetFullTypeName(true, true)} {outputKeyParam(outputData)},");
+
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
-");
+            {outputData.ValueType.GetFullTypeName(true, true)} {outputValueParam(outputData)},");
+
             }
 
             builder.Append($@"
@@ -73,22 +78,31 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.DelayProduce> ProduceDelay(
-");
+        public Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 if (!outputData.KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {outputData.KeyType.GetFullTypeName(true, true)} key{i},
-");
+            {outputData.KeyType.GetFullTypeName(true, true)} {outputKeyParam(outputData)},");
+
                 }
 
                 builder.Append($@"
-            {outputData.ValueType.GetFullTypeName(true, true)} value{i},
-");
+            {outputData.ValueType.GetFullTypeName(true, true)} {outputValueParam(outputData)},");
+
             }
 
             builder.Append($@"
@@ -104,8 +118,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);
-");
+        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);");
         }
 
         private static void InterfaceSetupMethod(
@@ -115,16 +128,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Setup(
-            {requestAwaiter.TypeSymbol.Name}.Config config
-");
+        public Task Setup(
+            {Config.TypeFullName(requestAwaiter)} config");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}");
+
             }
-            builder.Append($@"
+            builder.Append($@",
+            {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
             )
             ;
 ");
@@ -136,16 +149,21 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string partitionsParam(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Partitions";
+            }
+
             builder.Append($@"
-        public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> AddAwaiter(
+        public Task<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
             string messageGuid,
-            int bucket,
-");
+            int bucket,");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            int[] input{i}partitions,
-");
+            int[] {partitionsParam(inputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
@@ -158,8 +176,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public ValueTask StopAsync(CancellationToken token = default);
-");
+        public Task StopAsync(CancellationToken token = default);");
         }
 
         private static void EndInterfaceOrClass(

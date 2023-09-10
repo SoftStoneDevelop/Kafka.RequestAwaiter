@@ -1,9 +1,11 @@
 ﻿using KafkaExchanger.Datas;
+using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
-    internal static class TryDelayProduceResult
+    internal static class OutputMessage
     {
         public static void Append(
             StringBuilder builder,
@@ -14,19 +16,14 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
         public class {TypeName()}
         {{
-            public bool {Succsess()};
-            public {TopicResponse.TypeFullName(requestAwaiter)} {Response()};
-            public {KafkaExchanger.Generators.RequestAwaiter.Bucket.TypeFullName(requestAwaiter)} {Bucket()};
 ");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            public {assemblyName}.RequestHeader {Header(outputData)};
-            public {outputData.MessageTypeName} {Message(outputData)};
-");
+            public {assemblyName}.RequestHeader {Header(outputData)} {{ get; set; }}
+            public {OutputMessages.TypeFullName(requestAwaiter, outputData)} {Message(outputData)} {{ get; set; }}");
             }
-
             builder.Append($@"
         }}
 ");
@@ -39,32 +36,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public static string TypeName()
         {
-            return "TryDelayProduceResult";
+            return "OutputMessage";
         }
 
-        public static string Succsess()
+        public static string Message(OutputData outputData)
         {
-            return "Succsess";
-        }
-
-        public static string Bucket()
-        {
-            return "Bucket";
-        }
-
-        public static string Response()
-        {
-            return "Response";
+            return outputData.NamePascalCase;
         }
 
         public static string Header(OutputData outputData)
         {
             return $"{outputData.NamePascalCase}Header";
-        }
-
-        public static string Message(OutputData outputData)
-        {
-            return $"{outputData.MessageTypeName}";
         }
     }
 }

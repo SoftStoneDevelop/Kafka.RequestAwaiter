@@ -1,7 +1,4 @@
-﻿using KafkaExchanger.Datas;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
@@ -32,9 +29,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
         {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string TypeName()

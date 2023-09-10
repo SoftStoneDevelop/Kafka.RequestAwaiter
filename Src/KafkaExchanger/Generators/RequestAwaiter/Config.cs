@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
 {
     internal static class Config
     {
-        public static void Append(StringBuilder builder)
+        public static void Append(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
         {
             builder.Append($@"
         public class {TypeName()}
@@ -14,11 +15,19 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             public {TypeName()}(
                 string groupId,
                 string bootstrapServers,
-                ProcessorConfig[] processors
+                int itemsInBucket,
+                int inFlyBucketsLimit,
+                {requestAwaiter.AddNewBucketFuncType()} addNewBucket,
+                {requestAwaiter.BucketsCountFuncType()} bucketsCount,
+                {ProcessorConfig.TypeFullName(requestAwaiter)}[] processors
                 )
             {{
                 {GroupId()} = groupId;
                 {BootstrapServers()} = bootstrapServers;
+                {ItemsInBucket()} = itemsInBucket;
+                {InFlyBucketsLimit()} = inFlyBucketsLimit;
+                {AddNewBucket()} = addNewBucket;
+                {BucketsCount()} = bucketsCount;
                 {Processors()} = processors;
             }}
 
@@ -26,14 +35,22 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public string {BootstrapServers()} {{ get; init; }}
 
+            public int {ItemsInBucket()} {{ get; init; }}
+
+            public int {InFlyBucketsLimit()} {{ get; init; }}
+
+            public {requestAwaiter.AddNewBucketFuncType()} {AddNewBucket()} {{ get; init; }}
+
+            public {requestAwaiter.BucketsCountFuncType()} {BucketsCount()} {{ get; init; }}
+
             public ProcessorConfig[] {Processors()} {{ get; init; }}
         }}
 ");
         }
 
-        public static string TypeFullName(KafkaExchanger.Datas.Responder responder)
+        public static string TypeFullName(KafkaExchanger.Datas.RequestAwaiter requestAwaiter)
         {
-            return $"{responder.TypeSymbol.Name}.{TypeName()}";
+            return $"{requestAwaiter.TypeSymbol.Name}.{TypeName()}";
         }
 
         public static string TypeName()
@@ -54,6 +71,26 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static string Processors()
         {
             return "Processors";
+        }
+
+        public static string ItemsInBucket()
+        {
+            return "ItemsInBucket";
+        }
+
+        public static string InFlyBucketsLimit()
+        {
+            return "InFlyBucketsLimit";
+        }
+
+        public static string AddNewBucket()
+        {
+            return "AddNewBucket";
+        }
+
+        public static string BucketsCount()
+        {
+            return "BucketsCount";
         }
     }
 }

@@ -18,19 +18,27 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             //inner classes
             DelayProduce.Append(builder, assemblyName, requestAwaiter);
 
-            TryDelayProduceResult.Append(builder, assemblyName, requestAwaiter);
-            TryAddAwaiterResult.Append(builder, requestAwaiter);
             Response.Append(builder, assemblyName, requestAwaiter);
 
-            Config.Append(builder);
+            Config.Append(builder, requestAwaiter);
             ProcessorConfig.Append(builder, assemblyName, requestAwaiter);
             ConsumerInfo.Append(builder);
             ProducerInfo.Append(builder);
 
             BaseInputMessage.Append(builder, assemblyName, requestAwaiter);
             InputMessages.Append(builder, assemblyName, requestAwaiter);
+
+            OutputMessage.Append(builder, assemblyName, requestAwaiter);
             OutputMessages.Append(builder, assemblyName, requestAwaiter);
+
+            TryAddAwaiterResult.Append(builder, requestAwaiter);
             TopicResponse.Append(builder, assemblyName, requestAwaiter);
+
+            ChannelInfo.Append(builder, assemblyName, requestAwaiter);
+            StartResponse.Append(builder, assemblyName, requestAwaiter);
+            SetOffsetResponse.Append(builder, assemblyName, requestAwaiter);
+            EndResponse.Append(builder, assemblyName, requestAwaiter);
+
             PartitionItem.Append(builder, assemblyName, requestAwaiter);
 
             //methods
@@ -45,14 +53,34 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             EndClass(builder);
         }
 
-        private static string _fws()
-        {
-            return "_fws";
-        }
-
         private static string _items()
         {
             return "_items";
+        }
+
+        private static string _currentItemIndex()
+        {
+            return "_currentItemIndex";
+        }
+
+        private static string _bootstrapServers()
+        {
+            return "_bootstrapServers";
+        }
+
+        private static string _groupId()
+        {
+            return "_groupId";
+        }
+
+        private static string _loggerFactory()
+        {
+            return "_loggerFactory";
+        }
+
+        private static string _isRun()
+        {
+            return "_isRun";
         }
 
         private static void StartClass(
@@ -63,16 +91,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             builder.Append($@"
     {requestAwaiter.TypeSymbol.DeclaredAccessibility.ToName()} partial class {requestAwaiter.TypeSymbol.Name} : I{requestAwaiter.TypeSymbol.Name}RequestAwaiter
     {{
-        {(requestAwaiter.UseLogger ? @"private readonly ILoggerFactory _loggerFactory;" : "")}
+        {(requestAwaiter.UseLogger ? $@"private readonly ILoggerFactory {_loggerFactory()};" : "")}
         private {PartitionItem.TypeFullName(requestAwaiter)}[] {_items()};
-        private string _bootstrapServers;
-        private string _groupId;
-        private volatile bool _isRun;
-        private KafkaExchanger.FreeWatcherSignal {_fws()};
+        private string {_bootstrapServers()};
+        private string {_groupId()};
+        private volatile bool {_isRun()};
 
         public {requestAwaiter.TypeSymbol.Name}({(requestAwaiter.UseLogger ? @"ILoggerFactory loggerFactory" : "")})
         {{
-            {(requestAwaiter.UseLogger ? @"_loggerFactory = loggerFactory;" : "")}
+            {(requestAwaiter.UseLogger ? $@"{_loggerFactory()} = loggerFactory;" : "")}
         }}
 ");
         }
@@ -87,17 +114,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
             )
         {{
-            if(_isRun)
+            if({_isRun()})
             {{
                 throw new System.Exception(""Before starting, you need to stop the previous run: call StopAsync"");
             }}
 
-            _isRun = true;
+            {_isRun()} = true;
             foreach (var item in {_items()})
             {{
                 item.Start(
-                    _bootstrapServers,
-                    _groupId,
+                    {_bootstrapServers()},
+                    {_groupId()},
                     changeConfig
                     );
             }}
@@ -118,16 +145,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-        public void Setup(
-            {requestAwaiter.TypeSymbol.Name}.Config config
-");
+        public async Task Setup(
+            {requestAwaiter.TypeSymbol.Name}.Config config");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}
-");
+            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}");
             }
-            builder.Append($@"
+            builder.Append($@",
+            {requestAwaiter.BucketsCountFuncType()} currentBucketsCount
             )
         {{
             if({_items()} != null)
@@ -136,30 +162,33 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }}
 
             {_items()} = new {PartitionItem.TypeFullName(requestAwaiter)}[config.{Config.Processors()}.Length];
-            _bootstrapServers = config.{Config.BootstrapServers()};
-            _groupId = config.{Config.GroupId()};
-            {_fws()} = new(config.{Config.Processors()}.Sum(s => s.{ProcessorConfig.Buckets()}));
+            {_bootstrapServers()} = config.{Config.BootstrapServers()};
+            {_groupId()} = config.{Config.GroupId()};
             for (int i = 0; i < config.{Config.Processors()}.Length; i++)
             {{
                 var processorConfig = config.{Config.Processors()}[i];
                 {_items()}[i] =
                     new {PartitionItem.TypeFullName(requestAwaiter)}(
-                        {_fws()}");
+                        config.{Config.InFlyBucketsLimit()},
+                        config.{Config.ItemsInBucket()},
+                        config.{Config.AddNewBucket()},");
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                if(i != 0)
+                {
+                    builder.Append(',');
+                }
+
                 var inputData = requestAwaiter.InputDatas[i];
-                builder.Append($@",
+                builder.Append($@"
                         processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.TopicName()},
                         processorConfig.{ProcessorConfig.ConsumerInfo(inputData)}.{ConsumerInfo.Partitions()}");
             }
-            builder.Append($@",
-                        processorConfig.{ProcessorConfig.Buckets()},
-                        processorConfig.{ProcessorConfig.MaxInFly()}");
 
             if(requestAwaiter.UseLogger)
             {
                 builder.Append($@",
-                        _loggerFactory.CreateLogger(config.GroupId)");
+                        {_loggerFactory()}.CreateLogger(config.{Config.GroupId()})");
             }
 
             if (requestAwaiter.CheckCurrentState)
@@ -178,7 +207,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
-                        processorConfig.{ProcessorConfig.ProducerInfo(outputData)}.TopicName,
+                        processorConfig.{ProcessorConfig.ProducerInfo(outputData)}.{ProducerInfo.TopicName()},
                         producerPool{i}");
                 if (requestAwaiter.AfterSend)
                 {
@@ -196,6 +225,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             builder.Append($@"
                         );
+                await {_items()}[i].Setup(currentBucketsCount);
             }}
         }}
 ");
@@ -204,7 +234,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         private static void StopAsync(StringBuilder builder)
         {
             builder.Append($@"
-        public async ValueTask StopAsync(CancellationToken token = default)
+        public async Task StopAsync(CancellationToken token = default)
         {{
             var items = {_items()};
             if(items == null)
@@ -213,17 +243,17 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             }}
 
             {_items()} = null;
-            _bootstrapServers = null;
-            _groupId = null;
+            {_bootstrapServers()} = null;
+            {_groupId()} = null;
 
             var disposeTasks = new Task[items.Length];
             for (var i = 0; i < items.Length; i++)
             {{
-                disposeTasks[i] = items[i].StopAsync(token).AsTask();
+                disposeTasks[i] = items[i].StopAsync(token);
             }}
             
             await Task.WhenAll(disposeTasks);
-            _isRun = false;
+            {_isRun()} = false;
         }}
 ");
         }
@@ -233,66 +263,56 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public async ValueTask<{Response.TypeFullName(requestAwaiter)}> Produce(
-");
+        public async Task<{Response.TypeFullName(requestAwaiter)}> Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
-");
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
+
                 }
 
                 builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
-");
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},");
+
             }
             builder.Append($@"
             int waitResponseTimeout = 0
             )
         {{
-
-            while(true)
-            {{
-                var waitFree = {_fws()}.WaitFree();
-                await waitFree.ConfigureAwait(false);
-                for (int i = 0; i < {_items()}.Length; i++)
-                {{
-                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint){_items()}.Length;
-                    var item = {_items()}[index];
-                    var tp =
-                        item.TryProduceDelay(
-");
+            var index = Interlocked.Increment(ref {_currentItemIndex()}) % (uint){_items()}.Length;
+            return await
+                {_items()}[index].Produce(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                        key{i},
-");
+                    {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-                        value{i},
-");
+                    {outputValueParam(outputData)},");
             }
             builder.Append($@"
-                        waitResponseTimeout
-                    );
-
-                    if(tp.Succsess)
-                    {{
-                        return await tp.Bucket.Produce(tp);
-                    }}
-                }}
-
-                waitFree = {_fws()}.WaitFree();
-                await waitFree.ConfigureAwait(false);
-            }}
+                    waitResponseTimeout
+                );
         }}
-        private uint _currentItemIndex = 0;
+        private uint {_currentItemIndex()} = 0;
 ");
         }
 
@@ -302,64 +322,52 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string outputKeyParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Key";
+            }
+
+            string outputValueParam(OutputData outputData)
+            {
+                return $@"{outputData.NameCamelCase}Value";
+            }
+
             builder.Append($@"
-        public async ValueTask<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(
-");
+        public async Task<{DelayProduce.TypeFullName(requestAwaiter)}> ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} key{i},
-");
+            {requestAwaiter.OutputDatas[i].KeyType.GetFullTypeName(true)} {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} value{i},
-");
+            {requestAwaiter.OutputDatas[i].ValueType.GetFullTypeName(true)} {outputValueParam(outputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
             )
         {{
-
-            while(true)
-            {{
-                var waitFree = {_fws()}.WaitFree();
-                await waitFree.ConfigureAwait(false);
-                for (int i = 0; i < {_items()}.Length; i++)
-                {{
-                    var index = Interlocked.Increment(ref _currentItemIndex) % (uint){_items()}.Length;
-                    var item = {_items()}[index];
-                    var tp =
-                        item.TryProduceDelay(
-");
+            var index = Interlocked.Increment(ref {_currentItemIndex()}) % (uint){_items()}.Length;
+            return await
+                {_items()}[index].ProduceDelay(");
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
+                var outputData = requestAwaiter.OutputDatas[i];
                 if (!requestAwaiter.OutputDatas[i].KeyType.IsKafkaNull())
                 {
                     builder.Append($@"
-                            key{i},
-");
+                    {outputKeyParam(outputData)},");
                 }
 
                 builder.Append($@"
-                            value{i},
-");
+                    {outputValueParam(outputData)},");
             }
             builder.Append($@"
-                            waitResponseTimeout
-                    );
-
-                    if(tp.Succsess)
-                    {{
-                        return new {requestAwaiter.TypeSymbol.Name}.DelayProduce(tp);
-                    }}
-                }}
-
-                waitFree = {_fws()}.WaitFree();
-                await waitFree.ConfigureAwait(false);
-            }}
+                    waitResponseTimeout
+                );
         }}
 ");
         }
@@ -369,43 +377,64 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             Datas.RequestAwaiter requestAwaiter
             )
         {
+            string partitionsParam(InputData inputData)
+            {
+                return $@"{inputData.NameCamelCase}Partitions";
+            }
+
             builder.Append($@"
-        public async ValueTask<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
+        public async Task<{Response.TypeFullName(requestAwaiter)}> AddAwaiter(
             string messageGuid,
-            int bucket,
-");
+            int bucket,");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            int[] input{i}partitions,
-");
+            int[] {partitionsParam(inputData)},");
             }
             builder.Append($@"
             int waitResponseTimeout = 0
             )
         {{
-
-            for (var i = 0; i < {_items()}.Length; i++ )
+            for (int i = 0; i < {_items()}.Length; i++ )
             {{
-                var taw =
-                    {(requestAwaiter.AddAwaiterCheckStatus ? "await " : "")}{_items()}[i].TryAddAwaiter(
-                        messageGuid,
-                        bucket,
-");
+                bool skipItem = false;
+                var item = {_items()}[i];");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
+                var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-                        input{i}partitions,
+                if({partitionsParam(inputData)} == null || {partitionsParam(inputData)}.Length == 0)
+                {{
+                    throw new System.Exception(""Partitions not specified"");
+                }}
+
+                for(int j = 0; j < {partitionsParam(inputData)}.Length; j++)
+                {{
+                    if(!item.{PartitionItem.InputTopicPartitions(inputData)}.Contains({partitionsParam(inputData)}[j]))
+                    {{
+                        skipItem = true;
+                        break;
+                    }}
+                }}
+
+                if(skipItem)
+                {{
+                    continue;
+                }}
 ");
             }
             builder.Append($@"
-                        waitResponseTimeout
-                        );
-
-                if(taw.Succsess)
-                {{
-                    return await taw.Response.GetResponse().ConfigureAwait(false);
-                }}
+                return await item.AddAwaiter(
+                    messageGuid,
+                    bucket,
+                    waitResponseTimeout
+                    )
+                    .GetResponse()
+                    .ConfigureAwait(false)
+                    ;
             }}
 
             throw new System.Exception(""No matching bucket found in combination with partitions"");

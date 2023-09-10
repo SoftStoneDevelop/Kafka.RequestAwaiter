@@ -10,8 +10,8 @@ using System.Threading.Tasks;
 namespace RequestAwaiterConsole
 {
     [RequestAwaiter(useLogger: false),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder1" }),
+        Input(keyType: typeof(Null), valueType: typeof(string), new string[] { "RAResponder2" }),
         Output(keyType: typeof(Null), valueType: typeof(string))
         ]
     public partial class RequestAwaiter
@@ -48,7 +48,7 @@ namespace RequestAwaiterConsole
                 }
                 );
 
-            await using var reqAwaiter = Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
+            await using var reqAwaiter = await Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
             //await using var reqAwaiter = Scenario2(bootstrapServers, input0Name, outputName, pool);
 
             int requests = 0;
@@ -68,8 +68,7 @@ namespace RequestAwaiterConsole
                 {
                     Console.WriteLine($"Iteration {iteration}");
                     Stopwatch sw = Stopwatch.StartNew();
-                    var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
-                    //var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
+                    var tasks = new Task<long>[requests];
 
                     Parallel.For(0, requests, (index) => 
                     {
@@ -88,7 +87,7 @@ namespace RequestAwaiterConsole
                     var hashSet = new Dictionary<long, int>();
                     foreach (var task in tasks)
                     {
-                        var executedTime = task.Result.Item2;
+                        var executedTime = task.Result;
                         if (hashSet.TryGetValue(executedTime, out var internalCount))
                         {
                             hashSet[executedTime] = ++internalCount;
@@ -141,7 +140,7 @@ namespace RequestAwaiterConsole
             }
         }
 
-        private static RequestAwaiter Scenario1(
+        private static async Task<RequestAwaiter> Scenario1(
             string bootstrapServers,
             string input0Name,
             string input1Name,
@@ -154,6 +153,16 @@ namespace RequestAwaiterConsole
                 new RequestAwaiter.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: bootstrapServers,
+                    itemsInBucket: 1000,
+                    inFlyBucketsLimit: 5,
+                    addNewBucket: (bucketId, partitions0, topic0Name, partitions1, topic1Name) =>
+                    {
+                        return Task.CompletedTask;
+                    },
+                    bucketsCount: async (partitions0, topic0Name, partitions1, topic1Name) =>
+                    {
+                        return await Task.FromResult(2);
+                    },
                     processors: new RequestAwaiter.ProcessorConfig[]
                     {
                         //From _inputSimpleTopic1
@@ -166,9 +175,7 @@ namespace RequestAwaiterConsole
                                 topicName: input1Name,
                                 partitions: new int[] { 0 }
                                 ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 20000
+                            output0: new RequestAwaiter.ProducerInfo(outputName)
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
@@ -179,9 +186,7 @@ namespace RequestAwaiterConsole
                                 topicName: input1Name,
                                 partitions: new int[] { 1 }
                                 ),
-                            output0:new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 20000
+                            output0:new RequestAwaiter.ProducerInfo(outputName)
                             ),
                         new RequestAwaiter.ProcessorConfig(
                             input0: new RequestAwaiter.ConsumerInfo(
@@ -192,16 +197,15 @@ namespace RequestAwaiterConsole
                                 topicName: input1Name,
                                 partitions: new int[] { 2 }
                                 ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 20000
+                            output0: new RequestAwaiter.ProducerInfo(outputName)
                             )
                     }
                     );
             Console.WriteLine("Start ReqAwaiter");
-            reqAwaiter.Setup(
+            await reqAwaiter.Setup(
                 reqAwaiterConfitg,
-                producerPool0: pool
+                producerPool0: pool,
+                currentBucketsCount: reqAwaiterConfitg.BucketsCount
                 );
 
             reqAwaiter.Start(
@@ -218,7 +222,7 @@ namespace RequestAwaiterConsole
             return reqAwaiter;
         }
 
-        private static RequestAwaiter2 Scenario2(
+        private static async Task<RequestAwaiter2> Scenario2(
             string bootstrapServers,
             string input0Name,
             string outputName,
@@ -230,6 +234,16 @@ namespace RequestAwaiterConsole
                 new RequestAwaiter2.Config(
                     groupId: "SimpleProduce",
                     bootstrapServers: bootstrapServers,
+                    itemsInBucket: 20000,
+                    inFlyBucketsLimit: 2,
+                    addNewBucket: (bucketId, partitions0, topic1Name) =>
+                    {
+                        return Task.CompletedTask;
+                    },
+                    bucketsCount: async (partitions0, topic0Name) =>
+                    {
+                        return await Task.FromResult(2);
+                    },
                     processors: new RequestAwaiter2.ProcessorConfig[]
                     {
                         //From _inputSimpleTopic1
@@ -238,34 +252,29 @@ namespace RequestAwaiterConsole
                                 topicName: input0Name,
                                 partitions: new int[] { 0 }
                                 ),
-                            output0: new RequestAwaiter2.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
+                            output0: new RequestAwaiter2.ProducerInfo(outputName)
                             ),
                         new RequestAwaiter2.ProcessorConfig(
                             input0: new RequestAwaiter2.ConsumerInfo(
                                 topicName: input0Name,
                                 partitions: new int[] { 1 }
                                 ),
-                            output0:new RequestAwaiter2.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
+                            output0:new RequestAwaiter2.ProducerInfo(outputName)
                             ),
                         new RequestAwaiter2.ProcessorConfig(
                             input0: new RequestAwaiter2.ConsumerInfo(
                                 topicName: input0Name,
                                 partitions: new int[] { 2 }
                                 ),
-                            output0: new RequestAwaiter2.ProducerInfo(outputName),
-                            buckets: 2,
-                            maxInFly: 100
+                            output0: new RequestAwaiter2.ProducerInfo(outputName)
                             )
                     }
                     );
             Console.WriteLine("Start ReqAwaiter");
-            reqAwaiter.Setup(
+            await reqAwaiter.Setup(
                 reqAwaiterConfitg,
-                producerPool0: pool
+                producerPool0: pool,
+                currentBucketsCount: reqAwaiterConfitg.BucketsCount
                 );
 
             reqAwaiter.Start(
@@ -282,18 +291,18 @@ namespace RequestAwaiterConsole
             return reqAwaiter;
         }
 
-        private static async Task<(RequestAwaiter.Response, long)> Produce(RequestAwaiter reqAwaiter)
+        private static async Task<long> Produce(RequestAwaiter reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result, sb.ElapsedMilliseconds);
+            return sb.ElapsedMilliseconds;
         }
 
-        private static async Task<(RequestAwaiter2.Response, long)> Produce2(RequestAwaiter2 reqAwaiter)
+        private static async Task<long> Produce2(RequestAwaiter2 reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result, sb.ElapsedMilliseconds);
+            return sb.ElapsedMilliseconds;
         }
     }
 }

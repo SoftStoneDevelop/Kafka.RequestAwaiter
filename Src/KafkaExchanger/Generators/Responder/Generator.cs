@@ -39,6 +39,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace {responder.TypeSymbol.ContainingNamespace}
 {{

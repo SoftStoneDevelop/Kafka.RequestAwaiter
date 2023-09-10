@@ -12,9 +12,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             StartClass(builder, requestAwaiter);
-            Fields(builder, assemblyName, requestAwaiter);
+
+            Constructors(builder, requestAwaiter);
+            PropertiesAndFields(builder, assemblyName, requestAwaiter);
             Produce(builder, requestAwaiter);
             Dispose(builder, assemblyName);
+
             EndClass(builder);
         }
 
@@ -33,11 +36,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             return "Bucket";
         }
 
-        private static string _tryDelay()
-        {
-            return "_tryDelay";
-        }
-
         public static string Partitions(InputData inputData)
         {
             return $"{inputData.NamePascalCase}Partitions";
@@ -50,7 +48,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public static string Message(OutputData outputData)
         {
-            return $"{outputData.MessageTypeName}";
+            return $"{outputData.NamePascalCase}Message";
         }
 
         private static void StartClass(
@@ -60,14 +58,29 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
         public class {TypeName()} : IDisposable
-        {{
+        {{");
+        }
+
+        private static void Constructors(
+            StringBuilder builder,
+            Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
             private {TypeName()}(){{}}
-            public {TypeName()}(
-                {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult tryDelay)
-            {{
-                {_tryDelay()} = tryDelay;
-            }}
 ");
+
+            var topicResponseParam = "topicResponse";
+            var outputRequestParam = "outputRequest";
+            builder.Append($@"
+            public {TypeName()}(
+                {TopicResponse.TypeFullName(requestAwaiter)} {topicResponseParam},
+                {OutputMessage.TypeFullName(requestAwaiter)} {outputRequestParam}
+                )
+            {{
+                {_topicResponse()} = {topicResponseParam};
+                {OutputRequest()} = {outputRequestParam};
+            }}");
         }
 
         private static void EndClass(
@@ -79,32 +92,34 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 ");
         }
 
-        private static void Fields(
+        private static string OutputRequest()
+        {
+            return "OutputRequest";
+        }
+
+        private static string _topicResponse()
+        {
+            return "_topicResponse";
+        }
+
+        private static void PropertiesAndFields(
             StringBuilder builder,
             string assemblyName,
             Datas.RequestAwaiter requestAwaiter
             )
         {
             builder.Append($@"
-            private {requestAwaiter.TypeSymbol.Name}.TryDelayProduceResult {_tryDelay()};
-            public int {Bucket()} => {_tryDelay()}.{TryDelayProduceResult.Bucket()}.{KafkaExchanger.Generators.RequestAwaiter.Bucket.BucketId()};
-            public string MessageGuid => {_tryDelay()}.{TryDelayProduceResult.Response()}.{TopicResponse.MessageGuid()};
-");
+            private {TopicResponse.TypeFullName(requestAwaiter)} {_topicResponse()};
+
+            public {OutputMessage.TypeFullName(requestAwaiter)} {OutputRequest()};
+            public int {Bucket()} => {_topicResponse()}.{TopicResponse.Bucket()};
+            public string Guid => {_topicResponse()}.{TopicResponse.Guid()};");
+
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
                 builder.Append($@"
-            public int[] {Partitions(inputData)} => {_tryDelay()}.{TryDelayProduceResult.Bucket()}.{KafkaExchanger.Generators.RequestAwaiter.Bucket.Partitions(inputData)};
-");
-            }
-
-            for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
-            {
-                var outputData = requestAwaiter.OutputDatas[i];
-                builder.Append($@"
-            public {assemblyName}.RequestHeader {Header(outputData)} => {_tryDelay()}.{TryDelayProduceResult.Header(outputData)};
-            public {outputData.MessageTypeName} {Message(outputData)} => {_tryDelay()}.{TryDelayProduceResult.Message(outputData)};
-");
+            public int[] {Partitions(inputData)} => {_topicResponse()}.{TopicResponse.InputPartition(inputData)};");
             }
         }
 
@@ -114,16 +129,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            public ValueTask<{requestAwaiter.TypeSymbol.Name}.Response> Produce()
+            public async Task<{Response.TypeFullName(requestAwaiter)}> Produce()
             {{
-                if(_produced)
-                {{
-                    throw new System.Exception(""Produce can not be called twice"");
-                }}
-
-                _produced = true;
-                return 
-                    {_tryDelay()}.{TryDelayProduceResult.Bucket()}.Produce({_tryDelay()});
+                {_topicResponse()}.{TopicResponse.OutputTask()}.TrySetResult({OutputRequest()});
+                return
+                    await {_topicResponse()}.GetResponse();
             }}
 ");
         }
@@ -135,7 +145,6 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         {
             builder.Append($@"
             private bool _disposedValue;
-            private bool _produced;
 
             public void Dispose()
             {{
@@ -147,18 +156,13 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {{
                 if (!_disposedValue)
                 {{
-                    if (!_produced)
-                    {{
-                        {_tryDelay()}.{TryDelayProduceResult.Bucket()}.RemoveAwaiter({_tryDelay()}.{TryDelayProduceResult.Response()}.{TopicResponse.MessageGuid()});
-                    }}
-
-                    {_tryDelay()}.{TryDelayProduceResult.Bucket()} = null;
-                    {_tryDelay()} = null;
+                    {_topicResponse()}.{TopicResponse.OutputTask()}.TrySetCanceled();
+                    {_topicResponse()} = null;
                     _disposedValue = true;
                 }}
             }}
 
-            ~DelayProduce()
+            ~{TypeName()}()
             {{
                 Dispose(false);
             }}

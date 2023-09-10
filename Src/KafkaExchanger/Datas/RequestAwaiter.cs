@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Enums;
+using KafkaExchanger.Generators.RequestAwaiter;
 using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
@@ -56,7 +57,8 @@ namespace KafkaExchanger.Datas
             tempSb.Append("Func<int,");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" int[], Input{i}Message,");
+                var inputData = inputDatas[i];
+                tempSb.Append($" int[], {inputData.MessageTypeName},");
             }
             tempSb.Append(" Task<KafkaExchanger.Attributes.Enums.RAState>>");
 
@@ -80,11 +82,10 @@ namespace KafkaExchanger.Datas
 
         public string AfterSendFunc(
             string assemblyName,
-            OutputData outputData,
-            int outputIndex
+            OutputData outputData
             )
         {
-            return $"Func<{assemblyName}.RequestHeader, Output{outputIndex}Message, Task>";
+            return $"Func<int, {OutputMessages.TypeFullName(this, outputData)}, {assemblyName}.RequestHeader, Task>";
         }
 
         internal bool SetAfterSend(TypedConstant argument)
@@ -103,13 +104,12 @@ namespace KafkaExchanger.Datas
         public bool AddAwaiterCheckStatus { get; private set; }
 
         public string AddAwaiterStatusFunc(
-            string assemblyName,
-            List<InputData> inputDatas
+            string assemblyName
             )
         {
             var builder = new StringBuilder(200);
             builder.Append($"Func<string, int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 builder.Append($@" int[],");
             }
@@ -120,13 +120,12 @@ namespace KafkaExchanger.Datas
 
         public string LoadOutputMessageFunc(
             string assemblyName,
-            OutputData outputData,
-            List<InputData> inputDatas
+            OutputData outputData
             )
         {
             var builder = new StringBuilder(200);
             builder.Append($"Func<string, int,");
-            for (int i = 0; i < inputDatas.Count; i++)
+            for (int i = 0; i < InputDatas.Count; i++)
             {
                 builder.Append($@" int[],");
             }
@@ -156,7 +155,7 @@ namespace KafkaExchanger.Datas
             tempSb.Append("Func<int, ");
             for (int i = 0; i < inputDatas.Count; i++)
             {
-                tempSb.Append($" HashSet<Confluent.Kafka.Partition>,");
+                tempSb.Append($" int[],");
             }
             tempSb.Append(" Task>");
 
@@ -174,6 +173,34 @@ namespace KafkaExchanger.Datas
 
             AfterCommit = (bool)argument.Value;
             return true;
+        }
+
+        public string AddNewBucketFuncType()
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<int,");
+            for (int i = 0; i < InputDatas.Count; i++)
+            {
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], string,");
+            }
+            tempSb.Append("Task>");
+
+            return tempSb.ToString();
+        }
+
+        public string BucketsCountFuncType()
+        {
+            var tempSb = new StringBuilder(100);
+            tempSb.Append("Func<");
+            for (int i = 0; i < InputDatas.Count; i++)
+            {
+                var inputData = InputDatas[i];
+                tempSb.Append($"int[], string,");
+            }
+            tempSb.Append("Task<int>>");
+
+            return tempSb.ToString();
         }
     }
 }
