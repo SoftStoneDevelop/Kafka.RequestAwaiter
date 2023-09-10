@@ -528,11 +528,12 @@ namespace KafkaExchengerTests
                     reqAwaiterPrepare.Start();
 
                     var sendedCount = 0;
+                    var tempStoreLink = new List<RequestAwaiterSimple.DelayProduce>();
                     for (int i = 0; i < requestsCount; i++)
                     {
-                        using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString(), 10).ConfigureAwait(false);
                         if (i % 2 == 0)
                         {
+                            using var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString(), 10).ConfigureAwait(false);
                             sendedCount++;
                             Volatile.Write(ref waitSended, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
                             _ = delayProduce.Produce();
@@ -540,6 +541,8 @@ namespace KafkaExchengerTests
                         }
                         else
                         {
+                            var delayProduce = await reqAwaiterPrepare.ProduceDelay(i.ToString(), 10).ConfigureAwait(false);
+                            tempStoreLink.Add(delayProduce);
                             var info = new AddAwaiterInfo()
                             {
                                 Value = delayProduce.OutputRequest.Output0.Value + "LOM",
@@ -551,6 +554,11 @@ namespace KafkaExchengerTests
                         }
                     }
 
+                    foreach(var dp in tempStoreLink)
+                    {
+                        dp.Dispose();
+                    }
+                    tempStoreLink.Clear();
                     Assert.That(sended.Count, Is.EqualTo(sendedCount));
                 }
                 finally

@@ -1122,6 +1122,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     topicResponse.Dispose();
                     throw new InvalidOperationException();
                 }}
+                topicResponse.Bucket = bucket;
                 topicResponse.Init(true);
                 return topicResponse;
             }}
