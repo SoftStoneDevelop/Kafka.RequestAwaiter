@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option csharp_namespace = "GrcpService";
+package GrcpService;
+
+service RespondService
+{
+    rpc Hello(HelloRequest) returns (HelloResponse);
+}
+
+message HelloRequest
+{
+	string Text = 1;
+}
+
+message HelloResponse
+{
+	string Text = 1;
+}

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 namespace Responder0Console
 {
     [Responder(useLogger: false),
-        Input(keyType: typeof(Null), valueType: typeof(string)),
-        Output(keyType: typeof(Null), valueType: typeof(string))
+        Input(keyType: typeof(Null), valueType: typeof(GrcpService.HelloRequest)),
+        Output(keyType: typeof(Null), valueType: typeof(GrcpService.HelloResponse))
         ]
     public partial class ResponderOneToOneSimple
     {
@@ -20,9 +20,9 @@ namespace Responder0Console
         {
             var bootstrapServers = "localhost:9194, localhost:9294, localhost:9394";
             var inputName = "RAOutputSimple";
-            var responderName = "RAResponder1";
+            var responderName = "RAResponder2";
 
-            var responder1 = new ResponderOneToOneSimple();
+            var responder2 = new ResponderOneToOneSimple();
             var responder1Config =
                 new ResponderOneToOneSimple.Config(
                 groupId: responderName,
@@ -42,7 +42,7 @@ namespace Responder0Console
                             {
                                 Output0Message = new ResponderOneToOneSimple.Output0Message()
                                 {
-                                    Value = $"1: Answer {input.Input0Message.Value}"
+                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
                                 }
                             };
 
@@ -58,7 +58,7 @@ namespace Responder0Console
                             {
                                 Output0Message = new ResponderOneToOneSimple.Output0Message()
                                 {
-                                    Value = $"1: Answer {input.Input0Message.Value}"
+                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
                                 }
                             };
 
@@ -74,7 +74,7 @@ namespace Responder0Console
                             {
                                 Output0Message = new ResponderOneToOneSimple.Output0Message()
                                 {
-                                    Value = $"1: Answer {input.Input0Message.Value}"
+                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
                                 }
                             };
 
@@ -85,7 +85,7 @@ namespace Responder0Console
                 }
                 );
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullString(
+            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
                 5,
                 bootstrapServers,
                 static (config) =>
@@ -95,10 +95,9 @@ namespace Responder0Console
                     config.AllowAutoCreateTopics = false;
                 }
                 );
-
             Console.WriteLine("Start Responder");
-            await responder1.Setup(config: responder1Config, output0Pool: pool);
-            responder1.Start();
+            await responder2.Setup(config: responder1Config, output0Pool: pool);
+            responder2.Start();
             Console.WriteLine("Responder started");
 
             while (true)
@@ -110,7 +109,7 @@ namespace Responder0Console
                 }
             }
 
-            await responder1.StopAsync();
+            await responder2.StopAsync();
         }
     }
 }

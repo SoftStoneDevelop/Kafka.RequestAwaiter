@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Responder0Console": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:54709;http://localhost:54710"
+    }
+  }
+}
