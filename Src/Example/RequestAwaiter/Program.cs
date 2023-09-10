@@ -68,8 +68,7 @@ namespace RequestAwaiterConsole
                 {
                     Console.WriteLine($"Iteration {iteration}");
                     Stopwatch sw = Stopwatch.StartNew();
-                    var tasks = new Task<(RequestAwaiter.Response, long)>[requests];
-                    //var tasks = new Task<(RequestAwaiter2.Response, long)>[requests];
+                    var tasks = new Task<long>[requests];
 
                     Parallel.For(0, requests, (index) => 
                     {
@@ -88,7 +87,7 @@ namespace RequestAwaiterConsole
                     var hashSet = new Dictionary<long, int>();
                     foreach (var task in tasks)
                     {
-                        var executedTime = task.Result.Item2;
+                        var executedTime = task.Result;
                         if (hashSet.TryGetValue(executedTime, out var internalCount))
                         {
                             hashSet[executedTime] = ++internalCount;
@@ -292,18 +291,18 @@ namespace RequestAwaiterConsole
             return reqAwaiter;
         }
 
-        private static async Task<(RequestAwaiter.Response, long)> Produce(RequestAwaiter reqAwaiter)
+        private static async Task<long> Produce(RequestAwaiter reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result, sb.ElapsedMilliseconds);
+            return sb.ElapsedMilliseconds;
         }
 
-        private static async Task<(RequestAwaiter2.Response, long)> Produce2(RequestAwaiter2 reqAwaiter)
+        private static async Task<long> Produce2(RequestAwaiter2 reqAwaiter)
         {
             Stopwatch sb = Stopwatch.StartNew();
             using var result = await reqAwaiter.Produce("Hello").ConfigureAwait(false);
-            return (result, sb.ElapsedMilliseconds);
+            return sb.ElapsedMilliseconds;
         }
     }
 }
