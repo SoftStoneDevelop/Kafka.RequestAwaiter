@@ -597,6 +597,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 }}
 
                                 inTheFlyCount -= canFreeBuckets.Count * {_itemsInBucket()};
+                                foreach (var popItem in canFreeBuckets)
+                                {{
+                                    {_storage()}.Pop(popItem);
+                                }}
+
                                 while (queue.Count != 0)
                                 {{
                                     if (inTheFlyCount == {_inFlyItemsLimit()})

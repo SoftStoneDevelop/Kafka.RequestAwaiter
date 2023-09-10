@@ -408,7 +408,7 @@ namespace KafkaExchanger.Generators.Responder
             {{
                 {_cts()} = new CancellationTokenSource();
                 {_storage()}.Validate();
-                StartHorizonRoutine();
+                StartCommitRoutine();
                 StartInitializeRoutine();
                 {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
 ");
@@ -490,7 +490,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            private void StartHorizonRoutine()
+            private void StartCommitRoutine()
             {{
                 {_horizonRoutine()} = Task.Factory.StartNew(async () => 
                 {{
@@ -535,6 +535,11 @@ namespace KafkaExchanger.Generators.Responder
                                 if(canFreeBuckets.Count == 0)
                                 {{
                                     continue;
+                                }}
+
+                                foreach (var popItem in canFreeBuckets)
+                                {{
+                                    {_storage()}.Pop(popItem);
                                 }}
 
                                 var commit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
