@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using Confluent.Kafka.Admin;
 using KafkaExchanger.Attributes;
 using System;
 using System.Collections.Generic;
@@ -22,12 +23,59 @@ namespace RequestAwaiterConsole
 
     internal class Program
     {
+        private static async Task ReCreateTopic(IAdminClient adminClient, string topicName)
+        {
+            var metadata = adminClient.GetMetadata(TimeSpan.FromSeconds(30));
+            if (metadata.Topics.Any(an => an.Topic == topicName))
+            {
+                await adminClient.DeleteTopicsAsync(
+                    new string[]
+                    {
+                        topicName
+                    });
+
+                await Task.Delay(300);
+            }
+
+            try
+            {
+                await adminClient.CreateTopicsAsync(new TopicSpecification[]
+                    {
+                                new TopicSpecification
+                                {
+                                    Name = topicName,
+                                    ReplicationFactor = -1,
+                                    NumPartitions = 3,
+                                    Configs = new System.Collections.Generic.Dictionary<string, string>
+                                    {
+                                        { "min.insync.replicas", "1" }
+                                    }
+                                }
+                    }
+                    );
+            }
+            catch (CreateTopicsException e)
+            {
+                Console.WriteLine($"An error occured creating topic {e.Results[0].Topic}: {e.Results[0].Error.Reason}");
+            }
+        }
+
         static async Task Main(string[] args)
         {
             var bootstrapServers = "localhost:9194, localhost:9294, localhost:9394";
             var input0Name = "RAInputSimple1";
             var input1Name = "RAInputSimple2";
             var outputName = "RAOutputSimple";
+
+            using (var adminClient = new AdminClientBuilder(new AdminClientConfig
+            {
+                BootstrapServers = bootstrapServers
+            }).Build())
+            {
+                await ReCreateTopic(adminClient, input0Name);
+                await ReCreateTopic(adminClient, input1Name);
+                await ReCreateTopic(adminClient, outputName);
+            }
 
             var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
                 3,
