@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RequestAwaiterConsole
@@ -60,17 +61,41 @@ namespace RequestAwaiterConsole
                     Stopwatch sw = Stopwatch.StartNew();
                     var tasks = new Task<long>[requests];
 
-                    Parallel.For(0, requests, (index) => 
+                    long sleepTime = 0;
+                    if (true)//with pause
                     {
-                        tasks[index] = Produce(reqAwaiter);
-                    });
+                        var pack = 0;
+                        for (int i = 0; i < requests; i++)
+                        {
+                            tasks[i] = Produce(reqAwaiter);
+                            pack++;
 
-                    Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
+                            if (pack == 1000)
+                            {
+                                pack = 0;
+                                var swSleep = Stopwatch.StartNew();
+                                Thread.Sleep(1);
+                                sleepTime += swSleep.ElapsedMilliseconds;
+                            }
+                        }
+
+                        Console.WriteLine($"Sleep time: {sleepTime} ms");
+                    }
+
+                    if(false)//parralel
+                    {
+                        Parallel.For(0, requests, (index) =>
+                        {
+                            tasks[index] = Produce(reqAwaiter);
+                        });
+                    }
+
+                    Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds - sleepTime} ms");
                     Task.WaitAll(tasks);
                     sw.Stop();
-                    iterationTimes[iteration] = sw.ElapsedMilliseconds;
+                    iterationTimes[iteration] = sw.ElapsedMilliseconds - sleepTime;
                     Console.WriteLine($"Requests sended: {requests}");
-                    Console.WriteLine($"Pack Time: {sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Pack Time: {sw.ElapsedMilliseconds - sleepTime} ms");
 
                     var hashSet = new Dictionary<long, int>();
                     foreach (var task in tasks)
