@@ -6,6 +6,8 @@ package GrcpService;
 service RespondService
 {
     rpc Hello(HelloRequest) returns (HelloResponse);
+
+	rpc HelloStream(stream HelloStreamRequest) returns (stream HelloStreamResponse);
 }
 
 message HelloRequest
@@ -16,4 +18,16 @@ message HelloRequest
 message HelloResponse
 {
 	string Text = 1;
+}
+
+message HelloStreamRequest
+{
+	string Guid = 1;
+	string Text = 2;
+}
+
+message HelloStreamResponse
+{
+	string Guid = 1;
+	string Text = 2;
 }
