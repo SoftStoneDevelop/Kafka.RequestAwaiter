@@ -569,6 +569,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                 if (queue.Count != 0 || inTheFlyCount == {_inFlyItemsLimit()})
                                 {{
                                     queue.Enqueue(startResponse);
+                                    continue;
                                 }}
 
                                 var newMessage = new KafkaExchanger.MessageInfo({InputsSize(requestAwaiter)});
