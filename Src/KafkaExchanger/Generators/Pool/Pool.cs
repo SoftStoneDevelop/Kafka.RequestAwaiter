@@ -98,7 +98,7 @@ namespace KafkaExchanger.Generators.Pool
             new UnboundedChannelOptions
             {{
                 AllowSynchronousContinuations = false,
-                SingleReader = true,
+                SingleReader = false,
                 SingleWriter = false
             }});
 ");
