@@ -51,11 +51,6 @@ namespace KafkaExchanger.Generators.Pool
             return $"_produceChannel";
         }
 
-        public static string _config()
-        {
-            return $"_config";
-        }
-
         public static string _cancellationTokenSource()
         {
             return $"_cancellationTokenSource";
@@ -92,7 +87,6 @@ namespace KafkaExchanger.Generators.Pool
             builder.Append($@"
         private int {_messagesInTransaction()};
         private Task[] {_routines()};
-        private Confluent.Kafka.ProducerConfig {_config()};
         private CancellationTokenSource {_cancellationTokenSource()} = new CancellationTokenSource();
         private Channel<{ProduceInfo.TypeFullName(assemblyName, outputData)}> {_produceChannel()} = Channel.CreateUnbounded<{ProduceInfo.TypeFullName(assemblyName, outputData)}>(
             new UnboundedChannelOptions
@@ -111,29 +105,29 @@ namespace KafkaExchanger.Generators.Pool
         {
             builder.Append($@"
         public {TypeName(outputData)}(
-            uint producerCount,
+            HashSet<string> transactionalIds,
             string bootstrapServers,
             int messagesInTransaction = 100,
             Action<Confluent.Kafka.ProducerConfig> changeConfig = null
             )
         {{
             {_messagesInTransaction()} = messagesInTransaction;
-            var config = new Confluent.Kafka.ProducerConfig();
-            config.SocketTimeoutMs = 60000;
-            config.TransactionTimeoutMs = 5000;
-
-            if (changeConfig != null)
+            {_routines()} = new Task[transactionalIds.Count];
+            var i = 0;
+            foreach (var transactionalId in transactionalIds)
             {{
-                changeConfig(config);
-            }}
+                var config = new Confluent.Kafka.ProducerConfig();
+                config.SocketTimeoutMs = 5000;
+                config.TransactionTimeoutMs = 5000;
 
-            config.BootstrapServers = bootstrapServers;
-            {_config()} = config;
+                if (changeConfig != null)
+                {{
+                    changeConfig(config);
+                }}
 
-            {_routines()} = new Task[producerCount];
-            for (int i = 0; i < producerCount; i++)
-            {{
-                {_routines()}[i] = ProduceRoutine({_cancellationTokenSource()}.Token);
+                config.BootstrapServers = bootstrapServers;
+                config.TransactionalId = transactionalId;
+                {_routines()}[i++] = ProduceRoutine(config, {_cancellationTokenSource()}.Token);
             }}
         }}
 ");
@@ -146,20 +140,19 @@ namespace KafkaExchanger.Generators.Pool
             )
         {
             builder.Append($@"
-        private async Task ProduceRoutine(CancellationToken cancellationToken)
+        private async Task ProduceRoutine(Confluent.Kafka.ProducerConfig config, CancellationToken cancellationToken)
         {{
             var reader = {_produceChannel()}.Reader;
             var sendTemp = new List<{ProduceInfo.TypeFullName(assemblyName, outputData)}>({_messagesInTransaction()});
-            Confluent.Kafka.IProducer<{outputData.TypesPair}> producer = null;
-            start:
+            var producer =
+                new Confluent.Kafka.ProducerBuilder<{outputData.TypesPair}>(config)
+                .Build()
+                ;
+
             try
             {{
-                producer =
-                    new Confluent.Kafka.ProducerBuilder<{outputData.TypesPair}>({_config()})
-                    .Build()
-                    ;
-
-                void sendPack()
+                producer.InitTransactions(TimeSpan.FromSeconds(60));
+                while (!cancellationToken.IsCancellationRequested)
                 {{
                     while (sendTemp.Count > 0)
                     {{
@@ -204,18 +197,13 @@ namespace KafkaExchanger.Generators.Pool
                             var sended = sendTemp[i];
                             sended.{ProduceInfo.CompletionSource()}.SetResult();
                         }}
-
                         sendTemp.Clear();
                     }}
-                }}
 
-                while (!cancellationToken.IsCancellationRequested)
-                {{
-                    sendPack();
                     var info = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
                     var sw = Stopwatch.StartNew();
                     sendTemp.Add(info);
-                    while ((sw.ElapsedMilliseconds < 1 && sendTemp.Count < {_messagesInTransaction()}) && reader.TryRead(out info))
+                    while (!cancellationToken.IsCancellationRequested && sw.ElapsedMilliseconds < 1 && sendTemp.Count < {_messagesInTransaction()} && reader.TryRead(out info))
                     {{
                         sendTemp.Add(info);
                     }}
@@ -227,19 +215,7 @@ namespace KafkaExchanger.Generators.Pool
             }}
             finally
             {{
-                try
-                {{
-                    producer?.Dispose();
-                }}
-                catch
-                {{
-                    //ignore
-                }}
-            }}
-
-            if(!cancellationToken.IsCancellationRequested)
-            {{
-                goto start;
+                producer.Dispose();
             }}
 
             for (int i = 0; i < sendTemp.Count; i++)

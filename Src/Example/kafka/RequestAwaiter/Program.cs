@@ -78,7 +78,7 @@ namespace RequestAwaiterConsole
             }
 
             var pool = new ProducerPoolNullProto(
-                3,
+                new HashSet<string> { "RequestAwaiterConsole0", "RequestAwaiterConsole1" },
                 bootstrapServers,
                 changeConfig: static (config) =>
                 {

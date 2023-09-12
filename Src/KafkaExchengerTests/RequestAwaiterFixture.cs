@@ -202,8 +202,11 @@ namespace KafkaExchengerTests
         [Test]
         public async Task CancelByTimeout()
         {
-            using (var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"],
-                    changeConfig: static (config) =>
+            using (var pool = new ProducerPoolNullString(
+                new HashSet<string> { "Test0", "Test1" },
+                GlobalSetUp.Configuration["BootstrapServers"],
+                messagesInTransaction: 100,
+                changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;
@@ -324,8 +327,11 @@ namespace KafkaExchengerTests
         [Test]
         public async Task SimpleProduce()
         {
-            using (var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
-                    changeConfig: static (config) =>
+            using (var pool = new ProducerPoolNullString(
+                new HashSet<string> { "Test0", "Test1" },
+                GlobalSetUp.Configuration["BootstrapServers"],
+                messagesInTransaction: 100,
+                changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;
@@ -496,8 +502,11 @@ namespace KafkaExchengerTests
         [Test]
         public async Task AddAwaiter()
         {
-            using (var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
-                    changeConfig: static (config) =>
+            using (var pool = new ProducerPoolNullString(
+                new HashSet<string> { "Test0", "Test1" },
+                GlobalSetUp.Configuration["BootstrapServers"],
+                messagesInTransaction: 100,
+                changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;

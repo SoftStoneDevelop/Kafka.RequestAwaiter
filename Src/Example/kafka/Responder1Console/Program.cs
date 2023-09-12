@@ -1,6 +1,7 @@
 ﻿using Confluent.Kafka;
 using KafkaExchanger.Attributes;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Responder1Console
@@ -86,7 +87,7 @@ namespace Responder1Console
                 );
 
             var pool = new ProducerPoolNullProto(
-                5,
+                new HashSet<string> { "Responder1Console0", "Responder1Console1" },
                 bootstrapServers,
                 changeConfig: static (config) =>
                 {
