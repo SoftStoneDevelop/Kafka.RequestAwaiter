@@ -430,15 +430,15 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             public void Start(
                 string bootstrapServers,
-                string groupId
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
                 {_cts()} = new CancellationTokenSource();
                 {_storage()}.Validate();
                 StartCommitRoutine();
                 StartInitializeRoutine();
-                {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];
-");
+                {_consumeRoutines()} = new Thread[{responder.InputDatas.Count}];");
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
@@ -447,7 +447,7 @@ namespace KafkaExchanger.Generators.Responder
                     builder.Append(',');
                 }
                 builder.Append($@"
-                    {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId);
+                    {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId, changeConfig);
                     {_consumeRoutines()}[{i}].Start();
 ");
             }
@@ -707,11 +707,12 @@ namespace KafkaExchanger.Generators.Responder
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
-                var threadName = $@"{responder.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}";
+                var threadName = $@"{responder.TypeSymbol.Name}{{groupId}}{{{_inputTopicName(inputData)}}}";
                 builder.Append($@"
             private Thread StartConsume{inputData.NamePascalCase}(
                 string bootstrapServers,
-                string groupId
+                string groupId,
+                Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
                 )
             {{
                 return new Thread((param) =>
@@ -724,14 +725,18 @@ namespace KafkaExchanger.Generators.Responder
 
                     try
                     {{
-                        var conf = new ConsumerConfig
+                        var conf = new Confluent.Kafka.ConsumerConfig();
+                        if(changeConfig != null)
                         {{
-                            GroupId = groupId,
-                            BootstrapServers = bootstrapServers,
-                            AutoOffsetReset = AutoOffsetReset.Earliest,
-                            AllowAutoCreateTopics = false,
-                            EnableAutoCommit = false
-                        }};
+                            changeConfig(conf);
+                        }}
+
+                        conf.GroupId = groupId;
+                        conf.BootstrapServers = bootstrapServers;
+                        conf.AutoOffsetReset = AutoOffsetReset.Earliest;
+                        conf.AllowAutoCreateTopics = false;
+                        conf.EnableAutoCommit = false;
+                        conf.IsolationLevel = IsolationLevel.ReadCommitted;
 
                         var consumer =
                             new ConsumerBuilder<{inputData.TypesPair}>(conf)
@@ -880,7 +885,7 @@ namespace KafkaExchanger.Generators.Responder
                     )
                     {{
                         IsBackground = true,
-                        Priority = ThreadPriority.AboveNormal,
+                        Priority = ThreadPriority.Normal,
                         Name = $""{threadName}""
                     }};
             }}

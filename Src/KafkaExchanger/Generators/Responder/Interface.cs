@@ -36,7 +36,7 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public void Start();
+        public void Start(Action<Confluent.Kafka.ConsumerConfig> changeConfig = null);
 ");
         }
 

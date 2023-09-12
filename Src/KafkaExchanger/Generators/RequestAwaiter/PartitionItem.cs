@@ -724,7 +724,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                var threadName = $@"{requestAwaiter.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}";
+                var threadName = $@"{requestAwaiter.TypeSymbol.Name}{{groupId}}{{{_inputTopicName(inputData)}}}";
                 builder.Append($@"
             private Thread StartConsume{inputData.NamePascalCase}(
                 string bootstrapServers,
@@ -753,6 +753,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         conf.AutoOffsetReset = AutoOffsetReset.Earliest;
                         conf.AllowAutoCreateTopics = false;
                         conf.EnableAutoCommit = false;
+                        conf.IsolationLevel = IsolationLevel.ReadCommitted;
 
                         var consumer =
                             new ConsumerBuilder<{inputData.TypesPair}>(conf)
@@ -864,7 +865,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     )
                     {{
                         IsBackground = true,
-                        Priority = ThreadPriority.AboveNormal,
+                        Priority = ThreadPriority.Normal,
                         Name = $""{threadName}""
                     }};
             }}
