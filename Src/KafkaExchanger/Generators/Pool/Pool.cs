@@ -209,9 +209,9 @@ namespace KafkaExchanger.Generators.Pool
                     }}
                 }}
 
-                sendPack();
                 while (!cancellationToken.IsCancellationRequested)
-                {{                    
+                {{
+                    sendPack();
                     var info = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
                     var sw = Stopwatch.StartNew();
                     sendTemp.Add(info);
