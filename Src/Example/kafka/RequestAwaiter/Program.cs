@@ -77,10 +77,10 @@ namespace RequestAwaiterConsole
                 await ReCreateTopic(adminClient, outputName);
             }
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
+            var pool = new ProducerPoolNullProto(
                 3,
                 bootstrapServers,
-                static (config) =>
+                changeConfig: static (config) =>
                 {
                     config.LingerMs = 5;
                     config.SocketKeepaliveEnable = true;
@@ -110,7 +110,7 @@ namespace RequestAwaiterConsole
                     var tasks = new Task<long>[requests];
 
                     long sleepTime = 0;
-                    if (true)//with pause
+                    if (false)//with pause
                     {
                         var pack = 0;
                         for (int i = 0; i < requests; i++)
@@ -130,7 +130,7 @@ namespace RequestAwaiterConsole
                         Console.WriteLine($"Sleep time: {sleepTime} ms");
                     }
 
-                    if(false)//parralel
+                    if(true)//parralel
                     {
                         Parallel.For(0, requests, (index) =>
                         {
@@ -206,7 +206,7 @@ namespace RequestAwaiterConsole
             string input0Name,
             string input1Name,
             string outputName,
-            KafkaExchanger.Common.ProducerPoolNullProto pool
+            ProducerPoolNullProto pool
             )
         {
             var reqAwaiter = new RequestAwaiter();

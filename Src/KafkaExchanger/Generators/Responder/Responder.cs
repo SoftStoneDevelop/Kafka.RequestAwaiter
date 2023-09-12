@@ -37,7 +37,7 @@ namespace KafkaExchanger.Generators.Responder
             PartitionItem.Append(builder, assemblyName, responder);
 
             StartMethod(builder, responder);
-            Setup(builder, responder);
+            Setup(builder, assemblyName, responder);
             Push(builder, responder);
             StopAsync(builder);
 
@@ -108,6 +108,7 @@ namespace KafkaExchanger.Generators.Responder
 
         private static void Setup(
             StringBuilder builder,
+            string assemblyName,
             KafkaExchanger.Datas.Responder responder
             )
         {
@@ -119,7 +120,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@",
-            {outputData.FullPoolInterfaceName} {outputData.NameCamelCase}Pool");
+            {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputData.NameCamelCase}Pool");
             }
             builder.Append($@"
             )

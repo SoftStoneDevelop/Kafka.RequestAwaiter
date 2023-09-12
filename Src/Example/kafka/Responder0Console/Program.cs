@@ -85,10 +85,10 @@ namespace Responder0Console
                 }
                 );
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
+            var pool = new ProducerPoolNullProto(
                 5,
                 bootstrapServers,
-                static (config) =>
+                changeConfig: static (config) =>
                 {
                     config.LingerMs = 2;
                     config.SocketKeepaliveEnable = true;

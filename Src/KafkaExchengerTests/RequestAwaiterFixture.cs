@@ -1,7 +1,6 @@
 ﻿using Confluent.Kafka;
 using Confluent.Kafka.Admin;
 using KafkaExchanger.Attributes.Enums;
-using KafkaExchanger.Common;
 using NUnit.Framework;
 using System;
 using System.Collections.Concurrent;
@@ -204,7 +203,7 @@ namespace KafkaExchengerTests
         public async Task CancelByTimeout()
         {
             using (var pool = new ProducerPoolNullString(3, GlobalSetUp.Configuration["BootstrapServers"],
-                    static (config) =>
+                    changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;
@@ -326,7 +325,7 @@ namespace KafkaExchengerTests
         public async Task SimpleProduce()
         {
             using (var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
-                    static (config) =>
+                    changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;
@@ -498,7 +497,7 @@ namespace KafkaExchengerTests
         public async Task AddAwaiter()
         {
             using (var pool = new ProducerPoolNullString(5, GlobalSetUp.Configuration["BootstrapServers"],
-                    static (config) =>
+                    changeConfig: static (config) =>
                     {
                         config.LingerMs = 2;
                         config.SocketKeepaliveEnable = true;

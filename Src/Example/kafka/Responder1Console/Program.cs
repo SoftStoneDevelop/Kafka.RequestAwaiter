@@ -3,7 +3,7 @@ using KafkaExchanger.Attributes;
 using System;
 using System.Threading.Tasks;
 
-namespace Responder0Console
+namespace Responder1Console
 {
     [Responder(useLogger: false),
         Input(keyType: typeof(Null), valueType: typeof(GrcpService.HelloRequest)),
@@ -85,10 +85,10 @@ namespace Responder0Console
                 }
                 );
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
+            var pool = new ProducerPoolNullProto(
                 5,
                 bootstrapServers,
-                static (config) =>
+                changeConfig: static (config) =>
                 {
                     config.LingerMs = 2;
                     config.SocketKeepaliveEnable = true;

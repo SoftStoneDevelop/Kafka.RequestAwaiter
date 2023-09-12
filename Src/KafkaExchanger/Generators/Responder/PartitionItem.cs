@@ -14,8 +14,8 @@ namespace KafkaExchanger.Generators.Responder
         {
             StartClass(builder);
 
-            Constructor(builder, responder);
-            Fields(builder, responder);
+            Constructor(builder, assemblyName, responder);
+            Fields(builder, assemblyName, responder);
             Start(builder, responder);
             Setup(builder, responder);
             StartCommitRoutine(builder, responder);
@@ -112,6 +112,7 @@ namespace KafkaExchanger.Generators.Responder
 
         public static void Constructor(
             StringBuilder builder,
+            string assemblyName,
             KafkaExchanger.Datas.Responder responder
             )
         {
@@ -185,7 +186,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                {outputData.FullPoolInterfaceName} {outputPool(outputData)},
+                {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputPool(outputData)},
 ");
             }
 
@@ -337,6 +338,7 @@ namespace KafkaExchanger.Generators.Responder
 
         public static void Fields(
             StringBuilder builder,
+            string assemblyName,
             KafkaExchanger.Datas.Responder responder
             )
         {
@@ -418,7 +420,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                private readonly {outputData.FullPoolInterfaceName} {_outputPool(outputData)};");
+                private readonly {Pool.Interface.TypeFullName(assemblyName, outputData)} {_outputPool(outputData)};");
             }
         }
 
@@ -970,19 +972,7 @@ namespace KafkaExchanger.Generators.Responder
                         {{
                             var index = Interlocked.Increment(ref _partitionIndex) % (uint)topicForAnswer.Partitions.Count;
                             var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions[(int)index]);
-                            var producer = {_outputPool(outputData)}.Rent();
-                            try
-                            {{
-                                var deliveryResult = await producer.ProduceAsync(topicPartition, message);
-                            }}
-                            catch (ProduceException<{outputData.TypesPair}>)
-                            {{
-                                //ignore
-                            }}
-                            finally
-                            {{
-                                {_outputPool(outputData)}.Return(producer);
-                            }}
+                            await {_outputPool(outputData)}.{Pool.Interface.Produce()}(topicPartition, message).ConfigureAwait(false);
                         }}
                     }}
 ");

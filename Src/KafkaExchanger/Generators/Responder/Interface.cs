@@ -1,4 +1,5 @@
 ﻿using KafkaExchanger.Extensions;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
@@ -13,7 +14,7 @@ namespace KafkaExchanger.Generators.Responder
         {
             StartInterface(responder, builder);
             Start(responder, builder);
-            Setup(responder, builder);
+            Setup(responder, assemblyName, builder);
             Push(responder, builder);
             StopAsync(responder, builder);
             EndInterfaceOrClass(builder);
@@ -42,6 +43,7 @@ namespace KafkaExchanger.Generators.Responder
 
         private static void Setup(
             KafkaExchanger.Datas.Responder responder,
+            string assemblyName,
             StringBuilder builder
             )
         {
@@ -53,7 +55,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@",
-            {outputData.FullPoolInterfaceName} {outputData.NameCamelCase}Pool
+            {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputData.NameCamelCase}Pool
 ");
             }
             builder.Append($@"
