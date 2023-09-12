@@ -212,7 +212,7 @@ namespace KafkaExchanger.Generators.Pool
                 sendPack();
                 while (!cancellationToken.IsCancellationRequested)
                 {{                    
-                    var info = await reader.ReadAsync(cancellationToken);
+                    var info = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
                     var sw = Stopwatch.StartNew();
                     sendTemp.Add(info);
                     while ((sw.ElapsedMilliseconds < 1 && sendTemp.Count < {_messagesInTransaction()}) && reader.TryRead(out info))
