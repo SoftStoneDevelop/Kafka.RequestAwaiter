@@ -73,7 +73,7 @@ namespace KafkaExchanger.Generators.Pool
             )
         {
             builder.Append($@"
-    public partial class {TypeName(outputData)} : {Interface.TypeFullName(assemblyName, outputData)}, System.IDisposable
+    public partial class {TypeName(outputData)} : {Interface.TypeFullName(assemblyName, outputData)}, System.IAsyncDisposable
     {{
 ");
         }
@@ -275,12 +275,22 @@ namespace KafkaExchanger.Generators.Pool
             )
         {
             builder.Append($@"
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {{
             {_cancellationTokenSource()}.Cancel();
 
             {_produceChannel()}.Writer.Complete();
-
+            for (int i = 0; i < {_routines()}.Length; i++)
+            {{
+                try
+                {{
+                    await {_routines()}[i];
+                }}
+                catch
+                {{
+                    //ignore
+                }}
+            }}
             {_cancellationTokenSource()}.Dispose();
         }}
 ");

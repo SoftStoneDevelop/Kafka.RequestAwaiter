@@ -112,6 +112,7 @@ namespace Responder0Console
             }
 
             await responder1.StopAsync();
+            await pool.DisposeAsync();
         }
     }
 }

@@ -202,7 +202,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task CancelByTimeout()
         {
-            using (var pool = new ProducerPoolNullString(
+            await using (var pool = new ProducerPoolNullString(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,
@@ -327,7 +327,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task SimpleProduce()
         {
-            using (var pool = new ProducerPoolNullString(
+            await using (var pool = new ProducerPoolNullString(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,
@@ -502,7 +502,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task AddAwaiter()
         {
-            using (var pool = new ProducerPoolNullString(
+            await using (var pool = new ProducerPoolNullString(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,

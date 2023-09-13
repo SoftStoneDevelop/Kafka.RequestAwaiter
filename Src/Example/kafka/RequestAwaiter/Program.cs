@@ -199,6 +199,8 @@ namespace RequestAwaiterConsole
                     Console.WriteLine($"Iteration {number}: {time}");
                 }
             }
+
+            await pool.DisposeAsync();
         }
 
         private static async Task<RequestAwaiter> Scenario1(
