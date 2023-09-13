@@ -492,6 +492,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 )
             {{
                 {_cts()} = new CancellationTokenSource();
+                {_storage()}.AutoDefineHeadAndTail();
                 {_storage()}.Validate();
                 StartCommitRoutine();
                 StartInitializeRoutine();
