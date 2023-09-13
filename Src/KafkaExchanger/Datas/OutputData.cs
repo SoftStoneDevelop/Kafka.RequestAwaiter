@@ -10,10 +10,6 @@ namespace KafkaExchanger.Datas
 
         public string ValueTypeAlias => ValueType.IsProtobuffType() ? "Proto" : ValueType.GetTypeAliasName();
 
-        public string PoolInterfaceName => $"IProducerPool{KeyTypeAlias}{ValueTypeAlias}";
-
-        public string FullPoolInterfaceName => $"KafkaExchanger.Common.{PoolInterfaceName}";
-
         public static OutputData Create(INamedTypeSymbol type, AttributeData attribute)
         {
             var result = new OutputData();

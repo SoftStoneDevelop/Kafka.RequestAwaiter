@@ -1,10 +1,12 @@
 ﻿using Confluent.Kafka;
+using Confluent.Kafka.Admin;
 using KafkaExchanger.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RequestAwaiterConsole
@@ -21,6 +23,43 @@ namespace RequestAwaiterConsole
 
     internal class Program
     {
+        private static async Task ReCreateTopic(IAdminClient adminClient, string topicName)
+        {
+            var metadata = adminClient.GetMetadata(TimeSpan.FromSeconds(30));
+            if (metadata.Topics.Any(an => an.Topic == topicName))
+            {
+                await adminClient.DeleteTopicsAsync(
+                    new string[]
+                    {
+                        topicName
+                    });
+
+                await Task.Delay(300);
+            }
+
+            try
+            {
+                await adminClient.CreateTopicsAsync(new TopicSpecification[]
+                    {
+                                new TopicSpecification
+                                {
+                                    Name = topicName,
+                                    ReplicationFactor = -1,
+                                    NumPartitions = 3,
+                                    Configs = new System.Collections.Generic.Dictionary<string, string>
+                                    {
+                                        { "min.insync.replicas", "1" }
+                                    }
+                                }
+                    }
+                    );
+            }
+            catch (CreateTopicsException e)
+            {
+                Console.WriteLine($"An error occured creating topic {e.Results[0].Topic}: {e.Results[0].Error.Reason}");
+            }
+        }
+
         static async Task Main(string[] args)
         {
             var bootstrapServers = "localhost:9194, localhost:9294, localhost:9394";
@@ -28,10 +67,20 @@ namespace RequestAwaiterConsole
             var input1Name = "RAInputSimple2";
             var outputName = "RAOutputSimple";
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
-                3,
+            using (var adminClient = new AdminClientBuilder(new AdminClientConfig
+            {
+                BootstrapServers = bootstrapServers
+            }).Build())
+            {
+                await ReCreateTopic(adminClient, input0Name);
+                await ReCreateTopic(adminClient, input1Name);
+                await ReCreateTopic(adminClient, outputName);
+            }
+
+            var pool = new ProducerPoolNullProto(
+                new HashSet<string> { "RequestAwaiterConsole0", "RequestAwaiterConsole1" },
                 bootstrapServers,
-                static (config) =>
+                changeConfig: static (config) =>
                 {
                     config.LingerMs = 5;
                     config.SocketKeepaliveEnable = true;
@@ -60,17 +109,41 @@ namespace RequestAwaiterConsole
                     Stopwatch sw = Stopwatch.StartNew();
                     var tasks = new Task<long>[requests];
 
-                    Parallel.For(0, requests, (index) => 
+                    long sleepTime = 0;
+                    if (false)//with pause
                     {
-                        tasks[index] = Produce(reqAwaiter);
-                    });
+                        var pack = 0;
+                        for (int i = 0; i < requests; i++)
+                        {
+                            tasks[i] = Produce(reqAwaiter);
+                            pack++;
 
-                    Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds} ms");
+                            if (pack == 1000)
+                            {
+                                pack = 0;
+                                var swSleep = Stopwatch.StartNew();
+                                Thread.Sleep(1);
+                                sleepTime += swSleep.ElapsedMilliseconds;
+                            }
+                        }
+
+                        Console.WriteLine($"Sleep time: {sleepTime} ms");
+                    }
+
+                    if(true)//parralel
+                    {
+                        Parallel.For(0, requests, (index) =>
+                        {
+                            tasks[index] = Produce(reqAwaiter);
+                        });
+                    }
+
+                    Console.WriteLine($"Create tasks: {sw.ElapsedMilliseconds - sleepTime} ms");
                     Task.WaitAll(tasks);
                     sw.Stop();
-                    iterationTimes[iteration] = sw.ElapsedMilliseconds;
+                    iterationTimes[iteration] = sw.ElapsedMilliseconds - sleepTime;
                     Console.WriteLine($"Requests sended: {requests}");
-                    Console.WriteLine($"Pack Time: {sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Pack Time: {sw.ElapsedMilliseconds - sleepTime} ms");
 
                     var hashSet = new Dictionary<long, int>();
                     foreach (var task in tasks)
@@ -126,6 +199,8 @@ namespace RequestAwaiterConsole
                     Console.WriteLine($"Iteration {number}: {time}");
                 }
             }
+
+            await pool.DisposeAsync();
         }
 
         private static async Task<RequestAwaiter> Scenario1(
@@ -133,7 +208,7 @@ namespace RequestAwaiterConsole
             string input0Name,
             string input1Name,
             string outputName,
-            KafkaExchanger.Common.ProducerPoolNullProto pool
+            ProducerPoolNullProto pool
             )
         {
             var reqAwaiter = new RequestAwaiter();

@@ -15,6 +15,7 @@ namespace RequestAwaiterConsole
     {
         public async Task Run()
         {
+            Console.WriteLine($"Unary");
             var channel0 = GrpcChannel.ForAddress(
                 "http://127.0.0.1:4400",
                 new GrpcChannelOptions()

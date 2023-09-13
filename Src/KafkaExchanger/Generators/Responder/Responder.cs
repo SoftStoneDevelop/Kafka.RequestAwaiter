@@ -37,7 +37,7 @@ namespace KafkaExchanger.Generators.Responder
             PartitionItem.Append(builder, assemblyName, responder);
 
             StartMethod(builder, responder);
-            Setup(builder, responder);
+            Setup(builder, assemblyName, responder);
             Push(builder, responder);
             StopAsync(builder);
 
@@ -90,13 +90,16 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-        public void Start()
+        public void Start(
+            Action<Confluent.Kafka.ConsumerConfig> changeConfig = null
+            )
         {{
             for (int i = 0; i < {_items()}.Length; i++)
             {{
                 {_items()}[i].Start(
                     {_bootstrapServers()},
-                    {_groupId()}
+                    {_groupId()},
+                    changeConfig
                     );
             }}
         }}
@@ -105,6 +108,7 @@ namespace KafkaExchanger.Generators.Responder
 
         private static void Setup(
             StringBuilder builder,
+            string assemblyName,
             KafkaExchanger.Datas.Responder responder
             )
         {
@@ -116,7 +120,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@",
-            {outputData.FullPoolInterfaceName} {outputData.NameCamelCase}Pool");
+            {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputData.NameCamelCase}Pool");
             }
             builder.Append($@"
             )

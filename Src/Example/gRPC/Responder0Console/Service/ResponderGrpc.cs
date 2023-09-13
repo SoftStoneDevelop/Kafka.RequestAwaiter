@@ -49,6 +49,10 @@ namespace GrcpService {
     static readonly grpc::Marshaller<global::GrcpService.HelloRequest> __Marshaller_GrcpService_HelloRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::GrcpService.HelloRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::GrcpService.HelloResponse> __Marshaller_GrcpService_HelloResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::GrcpService.HelloResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::GrcpService.HelloStreamRequest> __Marshaller_GrcpService_HelloStreamRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::GrcpService.HelloStreamRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::GrcpService.HelloStreamResponse> __Marshaller_GrcpService_HelloStreamResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::GrcpService.HelloStreamResponse.Parser));
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Method<global::GrcpService.HelloRequest, global::GrcpService.HelloResponse> __Method_Hello = new grpc::Method<global::GrcpService.HelloRequest, global::GrcpService.HelloResponse>(
@@ -57,6 +61,14 @@ namespace GrcpService {
         "Hello",
         __Marshaller_GrcpService_HelloRequest,
         __Marshaller_GrcpService_HelloResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::GrcpService.HelloStreamRequest, global::GrcpService.HelloStreamResponse> __Method_HelloStream = new grpc::Method<global::GrcpService.HelloStreamRequest, global::GrcpService.HelloStreamResponse>(
+        grpc::MethodType.DuplexStreaming,
+        __ServiceName,
+        "HelloStream",
+        __Marshaller_GrcpService_HelloStreamRequest,
+        __Marshaller_GrcpService_HelloStreamResponse);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -74,6 +86,12 @@ namespace GrcpService {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
 
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task HelloStream(grpc::IAsyncStreamReader<global::GrcpService.HelloStreamRequest> requestStream, grpc::IServerStreamWriter<global::GrcpService.HelloStreamResponse> responseStream, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
     }
 
     /// <summary>Creates service definition that can be registered with a server</summary>
@@ -82,7 +100,8 @@ namespace GrcpService {
     public static grpc::ServerServiceDefinition BindService(RespondServiceBase serviceImpl)
     {
       return grpc::ServerServiceDefinition.CreateBuilder()
-          .AddMethod(__Method_Hello, serviceImpl.Hello).Build();
+          .AddMethod(__Method_Hello, serviceImpl.Hello)
+          .AddMethod(__Method_HelloStream, serviceImpl.HelloStream).Build();
     }
 
     /// <summary>Register service method with a service binder with or without implementation. Useful when customizing the service binding logic.
@@ -93,6 +112,7 @@ namespace GrcpService {
     public static void BindService(grpc::ServiceBinderBase serviceBinder, RespondServiceBase serviceImpl)
     {
       serviceBinder.AddMethod(__Method_Hello, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::GrcpService.HelloRequest, global::GrcpService.HelloResponse>(serviceImpl.Hello));
+      serviceBinder.AddMethod(__Method_HelloStream, serviceImpl == null ? null : new grpc::DuplexStreamingServerMethod<global::GrcpService.HelloStreamRequest, global::GrcpService.HelloStreamResponse>(serviceImpl.HelloStream));
     }
 
   }

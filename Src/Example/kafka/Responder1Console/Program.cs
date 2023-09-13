@@ -1,9 +1,10 @@
 ﻿using Confluent.Kafka;
 using KafkaExchanger.Attributes;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Responder0Console
+namespace Responder1Console
 {
     [Responder(useLogger: false),
         Input(keyType: typeof(Null), valueType: typeof(GrcpService.HelloRequest)),
@@ -85,10 +86,10 @@ namespace Responder0Console
                 }
                 );
 
-            var pool = new KafkaExchanger.Common.ProducerPoolNullProto(
-                5,
+            var pool = new ProducerPoolNullProto(
+                new HashSet<string> { "Responder1Console0", "Responder1Console1" },
                 bootstrapServers,
-                static (config) =>
+                changeConfig: static (config) =>
                 {
                     config.LingerMs = 2;
                     config.SocketKeepaliveEnable = true;
@@ -110,6 +111,7 @@ namespace Responder0Console
             }
 
             await responder2.StopAsync();
+            await pool.DisposeAsync();
         }
     }
 }

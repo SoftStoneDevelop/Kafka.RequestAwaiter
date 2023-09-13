@@ -1,6 +1,7 @@
 ﻿using KafkaExchanger.Datas;
 using KafkaExchanger.Extensions;
 using KafkaExchanger.Helpers;
+using System.Reflection;
 using System.Text;
 
 namespace KafkaExchanger.Generators.RequestAwaiter
@@ -43,7 +44,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             //methods
             StartMethod(builder, requestAwaiter);
-            Setup(builder, requestAwaiter);
+            Setup(builder, assemblyName, requestAwaiter);
             Produce(builder, requestAwaiter);
             ProduceDelay(builder, assemblyName, requestAwaiter);
             AddAwaiter(builder, requestAwaiter);
@@ -141,6 +142,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         private static void Setup(
             StringBuilder builder,
+            string assemblyName,
             Datas.RequestAwaiter requestAwaiter
             )
         {
@@ -150,7 +152,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} producerPool{i}");
+            {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} producerPool{i}");
             }
             builder.Append($@",
             {requestAwaiter.BucketsCountFuncType()} currentBucketsCount

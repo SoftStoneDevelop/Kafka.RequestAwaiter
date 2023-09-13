@@ -272,7 +272,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
                 string {outputTopicName(outputData)},
-                {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} {outputPool(outputData)}");
+                {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} {outputPool(outputData)}");
 
                 if (requestAwaiter.AfterSend)
                 {
@@ -460,7 +460,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
             private readonly string {_outputTopicName(outputData)};
-            private readonly {requestAwaiter.OutputDatas[i].FullPoolInterfaceName} {_outputPool(outputData)};");
+            private readonly {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} {_outputPool(outputData)};");
 
                 if (requestAwaiter.AfterSend)
                 {
@@ -725,7 +725,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
             {
                 var inputData = requestAwaiter.InputDatas[i];
-                var threadName = $@"{requestAwaiter.TypeSymbol.Name}{{groupId}}{_inputTopicName(inputData)}";
+                var threadName = $@"{requestAwaiter.TypeSymbol.Name}{{groupId}}{{{_inputTopicName(inputData)}}}";
                 builder.Append($@"
             private Thread StartConsume{inputData.NamePascalCase}(
                 string bootstrapServers,
@@ -754,6 +754,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                         conf.AutoOffsetReset = AutoOffsetReset.Earliest;
                         conf.AllowAutoCreateTopics = false;
                         conf.EnableAutoCommit = false;
+                        conf.IsolationLevel = IsolationLevel.ReadCommitted;
 
                         var consumer =
                             new ConsumerBuilder<{inputData.TypesPair}>(conf)
@@ -865,7 +866,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     )
                     {{
                         IsBackground = true,
-                        Priority = ThreadPriority.AboveNormal,
+                        Priority = ThreadPriority.Normal,
                         Name = $""{threadName}""
                     }};
             }}
@@ -1211,7 +1212,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            private async Task {SendOutput(outputData)}(
+            private Task {SendOutput(outputData)}(
                 {OutputMessages.TypeFullName(requestAwaiter, outputData)} message,
                 {assemblyName}.RequestHeader header
                 )
@@ -1221,19 +1222,12 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
-                var producer = {_outputPool(outputData)}.Rent();
-                try
-                {{
-                    var deliveryResult = await producer.ProduceAsync(
+                return 
+                    {_outputPool(outputData)}.{Pool.Interface.Produce()}(
                         {_outputTopicName(outputData)},
                         message.{OutputMessages.Message()}
-                        ).ConfigureAwait(false)
+                        )
                         ;
-                }}
-                finally
-                {{
-                    {_outputPool(outputData)}.Return(producer);
-                }}
             }}
 ");
             }

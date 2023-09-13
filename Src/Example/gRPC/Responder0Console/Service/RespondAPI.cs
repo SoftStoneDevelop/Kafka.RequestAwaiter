@@ -10,5 +10,22 @@ namespace Responder0Console.Service
         {
             return Task.FromResult(new HelloResponse() { Text = $"0: Answer {request.Text}" });
         }
+
+        public override async Task HelloStream(
+            IAsyncStreamReader<HelloStreamRequest> requestStream, 
+            IServerStreamWriter<HelloStreamResponse> responseStream, 
+            ServerCallContext context
+            )
+        {
+            await foreach (var request in requestStream.ReadAllAsync())
+            {
+                await responseStream.WriteAsync(
+                    new HelloStreamResponse() 
+                    {
+                        Guid = request.Guid,
+                        Text = $"0: Answer {request.Text}" 
+                    });
+            }
+        }
     }
 }
