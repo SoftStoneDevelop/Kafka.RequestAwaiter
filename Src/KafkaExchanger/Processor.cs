@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace KafkaExchanger
 {
@@ -20,13 +21,15 @@ namespace KafkaExchanger
 
         public void ProcessAttributes(
             ClassDeclarationSyntax classDeclarationSyntax,
-            Compilation compilation
+            Compilation compilation,
+            CancellationToken cancellationToken
             )
         {
             var type = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree).GetDeclaredSymbol(classDeclarationSyntax);
             CheckGeneralTypeRequirements(type);
             foreach (var attributeListSyntax in classDeclarationSyntax.AttributeLists)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var parentSymbol = attributeListSyntax.Parent.GetDeclaredSymbol(compilation);
                 var parentAttributes = parentSymbol.GetAttributes();
 
@@ -37,6 +40,8 @@ namespace KafkaExchanger
 
                 foreach (var attributeSyntax in attributeListSyntax.Attributes)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var attributeData = parentAttributes.First(f => f.ApplicationSyntaxReference.GetSyntax() == attributeSyntax);
 
                     if (attributeData.AttributeClass.IsAssignableFrom("KafkaExchanger.Attributes", "InputAttribute"))
@@ -155,9 +160,12 @@ namespace KafkaExchanger
 
         public void Generate(
             string assemblyName,
-            SourceProductionContext context
+            SourceProductionContext context,
+            CancellationToken cancellationToken
             )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var poolsGenerator = new Generators.Pool.Generator();
             poolsGenerator.FillProducerTypes(_requestAwaiters, _responders);
             poolsGenerator.Generate(assemblyName, context);
@@ -165,6 +173,7 @@ namespace KafkaExchanger
             var requestAwaiterGenerator = new KafkaExchanger.Generators.RequestAwaiter.Generator();
             foreach (var requestAwaiter in _requestAwaiters)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 requestAwaiterGenerator.Generate(assemblyName, requestAwaiter, context);
             }
             _requestAwaiters.Clear();
@@ -172,6 +181,7 @@ namespace KafkaExchanger
             var responderGenerator = new KafkaExchanger.Generators.Responder.Generator();
             foreach (var responder in _responders)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 responderGenerator.GenerateResponder(assemblyName, responder, context);
             }
             _responders.Clear();

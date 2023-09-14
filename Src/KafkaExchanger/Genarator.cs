@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
@@ -128,13 +129,16 @@ namespace KafkaExchanger
 
             var distinctTypes = types.GroupBy(gr => gr.Identifier.ValueText);
             var processor = new Processor();
-            foreach (var item in distinctTypes)
+            foreach (var pariGroup in distinctTypes)
             {
-                var firstOfPartial = item.First();
-                processor.ProcessAttributes(firstOfPartial, compilation);
+                foreach (var type in pariGroup)
+                {
+                    context.CancellationToken.ThrowIfCancellationRequested();
+                    processor.ProcessAttributes(type, compilation, context.CancellationToken);
+                }
             }
 
-            processor.Generate(compilation.AssemblyName, context);
+            processor.Generate(compilation.AssemblyName, context, context.CancellationToken);
         }
     }
 }
