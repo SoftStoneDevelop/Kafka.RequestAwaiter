@@ -3,14 +3,32 @@ using KafkaExchanger.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
+using System.Xml.Linq;
 
 namespace KafkaExchanger
 {
     [Generator]
     public class Generator : IIncrementalGenerator
     {
+        public class ByArrayComparer : IEqualityComparer<(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes)>
+        {
+            public bool Equals(
+               (Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) x,
+               (Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) y)
+            {
+                return x.Nodes.Equals(y.Nodes);
+            }
+
+            public int GetHashCode((Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) obj)
+            {
+                return obj.Nodes.GetHashCode();
+            }
+        }
+
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             //System.Diagnostics.Debugger.Launch();
@@ -23,7 +41,10 @@ namespace KafkaExchanger
                 .Select((sel, _) => sel.Distinct().ToImmutableArray())
                 ;
 
-            var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations);
+            var compilationAndClasses =
+                context.CompilationProvider.Combine(classDeclarations)
+                .WithComparer(new ByArrayComparer())
+                ;
 
             context.RegisterSourceOutput(compilationAndClasses,
                 (spc, source) => Execute(source.Item1, source.Item2, spc));
@@ -84,6 +105,7 @@ namespace KafkaExchanger
             return null;
         }
 
+        //private static int _counter;
         public void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> types, SourceProductionContext context)
         {
             //System.Diagnostics.Debugger.Launch();
@@ -92,10 +114,14 @@ namespace KafkaExchanger
                 return;
             }
 
-            if(string.IsNullOrEmpty(compilation.AssemblyName))
+            if (string.IsNullOrEmpty(compilation.AssemblyName))
             {
                 throw new System.NotSupportedException("Assembly don`t have name");
             }
+
+//            context.AddSource($"perf.cs", $@"//
+//// Counter: {Interlocked.Increment(ref _counter)}
+//");
 
             var headerGenerator = new HeaderGenerator();
             headerGenerator.Generate(compilation.AssemblyName, context);
