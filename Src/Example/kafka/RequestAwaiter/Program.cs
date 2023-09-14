@@ -45,7 +45,7 @@ namespace RequestAwaiterConsole
                                 {
                                     Name = topicName,
                                     ReplicationFactor = -1,
-                                    NumPartitions = 20,
+                                    NumPartitions = 3,
                                     Configs = new System.Collections.Generic.Dictionary<string, string>
                                     {
                                         { "min.insync.replicas", "1" }
@@ -213,7 +213,7 @@ namespace RequestAwaiterConsole
             )
         {
             var reqAwaiter = new RequestAwaiter();
-            var partitions = 20;
+            var partitions = 1;
             var processors = new RequestAwaiter.ProcessorConfig[partitions];
             for (int i = 0; i < processors.Length; i++)
             {

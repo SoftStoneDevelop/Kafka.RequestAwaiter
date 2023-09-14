@@ -24,7 +24,7 @@ namespace Responder0Console
             var responderName = "RAResponder1";
 
             var responder1 = new ResponderOneToOneSimple();
-            var partitions = 20;
+            var partitions = 3;
             var processors = new ResponderOneToOneSimple.ProcessorConfig[partitions];
             for (int i = 0; i < processors.Length; i++)
             {
