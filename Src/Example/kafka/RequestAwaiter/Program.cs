@@ -45,7 +45,7 @@ namespace RequestAwaiterConsole
                                 {
                                     Name = topicName,
                                     ReplicationFactor = -1,
-                                    NumPartitions = 3,
+                                    NumPartitions = 20,
                                     Configs = new System.Collections.Generic.Dictionary<string, string>
                                     {
                                         { "min.insync.replicas", "1" }
@@ -91,6 +91,7 @@ namespace RequestAwaiterConsole
             await using var reqAwaiter = await Scenario1(bootstrapServers, input0Name, input1Name, outputName, pool);
 
             int requests = 0;
+            ulong globalIndex = 0;
             while ( true )
             {
                 Console.WriteLine($"Write 'exit' for exit or press write 'requests count' for new pack");
@@ -115,7 +116,7 @@ namespace RequestAwaiterConsole
                         var pack = 0;
                         for (int i = 0; i < requests; i++)
                         {
-                            tasks[i] = Produce(reqAwaiter);
+                            tasks[i] = Produce(reqAwaiter, $"Hello #{Interlocked.Increment(ref globalIndex)}");
                             pack++;
 
                             if (pack == 1000)
@@ -134,7 +135,7 @@ namespace RequestAwaiterConsole
                     {
                         Parallel.For(0, requests, (index) =>
                         {
-                            tasks[index] = Produce(reqAwaiter);
+                            tasks[index] = Produce(reqAwaiter, $"Hello #{Interlocked.Increment(ref globalIndex)}");
                         });
                     }
 
@@ -212,6 +213,24 @@ namespace RequestAwaiterConsole
             )
         {
             var reqAwaiter = new RequestAwaiter();
+            var partitions = 20;
+            var processors = new RequestAwaiter.ProcessorConfig[partitions];
+            for (int i = 0; i < processors.Length; i++)
+            {
+                processors[i] = 
+                    new RequestAwaiter.ProcessorConfig(
+                        input0: new RequestAwaiter.ConsumerInfo(
+                            topicName: input0Name,
+                            partitions: new int[] { i }
+                            ),
+                        input1: new RequestAwaiter.ConsumerInfo(
+                            topicName: input1Name,
+                            partitions: new int[] { i }
+                            ),
+                        output0: new RequestAwaiter.ProducerInfo(outputName)
+                        );
+            }
+
             var reqAwaiterConfitg =
                 new RequestAwaiter.Config(
                     groupId: "SimpleProduce",
@@ -226,43 +245,7 @@ namespace RequestAwaiterConsole
                     {
                         return await Task.FromResult(2);
                     },
-                    processors: new RequestAwaiter.ProcessorConfig[]
-                    {
-                        //From _inputSimpleTopic1
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                partitions: new int[] { 0 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                partitions: new int[] { 0 }
-                                ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName)
-                            ),
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                partitions: new int[] { 1 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                partitions: new int[] { 1 }
-                                ),
-                            output0:new RequestAwaiter.ProducerInfo(outputName)
-                            ),
-                        new RequestAwaiter.ProcessorConfig(
-                            input0: new RequestAwaiter.ConsumerInfo(
-                                topicName: input0Name,
-                                partitions: new int[] { 2 }
-                                ),
-                            input1: new RequestAwaiter.ConsumerInfo(
-                                topicName: input1Name,
-                                partitions: new int[] { 2 }
-                                ),
-                            output0: new RequestAwaiter.ProducerInfo(outputName)
-                            )
-                    }
+                    processors: processors
                     );
             Console.WriteLine("Start ReqAwaiter");
             await reqAwaiter.Setup(
@@ -283,10 +266,10 @@ namespace RequestAwaiterConsole
             return reqAwaiter;
         }
 
-        private static async Task<long> Produce(RequestAwaiter reqAwaiter)
+        private static async Task<long> Produce(RequestAwaiter reqAwaiter, string text)
         {
             Stopwatch sb = Stopwatch.StartNew();
-            using var result = await reqAwaiter.Produce(new GrcpService.HelloRequest { Text = "Hello" }).ConfigureAwait(false);
+            using var result = await reqAwaiter.Produce(new GrcpService.HelloRequest { Text = text }).ConfigureAwait(false);
             return sb.ElapsedMilliseconds;
         }
     }

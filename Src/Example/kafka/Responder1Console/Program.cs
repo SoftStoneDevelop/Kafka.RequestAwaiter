@@ -1,6 +1,7 @@
 ﻿using Confluent.Kafka;
 using KafkaExchanger.Attributes;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -24,6 +25,29 @@ namespace Responder1Console
             var responderName = "RAResponder2";
 
             var responder2 = new ResponderOneToOneSimple();
+            var partitions = 20;
+            var processors = new ResponderOneToOneSimple.ProcessorConfig[partitions];
+            for (int i = 0; i < processors.Length; i++)
+            {
+                processors[i] =
+                    new ResponderOneToOneSimple.ProcessorConfig(
+                        createAnswer: (input, s) =>
+                        {
+                            Console.WriteLine($"Input: {input.Input0Message.Value}");
+                            var result = new ResponderOneToOneSimple.OutputMessage()
+                            {
+                                Output0Message = new ResponderOneToOneSimple.Output0Message()
+                                {
+                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
+                                }
+                            };
+
+                            return Task.FromResult(result);
+                        },
+                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { i })
+                        );
+            }
+
             var responder1Config =
                 new ResponderOneToOneSimple.Config(
                 groupId: responderName,
@@ -31,59 +55,9 @@ namespace Responder1Console
                 bootstrapServers: bootstrapServers,
                 itemsInBucket: 1000,
                 inFlyLimit: 5,
-                addNewBucket: static async (bucketId, partitions, topicName) => { await Task.CompletedTask; },
-                bucketsCount: async (partitions, topicName) => { return await Task.FromResult(5); },
-                new ResponderOneToOneSimple.ProcessorConfig[]
-                {
-                    new ResponderOneToOneSimple.ProcessorConfig(
-                        createAnswer: (input, s) =>
-                        {
-                            Console.WriteLine($"Input: {input.Input0Message.Value}");
-                            var result = new ResponderOneToOneSimple.OutputMessage()
-                            {
-                                Output0Message = new ResponderOneToOneSimple.Output0Message()
-                                {
-                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
-                                }
-                            };
-
-                            return Task.FromResult(result);
-                        },
-                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 0 })
-                        ),
-                    new ResponderOneToOneSimple.ProcessorConfig(
-                        createAnswer: (input, s) =>
-                        {
-                            Console.WriteLine($"Input: {input.Input0Message.Value}");
-                            var result = new ResponderOneToOneSimple.OutputMessage()
-                            {
-                                Output0Message = new ResponderOneToOneSimple.Output0Message()
-                                {
-                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
-                                }
-                            };
-
-                            return Task.FromResult(result);
-                        },
-                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 1 })
-                        ),
-                    new ResponderOneToOneSimple.ProcessorConfig(
-                        createAnswer: (input, s) =>
-                        {
-                            Console.WriteLine($"Input: {input.Input0Message.Value}");
-                            var result = new ResponderOneToOneSimple.OutputMessage()
-                            {
-                                Output0Message = new ResponderOneToOneSimple.Output0Message()
-                                {
-                                    Value = new GrcpService.HelloResponse { Text = $"1: Answer {input.Input0Message.Value}" }
-                                }
-                            };
-
-                            return Task.FromResult(result);
-                        },
-                        input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { 2 })
-                        )
-                }
+                addNewBucket: static (bucketId, partitions, topicName) => { return ValueTask.CompletedTask; },
+                bucketsCount: (partitions, topicName) => { return ValueTask.FromResult(5); },
+                processors: processors
                 );
 
             var pool = new ProducerPoolNullProto(
