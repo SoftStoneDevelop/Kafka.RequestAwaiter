@@ -18,9 +18,12 @@ namespace KafkaExchanger
                 .CreateSyntaxProvider(
                 predicate: (s, _) => IsSyntaxTargetForGeneration(s),
                 transform: (ctx, _) => GetSemanticClass(ctx))
-                .Where(m => m != null);
+                .Where(m => m != null)
+                .Collect()
+                .Select((sel, _) => sel.Distinct().ToImmutableArray())
+                ;
 
-            var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
+            var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations);
 
             context.RegisterSourceOutput(compilationAndClasses,
                 (spc, source) => Execute(source.Item1, source.Item2, spc));
@@ -97,7 +100,7 @@ namespace KafkaExchanger
             var headerGenerator = new HeaderGenerator();
             headerGenerator.Generate(compilation.AssemblyName, context);
 
-            var distinctTypes = types.Distinct().GroupBy(gr => gr.Identifier.ValueText);
+            var distinctTypes = types.GroupBy(gr => gr.Identifier.ValueText);
             var processor = new Processor();
             foreach (var item in distinctTypes)
             {
