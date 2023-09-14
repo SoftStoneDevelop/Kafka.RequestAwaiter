@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace KafkaExchanger.Generators.Responder
 {
@@ -11,13 +9,45 @@ namespace KafkaExchanger.Generators.Responder
             Datas.Responder responder
             )
         {
+            Start(builder, responder);
+
+            Constructor(builder, responder);
+            PropertiesAndFields(builder, responder);
+            Validate(builder, responder);
+
+            End(builder, responder);
+        }
+
+        private static void Start(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
             builder.Append($@"
         public class {TypeName()}
         {{
             private {TypeName()}()
             {{
             }}
+");
+        }
 
+        private static void End(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+        }}
+");
+        }
+
+        private static void Constructor(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
             public {TypeName()}(
                 string groupId,
                 string serviceName,
@@ -38,7 +68,15 @@ namespace KafkaExchanger.Generators.Responder
                 {BucketsCount()} = bucketsCount;
                 {Processors()} = processors;
             }}
+");
+        }
 
+        private static void PropertiesAndFields(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
             public string {GroupId()} {{ get; init; }}
 
             public string {ServiceName()} {{ get; init; }}
@@ -54,7 +92,46 @@ namespace KafkaExchanger.Generators.Responder
             public {responder.BucketsCountFuncType()} {BucketsCount()} {{ get; init; }}
 
             public {ProcessorConfig.TypeFullName(responder)}[] {Processors()} {{ get; init; }}
-        }}
+");
+        }
+
+        private static void Validate(
+            StringBuilder builder,
+            KafkaExchanger.Datas.Responder responder
+            )
+        {
+            builder.Append($@"
+            public void Validate()
+            {{
+                var topicPartition = new Dictionary<string, HashSet<int>>();
+                foreach(var processor in {Processors()})
+                {{");
+            for (int i = 0; i < responder.InputDatas.Count; i++)
+            {
+                var inputData = responder.InputDatas[i];
+                var consumerName = $"{ProcessorConfig.ConsumerInfoName(inputData).ToLowerInvariant()}";
+                var definePartitions = i == 0 ? "var" : "";
+                builder.Append($@"
+                    var {consumerName} = processor.{ProcessorConfig.ConsumerInfoName(inputData)};
+                    if(!topicPartition.TryGetValue({consumerName}.{ConsumerInfo.TopicName()}, out {definePartitions} partitions))
+                    {{
+                        partitions = new HashSet<int>();
+                        topicPartition[{consumerName}.{ConsumerInfo.TopicName()}] = partitions;
+                    }}
+
+                    for(int i = 0; i < {consumerName}.{ConsumerInfo.Partitions()}.Length; i++)
+                    {{
+                        var partition = {consumerName}.{ConsumerInfo.Partitions()}[i];
+                        if(!partitions.Add(partition))
+                        {{
+                            throw new Exception($@""The configurations overlap each other: topic '{{{consumerName}.{ConsumerInfo.TopicName()}}}', partition '{{partition}}'."");
+                        }}
+                    }}
+");
+            }
+            builder.Append($@"
+                }}
+            }}
 ");
         }
 
@@ -106,6 +183,11 @@ namespace KafkaExchanger.Generators.Responder
         public static string GroupId()
         {
             return "GroupId";
+        }
+
+        public static string Validate()
+        {
+            return "Validate";
         }
     }
 }

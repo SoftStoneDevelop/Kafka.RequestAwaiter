@@ -9,9 +9,45 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter
             )
         {
+            Start(builder, requestAwaiter);
+
+            Constructor(builder, requestAwaiter);
+            PropertiesAndFields(builder, requestAwaiter);
+            Validate(builder, requestAwaiter);
+
+            End(builder, requestAwaiter);
+        }
+
+        private static void Start(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
             builder.Append($@"
         public class {TypeName()}
         {{
+            private {TypeName()}()
+            {{
+            }}
+");
+        }
+
+        private static void End(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+        }}
+");
+        }
+
+        private static void Constructor(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
             public {TypeName()}(
                 string groupId,
                 string bootstrapServers,
@@ -30,7 +66,15 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 {BucketsCount()} = bucketsCount;
                 {Processors()} = processors;
             }}
+");
+        }
 
+        private static void PropertiesAndFields(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
             public string {GroupId()} {{ get; init; }}
 
             public string {BootstrapServers()} {{ get; init; }}
@@ -43,8 +87,47 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
             public {requestAwaiter.BucketsCountFuncType()} {BucketsCount()} {{ get; init; }}
 
-            public ProcessorConfig[] {Processors()} {{ get; init; }}
-        }}
+            public {ProcessorConfig.TypeFullName(requestAwaiter)}[] {Processors()} {{ get; init; }}
+");
+        }
+
+        private static void Validate(
+            StringBuilder builder,
+            KafkaExchanger.Datas.RequestAwaiter requestAwaiter
+            )
+        {
+            builder.Append($@"
+            public void Validate()
+            {{
+                var topicPartition = new Dictionary<string, HashSet<int>>();
+                foreach(var processor in {Processors()})
+                {{");
+            for (int i = 0; i < requestAwaiter.InputDatas.Count; i++)
+            {
+                var inputData = requestAwaiter.InputDatas[i];
+                var consumerName = $"{ProcessorConfig.ConsumerInfo(inputData).ToLowerInvariant()}";
+                var definePartitions = i == 0 ? "var" : "";
+                builder.Append($@"
+                    var {consumerName} = processor.{ProcessorConfig.ConsumerInfo(inputData)};
+                    if(!topicPartition.TryGetValue({consumerName}.{ConsumerInfo.TopicName()}, out {definePartitions} partitions))
+                    {{
+                        partitions = new HashSet<int>();
+                        topicPartition[{consumerName}.{ConsumerInfo.TopicName()}] = partitions;
+                    }}
+
+                    for(int i = 0; i < {consumerName}.{ConsumerInfo.Partitions()}.Length; i++)
+                    {{
+                        var partition = {consumerName}.{ConsumerInfo.Partitions()}[i];
+                        if(!partitions.Add(partition))
+                        {{
+                            throw new Exception($@""The configurations overlap each other: topic '{{{consumerName}.{ConsumerInfo.TopicName()}}}', partition '{{partition}}'."");
+                        }}
+                    }}
+");
+            }
+            builder.Append($@"
+                }}
+            }}
 ");
         }
 
@@ -91,6 +174,11 @@ namespace KafkaExchanger.Generators.RequestAwaiter
         public static string BucketsCount()
         {
             return "BucketsCount";
+        }
+
+        public static string Validate()
+        {
+            return "Validate";
         }
     }
 }

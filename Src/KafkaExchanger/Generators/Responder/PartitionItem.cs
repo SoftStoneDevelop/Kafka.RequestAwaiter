@@ -445,14 +445,9 @@ namespace KafkaExchanger.Generators.Responder
             for (int i = 0; i < responder.InputDatas.Count; i++)
             {
                 var inputData = responder.InputDatas[i];
-                if (i != 0)
-                {
-                    builder.Append(',');
-                }
                 builder.Append($@"
-                    {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId, changeConfig);
-                    {_consumeRoutines()}[{i}].Start();
-");
+                {_consumeRoutines()}[{i}] = StartConsume{inputData.NamePascalCase}(bootstrapServers, groupId, changeConfig);
+                {_consumeRoutines()}[{i}].Start();");
             }
             builder.Append($@"
             }}

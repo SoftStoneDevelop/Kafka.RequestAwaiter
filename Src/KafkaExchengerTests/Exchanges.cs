@@ -45,6 +45,7 @@ namespace KafkaExchengerTests
         afterCommit: true
         ),
         Input(keyType: typeof(Null), valueType: typeof(string)),
+        Input(keyType: typeof(Null), valueType: typeof(string)),
         Output(keyType: typeof(Null), valueType: typeof(string))
         ]
     public partial class ResponderFull

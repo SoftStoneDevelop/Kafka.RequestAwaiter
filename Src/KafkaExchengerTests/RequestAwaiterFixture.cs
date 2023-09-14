@@ -14,15 +14,11 @@ namespace KafkaExchengerTests
 {
     [TestFixture]
     [Parallelizable(ParallelScope.Self)]
-    internal class RequestAwaiterFixture
+    internal class RequestAwaiterAndRespondedFixture
     {
         private static string _inputSimpleTopic1 = "RAInputSimple1";
         private static string _inputSimpleTopic2 = "RAInputSimple2";
         private static string _outputSimpleTopic = "RAOutputSimple";
-
-        private static string _inputProtobuffTopic1 = "RAInputProtobuff1";
-        private static string _inputProtobuffTopic2 = "RAInputProtobuff2";
-        private static string _outputProtobuffTopic = "RAOutputProtobuff";
 
         private ResponderOneToOneSimple _responder1;
         private ResponderOneToOneSimple.Config _responder1Config;
@@ -43,10 +39,6 @@ namespace KafkaExchengerTests
                 await CreateTopic(adminClient, _inputSimpleTopic1);
                 await CreateTopic(adminClient, _inputSimpleTopic2);
                 await CreateTopic(adminClient, _outputSimpleTopic);
-
-                await CreateTopic(adminClient, _inputProtobuffTopic1);
-                await CreateTopic(adminClient, _inputProtobuffTopic2);
-                await CreateTopic(adminClient, _outputProtobuffTopic);
             }
 
             await Task.Delay(500);
@@ -116,10 +108,6 @@ namespace KafkaExchengerTests
                         _inputSimpleTopic1,
                         _inputSimpleTopic2,
                         _outputSimpleTopic,
-
-                        _inputProtobuffTopic1,
-                        _inputProtobuffTopic2,
-                        _outputProtobuffTopic,
                     });
             }
 
@@ -802,6 +790,255 @@ namespace KafkaExchengerTests
                     }
                 }
             }
+        }
+
+        [Test]
+        public void RequestAwaiterConfigValidate()
+        {
+            RequestAwaiterFull.ProcessorConfig createProcessorConfig(
+                RequestAwaiterFull.ConsumerInfo consumerInfo0,
+                RequestAwaiterFull.ConsumerInfo consumerInfo1
+                )
+            {
+                return new RequestAwaiterFull.ProcessorConfig(
+                        input0: consumerInfo0,
+                        input1: consumerInfo1,
+                        output0: null,
+                        currentState: null,
+                        afterCommit: null,
+                        afterSendOutput0: null,
+                        loadOutput0Message: null,
+                        checkOutput0Status: null
+                        );
+            }
+
+            RequestAwaiterFull.Config createConfig(
+                RequestAwaiterFull.ProcessorConfig config0,
+                RequestAwaiterFull.ProcessorConfig config1
+                )
+            {
+                return new RequestAwaiterFull.Config(
+                groupId: "GreatId",
+                bootstrapServers: "localhost:9194, localhost:9294, localhost:9394",
+                itemsInBucket: 10,
+                inFlyBucketsLimit: 5,
+                addNewBucket: static (bucketId, partitions0, topicName0, partitions1, topicName1) => { return Task.CompletedTask; },
+                bucketsCount: static (partitions0, topicName0, partitions1, topicName1) => { return Task.FromResult(2); },
+                processors: new RequestAwaiterFull.ProcessorConfig[]
+                {
+                    config0,
+                    config1,
+                }
+                );
+            }
+
+            var processor0 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+
+            var processor1 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 2, 3 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 2, 3 }
+                    )
+                );
+            var config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.DoesNotThrow(config.Validate);
+
+            processor0 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1, 4, 4 }
+                    )
+                );
+
+            processor1 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 2, 3 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 2, 3 }
+                    )
+                );
+            config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.Throws<Exception>(config.Validate);
+
+            processor0 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+
+            processor1 = createProcessorConfig(
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new RequestAwaiterFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+            config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.Throws<Exception>(config.Validate);
+        }
+
+        [Test]
+        public void ResponderConfigValidate()
+        {
+            ResponderFull.ProcessorConfig createProcessorConfig(
+                ResponderFull.ConsumerInfo consumerInfo0,
+                ResponderFull.ConsumerInfo consumerInfo1
+                )
+            {
+                return new ResponderFull.ProcessorConfig(
+                        createAnswer: null,
+                        afterCommit: null,
+                        checkState: null,
+                        afterSend: null,
+                        input0: consumerInfo0,
+                        input1: consumerInfo1
+                        );
+            }
+
+            ResponderFull.Config createConfig(
+                ResponderFull.ProcessorConfig processor0,
+                ResponderFull.ProcessorConfig processor1
+                )
+            {
+                return new ResponderFull.Config(
+                groupId: "GreatId",
+                serviceName: "Responder",
+                bootstrapServers: "localhost:9194, localhost:9294, localhost:9394",
+                itemsInBucket: 10,
+                inFlyLimit: 5,
+                addNewBucket: static (bucketId, partitions0, topicName0, partitions1, topicName1) => { return ValueTask.CompletedTask; },
+                bucketsCount: static (partitions0, topicName0, partitions1, topicName1) => { return ValueTask.FromResult(2); },
+                processors: new ResponderFull.ProcessorConfig[]
+                {
+                    processor0,
+                    processor1
+                }
+                );
+            }
+
+            var processor0 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+
+            var processor1 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 2, 3 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 2, 3 }
+                    )
+                );
+            var config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.DoesNotThrow(config.Validate);
+
+            processor0 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1, 4, 4 }
+                    )
+                );
+
+            processor1 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 2, 3 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 2, 3 }
+                    )
+                );
+            config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.Throws<Exception>(config.Validate);
+
+            processor0 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+
+            processor1 = createProcessorConfig(
+                new ResponderFull.ConsumerInfo(
+                    "Topic0",
+                    new int[] { 0, 1 }
+                    ),
+                new ResponderFull.ConsumerInfo(
+                    "Topic1",
+                    new int[] { 0, 1 }
+                    )
+                );
+            config = createConfig(
+                processor0,
+                processor1
+                );
+
+            Assert.Throws<Exception>(config.Validate);
         }
     }
 }

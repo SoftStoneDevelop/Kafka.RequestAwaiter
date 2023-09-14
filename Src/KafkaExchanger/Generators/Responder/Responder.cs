@@ -125,6 +125,7 @@ namespace KafkaExchanger.Generators.Responder
             builder.Append($@"
             )
         {{
+            config.{Config.Validate()}();
             {_bootstrapServers()} = config.{Config.BootstrapServers()};
             {_groupId()} = config.{Config.GroupId()};
             {_items()} = new {PartitionItem.TypeFullName(responder)}[config.{Config.Processors()}.Length];

@@ -405,6 +405,11 @@ namespace KafkaExchanger.Generators.Responder
                 var currentState = await {_checkState()}(");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
+                    if(i != 0)
+                    {
+                        builder.Append(',');
+                    }
+
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
                     {_partitions(inputData)},
@@ -431,6 +436,11 @@ namespace KafkaExchanger.Generators.Responder
                 await {_afterSend()}(");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
+                    if (i != 0)
+                    {
+                        builder.Append(',');
+                    }
+
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
                     {_partitions(inputData)},

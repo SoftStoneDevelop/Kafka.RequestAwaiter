@@ -163,6 +163,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 throw new System.Exception(""Before setup new configuration, you need to stop the previous: call StopAsync"");
             }}
 
+            config.{Config.Validate()}();
             {_items()} = new {PartitionItem.TypeFullName(requestAwaiter)}[config.{Config.Processors()}.Length];
             {_bootstrapServers()} = config.{Config.BootstrapServers()};
             {_groupId()} = config.{Config.GroupId()};
