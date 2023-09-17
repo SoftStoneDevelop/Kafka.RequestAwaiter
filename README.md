@@ -15,7 +15,7 @@
   <a href="https://github.com/SoftStoneDevelop/KafkaExchanger/tree/main/Documentation/Readme.md">Documentation</a>
 </h3>
 
-Kafka broker message processing service generator to simplify communication in a microservices environment. Can be either statefull (on any storage) or stateless. It is mainly intended to communicate with services in RPC style.
+Kafka broker message processing service generator to simplify communication in a microservices environment. Can be either statefull (on any storage) or stateless.
 
 Usage with Protobuff key/value:
 
