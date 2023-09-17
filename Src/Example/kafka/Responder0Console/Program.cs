@@ -59,7 +59,7 @@ namespace Responder0Console
                 processors: processors
                 );
 
-            var pool = new ProducerPoolNullProto(
+            var pool = new KafkaExchanger.ProducerPool<Confluent.Kafka.Null, byte[]>(
                 new HashSet<string> { "Responder0Console0", "Responder0Console1" },
                 bootstrapServers,
                 changeConfig: static (config) =>

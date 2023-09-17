@@ -190,7 +190,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task CancelByTimeout()
         {
-            await using (var pool = new ProducerPoolNullString(
+            await using (var pool = new KafkaExchanger.ProducerPool<Confluent.Kafka.Null, string>(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,
@@ -315,7 +315,7 @@ namespace KafkaExchengerTests
         [Test]
         public async Task SimpleProduce()
         {
-            await using (var pool = new ProducerPoolNullString(
+            await using (var pool = new KafkaExchanger.ProducerPool<Confluent.Kafka.Null, string>(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,
@@ -484,13 +484,13 @@ namespace KafkaExchengerTests
             public string Guid;
             public int Bucket;
             public string Value;
-            public KafkaExchengerTests.RequestHeader Header;
+            public KafkaExchanger.RequestHeader Header;
         }
 
         [Test]
         public async Task AddAwaiter()
         {
-            await using (var pool = new ProducerPoolNullString(
+            await using (var pool = new KafkaExchanger.ProducerPool<Confluent.Kafka.Null, string>(
                 new HashSet<string> { "Test0", "Test1" },
                 GlobalSetUp.Configuration["BootstrapServers"],
                 messagesInTransaction: 100,
@@ -748,7 +748,7 @@ namespace KafkaExchengerTests
                         );
                 }
 
-                Task AfterSend(int bucketId, RequestAwaiterSimple.Output0Message message, KafkaExchengerTests.RequestHeader header)
+                Task AfterSend(int bucketId, RequestAwaiterSimple.Output0Message message, KafkaExchanger.RequestHeader header)
                 {
                     var info = new AddAwaiterInfo()
                     {

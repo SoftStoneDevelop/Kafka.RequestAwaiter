@@ -133,7 +133,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             for (int i = 0; i < requestAwaiter.OutputDatas.Count; i++)
             {
                 builder.Append($@",
-            {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} producerPool{i}");
+            KafkaExchanger.IProducerPool<{requestAwaiter.OutputDatas[i].TypesPair}> producerPool{i}");
 
             }
             builder.Append($@",

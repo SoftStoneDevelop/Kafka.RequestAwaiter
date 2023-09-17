@@ -120,7 +120,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@",
-            {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputData.NameCamelCase}Pool");
+            KafkaExchanger.IProducerPool<{outputData.TypesPair}> {outputData.NameCamelCase}Pool");
             }
             builder.Append($@"
             )

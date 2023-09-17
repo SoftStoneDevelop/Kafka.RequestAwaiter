@@ -21,7 +21,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             {
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
-            public {assemblyName}.RequestHeader {Header(outputData)} {{ get; set; }}
+            public KafkaExchanger.RequestHeader {Header(outputData)} {{ get; set; }}
             public {OutputMessages.TypeFullName(requestAwaiter, outputData)} {Message(outputData)} {{ get; set; }}");
             }
             builder.Append($@"

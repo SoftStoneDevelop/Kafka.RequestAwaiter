@@ -85,7 +85,7 @@ namespace KafkaExchanger.Datas
             OutputData outputData
             )
         {
-            return $"Func<int, {OutputMessages.TypeFullName(this, outputData)}, {assemblyName}.RequestHeader, Task>";
+            return $"Func<int, {OutputMessages.TypeFullName(this, outputData)}, KafkaExchanger.RequestHeader, Task>";
         }
 
         internal bool SetAfterSend(TypedConstant argument)

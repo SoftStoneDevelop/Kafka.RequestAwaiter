@@ -15,18 +15,44 @@ namespace KafkaExchanger
     [Generator]
     public class Generator : IIncrementalGenerator
     {
-        public class ByArrayComparer : IEqualityComparer<(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes)>
+        public class ByArrayComparer : IEqualityComparer<(ImmutableArray<ClassDeclarationSyntax> Nodes, Compilation compilation)>
         {
             public bool Equals(
-               (Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) x,
-               (Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) y)
+               (ImmutableArray<ClassDeclarationSyntax> Nodes, Compilation compilation) left,
+               (ImmutableArray<ClassDeclarationSyntax> Nodes, Compilation compilation) rigth
+                )
             {
-                return x.Nodes.Equals(y.Nodes);
+                if (left.Nodes.Length != rigth.Nodes.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < left.Nodes.Length; i++)
+                {
+                    var leftNode = left.Nodes[i];
+                    var rigthNode = rigth.Nodes[i];
+
+                    if (!leftNode.IsEquivalentTo(rigthNode))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
-            public int GetHashCode((Compilation compilation, ImmutableArray<ClassDeclarationSyntax> Nodes) obj)
+            public int GetHashCode((ImmutableArray<ClassDeclarationSyntax> Nodes, Compilation compilation) obj)
             {
-                return obj.Nodes.GetHashCode();
+                int hash = 0;
+                unchecked
+                {
+                    for (int i = 0; i < obj.Nodes.Length; i++)
+                    {
+                        hash += obj.Nodes[i].GetHashCode();
+                    }
+                }
+
+                return hash;
             }
         }
 
@@ -39,16 +65,21 @@ namespace KafkaExchanger
                 transform: (ctx, _) => GetSemanticClass(ctx))
                 .Where(m => m != null)
                 .Collect()
-                .Select((sel, _) => sel.Distinct().ToImmutableArray())
+                .Select((sel, _) => sel.Distinct())
+                .SelectMany(
+                (sel, _) =>
+                sel.GroupBy(gr => gr.Identifier.ValueText)
+                .Select(grSel => grSel.ToImmutableArray())
+                )
                 ;
 
             var compilationAndClasses =
-                context.CompilationProvider.Combine(classDeclarations)
+                classDeclarations.Combine(context.CompilationProvider)
                 .WithComparer(new ByArrayComparer())
                 ;
 
             context.RegisterSourceOutput(compilationAndClasses,
-                (spc, source) => Execute(source.Item1, source.Item2, spc));
+                (spc, source) => Execute(source.Item2, source.Item1, spc));
         }
 
         static bool IsSyntaxTargetForGeneration(SyntaxNode node)
@@ -107,10 +138,10 @@ namespace KafkaExchanger
         }
 
         //private static int _counter;
-        public void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> types, SourceProductionContext context)
+        public void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> partialGroup, SourceProductionContext context)
         {
             //System.Diagnostics.Debugger.Launch();
-            if (types.IsDefaultOrEmpty)
+            if (partialGroup.IsDefaultOrEmpty)
             {
                 return;
             }
@@ -124,18 +155,11 @@ namespace KafkaExchanger
 //// Counter: {Interlocked.Increment(ref _counter)}
 //");
 
-            var headerGenerator = new HeaderGenerator();
-            headerGenerator.Generate(compilation.AssemblyName, context);
-
-            var distinctTypes = types.GroupBy(gr => gr.Identifier.ValueText);
             var processor = new Processor();
-            foreach (var pariGroup in distinctTypes)
+            foreach (var type in partialGroup)
             {
-                foreach (var type in pariGroup)
-                {
-                    context.CancellationToken.ThrowIfCancellationRequested();
-                    processor.ProcessAttributes(type, compilation, context.CancellationToken);
-                }
+                context.CancellationToken.ThrowIfCancellationRequested();
+                processor.ProcessAttributes(type, compilation, context.CancellationToken);
             }
 
             processor.Generate(compilation.AssemblyName, context, context.CancellationToken);

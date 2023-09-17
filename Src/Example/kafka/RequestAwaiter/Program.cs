@@ -77,7 +77,7 @@ namespace RequestAwaiterConsole
                 await ReCreateTopic(adminClient, outputName);
             }
 
-            var pool = new ProducerPoolNullProto(
+            var pool = new KafkaExchanger.ProducerPool<Confluent.Kafka.Null, byte[]>(
                 new HashSet<string> { "RequestAwaiterConsole0", "RequestAwaiterConsole1" },
                 bootstrapServers,
                 changeConfig: static (config) =>
@@ -209,7 +209,7 @@ namespace RequestAwaiterConsole
             string input0Name,
             string input1Name,
             string outputName,
-            ProducerPoolNullProto pool
+            KafkaExchanger.IProducerPool<Confluent.Kafka.Null, byte[]> pool
             )
         {
             var reqAwaiter = new RequestAwaiter();

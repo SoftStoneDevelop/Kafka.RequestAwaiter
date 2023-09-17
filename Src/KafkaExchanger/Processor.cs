@@ -166,10 +166,6 @@ namespace KafkaExchanger
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var poolsGenerator = new Generators.Pool.Generator();
-            poolsGenerator.FillProducerTypes(_requestAwaiters, _responders);
-            poolsGenerator.Generate(assemblyName, context);
-
             var requestAwaiterGenerator = new KafkaExchanger.Generators.RequestAwaiter.Generator();
             foreach (var requestAwaiter in _requestAwaiters)
             {

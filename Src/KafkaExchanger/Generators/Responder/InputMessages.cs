@@ -29,7 +29,7 @@ namespace KafkaExchanger.Generators.Responder
                 builder.Append($@"
         public class {TypeName(inputData)} : {BaseInputMessage.TypeFullName(responder)}
         {{
-            public {assemblyName}.RequestHeader {Header()} {{ get; set; }}
+            public KafkaExchanger.RequestHeader {Header()} {{ get; set; }}
 
             public Message<{inputData.TypesPair}> {OriginalMessage()} {{ get; set; }}
 ");

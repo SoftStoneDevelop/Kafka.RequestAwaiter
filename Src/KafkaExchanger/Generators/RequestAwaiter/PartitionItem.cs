@@ -272,7 +272,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@",
                 string {outputTopicName(outputData)},
-                {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} {outputPool(outputData)}");
+                KafkaExchanger.IProducerPool<{requestAwaiter.OutputDatas[i].TypesPair}> {outputPool(outputData)}");
 
                 if (requestAwaiter.AfterSend)
                 {
@@ -460,7 +460,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var outputData = requestAwaiter.OutputDatas[i];
                 builder.Append($@"
             private readonly string {_outputTopicName(outputData)};
-            private readonly {Pool.Interface.TypeFullName(assemblyName, requestAwaiter.OutputDatas[i])} {_outputPool(outputData)};");
+            private readonly KafkaExchanger.IProducerPool<{requestAwaiter.OutputDatas[i].TypesPair}> {_outputPool(outputData)};");
 
                 if (requestAwaiter.AfterSend)
                 {
@@ -804,7 +804,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                                         continue;
                                     }}
 
-                                    inputMessage.{InputMessages.Header()} = {assemblyName}.ResponseHeader.Parser.ParseFrom(infoBytes);
+                                    inputMessage.{InputMessages.Header()} = KafkaExchanger.ResponseHeader.Parser.ParseFrom(infoBytes);
                                     if (!{_responseAwaiters()}.TryGetValue(inputMessage.{InputMessages.Header()}.AnswerToMessageGuid, out var awaiter))
                                     {{
                                         continue;
@@ -1194,7 +1194,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
 
         public static string SendFuncType(KafkaExchanger.Datas.RequestAwaiter requestAwaiter, string assemblyName, OutputData outputData)
         {
-            return $"Func<{OutputMessages.TypeFullName(requestAwaiter, outputData)}, {assemblyName}.RequestHeader, Task>";
+            return $"Func<{OutputMessages.TypeFullName(requestAwaiter, outputData)}, KafkaExchanger.RequestHeader, Task>";
         }
 
         public static string SendOutput(OutputData outputData)
@@ -1214,16 +1214,16 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 builder.Append($@"
             private Task {SendOutput(outputData)}(
                 {OutputMessages.TypeFullName(requestAwaiter, outputData)} message,
-                {assemblyName}.RequestHeader header
+                KafkaExchanger.RequestHeader header
                 )
             {{
-                message.{OutputMessages.Message()}.Headers = new Headers
+                message.{OutputMessages.Message()}.Headers = new Confluent.Kafka.Headers
                 {{
                     {{ ""Info"", header.ToByteArray() }}
                 }};
 
                 return 
-                    {_outputPool(outputData)}.{Pool.Interface.Produce()}(
+                    {_outputPool(outputData)}.Produce(
                         {_outputTopicName(outputData)},
                         message.{OutputMessages.Message()}
                         )
@@ -1253,7 +1253,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             KafkaExchanger.Datas.RequestAwaiter requestAwaiter,
             string assemblyName)
         {
-            return $"Func<string, {assemblyName}.RequestHeader>";
+            return $"Func<string, KafkaExchanger.RequestHeader>";
         }
 
         private static void CreateOutputHeader(
@@ -1263,9 +1263,9 @@ namespace KafkaExchanger.Generators.RequestAwaiter
             )
         {
             builder.Append($@"
-            private {assemblyName}.RequestHeader CreateOutputHeader(string guid)
+            private KafkaExchanger.RequestHeader CreateOutputHeader(string guid)
             {{
-                var header = new {assemblyName}.RequestHeader()
+                var header = new KafkaExchanger.RequestHeader()
                 {{
                     MessageGuid = guid
                 }};");
@@ -1275,7 +1275,7 @@ namespace KafkaExchanger.Generators.RequestAwaiter
                 var inputData = requestAwaiter.InputDatas[i];
                 var variable = i == 0 ? $"var topic" : $"topic";
                 builder.Append($@"
-                {variable} = new {assemblyName}.Topic()
+                {variable} = new KafkaExchanger.Topic()
                 {{
                     Name = {_inputTopicName(inputData)}
                 }};

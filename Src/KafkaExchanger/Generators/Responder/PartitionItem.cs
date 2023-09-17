@@ -186,7 +186,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                {Pool.Interface.TypeFullName(assemblyName, outputData)} {outputPool(outputData)},
+                KafkaExchanger.IProducerPool<{outputData.TypesPair}> {outputPool(outputData)},
 ");
             }
 
@@ -420,7 +420,7 @@ namespace KafkaExchanger.Generators.Responder
             {
                 var outputData = responder.OutputDatas[i];
                 builder.Append($@"
-                private readonly {Pool.Interface.TypeFullName(assemblyName, outputData)} {_outputPool(outputData)};");
+                private readonly KafkaExchanger.IProducerPool<{outputData.TypesPair}> {_outputPool(outputData)};");
             }
         }
 
@@ -792,7 +792,7 @@ namespace KafkaExchanger.Generators.Responder
                                         continue;
                                     }}
 
-                                    inputMessage.{InputMessages.Header()} = {assemblyName}.RequestHeader.Parser.ParseFrom(infoBytes);
+                                    inputMessage.{InputMessages.Header()} = KafkaExchanger.RequestHeader.Parser.ParseFrom(infoBytes);
                                     if (!inputMessage.{InputMessages.Header()}.TopicsForAnswer.Any(wh => !wh.CanAnswerFrom.Any() || wh.CanAnswerFrom.Contains({_serviceName()})))
                                     {{
                                         continue;
@@ -952,7 +952,7 @@ namespace KafkaExchanger.Generators.Responder
                         var header = CreateOutputHeader(
                             inputMessage.{InputMessage.Message(inputData)}.{InputMessages.Header()}.MessageGuid
                             );
-                        message.Headers = new Headers
+                        message.Headers = new Confluent.Kafka.Headers
                         {{
                             {{ ""Info"", header.ToByteArray() }}
                         }};
@@ -968,7 +968,7 @@ namespace KafkaExchanger.Generators.Responder
                         {{
                             var index = Interlocked.Increment(ref _partitionIndex) % (uint)topicForAnswer.Partitions.Count;
                             var topicPartition = new TopicPartition(topicForAnswer.Name, topicForAnswer.Partitions[(int)index]);
-                            await {_outputPool(outputData)}.{Pool.Interface.Produce()}(topicPartition, message).ConfigureAwait(false);
+                            await {_outputPool(outputData)}.Produce(topicPartition, message).ConfigureAwait(false);
                         }}
                     }}
 ");
@@ -991,9 +991,9 @@ namespace KafkaExchanger.Generators.Responder
             )
         {
             builder.Append($@"
-            private {assemblyName}.ResponseHeader CreateOutputHeader(string answerToMessageGuid)
+            private KafkaExchanger.ResponseHeader CreateOutputHeader(string answerToMessageGuid)
             {{
-                var header = new {assemblyName}.ResponseHeader()
+                var header = new KafkaExchanger.ResponseHeader()
                 {{
                     AnswerToMessageGuid = answerToMessageGuid,
                     AnswerFrom = {_serviceName()}
