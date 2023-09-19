@@ -57,7 +57,7 @@ namespace KafkaExchengerTests
                         }
                     };
 
-                    return Task.FromResult(result);
+                    return ValueTask.FromResult(result);
                 }
                 );
 
@@ -75,7 +75,7 @@ namespace KafkaExchengerTests
                         }
                     };
 
-                    return Task.FromResult(result);
+                    return ValueTask.FromResult(result);
                 }
                 );
         }
@@ -148,7 +148,7 @@ namespace KafkaExchengerTests
         private ResponderOneToOneSimple.Config CreateResponderConfig(
             string groupId,
             string serviceName,
-            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, Task<ResponderOneToOneSimple.OutputMessage>> createAnswer
+            Func<ResponderOneToOneSimple.InputMessage, KafkaExchanger.Attributes.Enums.CurrentState, ValueTask<ResponderOneToOneSimple.OutputMessage>> createAnswer
             )
         {
             return

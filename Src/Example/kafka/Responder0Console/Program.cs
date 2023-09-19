@@ -41,7 +41,7 @@ namespace Responder0Console
                                 }
                             };
 
-                            return Task.FromResult(result);
+                            return ValueTask.FromResult(result);
                         },
                         input0: new ResponderOneToOneSimple.ConsumerInfo(inputName, new int[] { i })
                         );

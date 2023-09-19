@@ -402,7 +402,8 @@ namespace KafkaExchanger.Generators.Responder
             if(responder.CheckCurrentState)
             {
                 builder.Append($@"
-                var currentState = await {_checkState()}(");
+                var currentState = await {_checkState()}(
+                    {BucketId()},");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     if(i != 0)
@@ -412,10 +413,10 @@ namespace KafkaExchanger.Generators.Responder
 
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
-                    {_partitions(inputData)},
-                    {inputData.NameCamelCase}");
+                    {_partitions(inputData)}");
                 }
-                builder.Append($@"
+                builder.Append($@",
+                    inputMessage
                     ).ConfigureAwait(false);");
             }
             else
@@ -433,7 +434,8 @@ namespace KafkaExchanger.Generators.Responder
             if(responder.AfterSend)
             {
                 builder.Append($@"
-                await {_afterSend()}(");
+                await {_afterSend()}(
+                    {BucketId()},");
                 for (int i = 0; i < responder.InputDatas.Count; i++)
                 {
                     if (i != 0)
@@ -443,10 +445,11 @@ namespace KafkaExchanger.Generators.Responder
 
                     var inputData = responder.InputDatas[i];
                     builder.Append($@"
-                    {_partitions(inputData)},
-                    {inputData.NameCamelCase}");
+                    {_partitions(inputData)}");
                 }
-                builder.Append($@"
+                builder.Append($@",
+                    inputMessage,
+                    outputMessage
                     ).ConfigureAwait(false);");
             }
 

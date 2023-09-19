@@ -47,13 +47,13 @@ namespace KafkaExchanger.Datas
         public string CheckCurrentStateFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<");
+            tempSb.Append("Func<int, ");
             for (int i = 0; i < InputDatas.Count; i++)
             {
                 var inputData = InputDatas[i];
-                tempSb.Append($"int[], {InputMessages.TypeFullName(this, inputData)}, ");
+                tempSb.Append($"int[], ");
             }
-            tempSb.Append("ValueTask<KafkaExchanger.Attributes.Enums.CurrentState>>");
+            tempSb.Append($"{InputMessage.TypeFullName(this)}, ValueTask<KafkaExchanger.Attributes.Enums.CurrentState>>");
 
             return tempSb.ToString();
         }
@@ -76,13 +76,13 @@ namespace KafkaExchanger.Datas
         public string AfterSendFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<");
+            tempSb.Append("Func<int, ");
             for (int i = 0; i < InputDatas.Count; i++)
             {
                 var inputData = InputDatas[i];
-                tempSb.Append($"int[], {InputMessages.TypeFullName(this, inputData)}, ");
+                tempSb.Append($"int[], ");
             }
-            tempSb.Append("ValueTask>");
+            tempSb.Append($"{InputMessage.TypeFullName(this)}, {OutputMessage.TypeFullName(this)}, ValueTask>");
 
             return tempSb.ToString();
         }
@@ -105,7 +105,7 @@ namespace KafkaExchanger.Datas
         public string AfterCommitFuncType()
         {
             var tempSb = new StringBuilder(100);
-            tempSb.Append("Func<long, ");
+            tempSb.Append("Func<int, ");
             for (int i = 0; i < InputDatas.Count; i++)
             {
                 var inputData = InputDatas[i];
@@ -131,7 +131,7 @@ namespace KafkaExchanger.Datas
 
         public string CreateAnswerFuncType()
         {
-            return $"Func<{InputMessage.TypeFullName(this)}, KafkaExchanger.Attributes.Enums.CurrentState, Task<{OutputMessage.TypeFullName(this)}>>";
+            return $"Func<{InputMessage.TypeFullName(this)}, KafkaExchanger.Attributes.Enums.CurrentState, ValueTask<{OutputMessage.TypeFullName(this)}>>";
         }
 
         public string AddNewBucketFuncType()
